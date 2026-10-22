@@ -1,0 +1,12 @@
+testnet 127.0.0.1:52956
+S0 control, server 3.0 <- client 3.0 (CLI, with probe): client started; ok, bytes equal (sent 1000, returned 1000, end: enough, 707 ms)
+S0b control, server 2.4.4 (hs://s000a8c…) <- client 2.4.4: client started; ok, bytes equal (sent 1000, returned 1000, end: enough, 723 ms)
+A1 (a) connection string of server 3.0 «hs_yf4nhucu6…» into client 2.4.4: client NOT started; Error: Invalid character in base32 input: "_" at position 2
+A2 (a, wire level) public key of server 3.0 as hs://0000<z32> into client 2.4.4: client started
+A2 short payload 5 B: FAIL (sent 5, returned 0, end: timeout, 6002 ms)
+A2 payload 64 B: FAIL (sent 64, returned 0, end: close, 4 ms)
+A2 log of server 3.0 (--log 0): 2026-01-02T03:04:05.343Z [Holesail] [WARN] Verification failed for fb1ri6op5k5ph9jmw1rh3aw5ez8964crism7rk51tu3utrexrspo
+B1 (b, public) connection string of server 2.4.4 «hs://0000aij…» into client 3.0: client NOT started; Bail: Error: Invalid invite format
+B2 (b, wire level) 3.0 invite with the key of server 2.4.4 and a random capability, CLI 3.0 (with probe): client NOT started (13142 ms); Bail: Error: connection timed out
+B3 (b, wire level) same key, API 3.0 without probe (only the 33 B tunnel header + payload): PARTIAL, the echo returned the payload with 33 extra bytes at the start (sent 1000, returned 1033, end: enough, 748 ms)
+B1 (b, private) connection string of server 2.4.4 «hs://s000com…» into client 3.0: client NOT started; Bail: Error: Invalid invite format

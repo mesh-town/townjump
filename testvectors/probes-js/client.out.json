@@ -1,0 +1,138 @@
+{
+ "infoBeforeConnect": "TypeError: Cannot read properties of undefined (reading 'port')",
+ "ping": {
+  "secureRec=null + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"port\":1,\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec=null + no insecure": {
+   "type": "object",
+   "json": "null",
+   "isNull": true
+  },
+  "secureRec=5 + insecureRec={\"port\":1}": {
+   "type": "number",
+   "json": "5",
+   "isNull": false
+  },
+  "secureRec=5 + no insecure": {
+   "type": "number",
+   "json": "5",
+   "isNull": false
+  },
+  "secureRec=0 + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"port\":1,\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec=0 + no insecure": {
+   "type": "number",
+   "json": "0",
+   "isNull": false
+  },
+  "secureRec=true + insecureRec={\"port\":1}": {
+   "type": "boolean",
+   "json": "true",
+   "isNull": false
+  },
+  "secureRec=true + no insecure": {
+   "type": "boolean",
+   "json": "true",
+   "isNull": false
+  },
+  "secureRec=false + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"port\":1,\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec=false + no insecure": {
+   "type": "boolean",
+   "json": "false",
+   "isNull": false
+  },
+  "secureRec=\"str\" + insecureRec={\"port\":1}": {
+   "type": "string",
+   "json": "\"str\"",
+   "isNull": false
+  },
+  "secureRec=\"str\" + no insecure": {
+   "type": "string",
+   "json": "\"str\"",
+   "isNull": false
+  },
+  "secureRec=\"\" + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"port\":1,\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec=\"\" + no insecure": {
+   "type": "string",
+   "json": "\"\"",
+   "isNull": false
+  },
+  "secureRec=[] + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "[]",
+   "isNull": false
+  },
+  "secureRec=[] + no insecure": {
+   "type": "object",
+   "json": "[]",
+   "isNull": false
+  },
+  "secureRec=[1] + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "[1]",
+   "isNull": false
+  },
+  "secureRec=[1] + no insecure": {
+   "type": "object",
+   "json": "[1]",
+   "isNull": false
+  },
+  "secureRec={} + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec={} + no insecure": {
+   "type": "object",
+   "json": "{\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec={\"udp\":true,\"port\":2} + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"udp\":true,\"port\":2,\"protocol\":\"udp\"}",
+   "isNull": false
+  },
+  "secureRec={\"udp\":true,\"port\":2} + no insecure": {
+   "type": "object",
+   "json": "{\"udp\":true,\"port\":2,\"protocol\":\"udp\"}",
+   "isNull": false
+  },
+  "secureRec=not json + insecureRec={\"port\":1}": {
+   "type": "object",
+   "json": "{\"port\":1,\"protocol\":\"tcp\"}",
+   "isNull": false
+  },
+  "secureRec=not json + no insecure": {
+   "type": "object",
+   "json": "null",
+   "isNull": true
+  }
+ },
+ "retrieved": {
+  "5": "5",
+  "{\"host\":\"127.0.0.1\", \"port\": 1e2}": "{\"host\":\"127.0.0.1\",\"port\":100}",
+  "{ \"port\" : 8080 , \"host\" : \"a\" }": "{\"port\":8080,\"host\":\"a\"}",
+  "{\"b\":1,\"a\":2,\"1\":3,\"0\":4}": "{\"0\":4,\"1\":3,\"b\":1,\"a\":2}",
+  "{\"port\":1.50,\"x\":-0,\"y\":1E+30,\"z\":0.000001}": "{\"port\":1.5,\"x\":0,\"y\":1e+30,\"z\":0.000001}",
+  "{\"s\":\"é😀\n\u0007\"}": "THROW Bad control character in string literal in JSON at position 9 (line 1 column 10)",
+  "{\"a\":1,\"a\":2}": "{\"a\":2}",
+  "[1, 2]": "[1,2]",
+  "\"str\"": "\"str\"",
+  "{\"udp\":true,\"host\":null}": "{\"udp\":true,\"host\":null}",
+  "{\"port\":12345678901234567890}": "{\"port\":12345678901234567000}"
+ }
+}

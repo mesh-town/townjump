@@ -1,0 +1,273 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/deltas.plugin (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "hyperdht": "6.34.0",
+   "dht-rpc": "6.27.0"
+  }
+ },
+ "note": "Requests (external hyperdht commands; PING and one PLUGIN row carry the internal flag for comparison) to two testnet nodes on 127.0.0.1: withoutId — the first node (no id, not persistent, receiving internal commands is closed), withId — a persistent node with an id obtained normally (dht-rpc: _updateNetworkState from neighbor samples). outcome is reply (error 0/code) or error (exception code: REQUEST_TIMEOUT — silence). Request timeout 700 ms without retransmissions. Keys new/old: hyperdht 6.34.0 / 6.30.0.",
+ "new": {
+  "version": "6.34.0",
+  "withoutId": {
+   "hasPluginsApi": true,
+   "persistent": false,
+   "hasId": false,
+   "ephemeral": true,
+   "results": [
+    {
+     "label": "control: PING (0), internal",
+     "internal": true,
+     "command": 0,
+     "outcome": "reply",
+     "error": 0,
+     "value": null
+    },
+    {
+     "label": "control: FIND_PEER (2), external, 32-byte target",
+     "internal": false,
+     "command": 2,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, value null",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"x\" v1 cmd 2 (the plugin is registered on the node only for withId)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"y\" v1 cmd 2 (the plugin is not registered)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), internal (internal flag: dht-rpc does not pass it to hyperdht)",
+     "internal": true,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "unknown external (11)",
+     "internal": false,
+     "command": 11,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    }
+   ]
+  },
+  "withId": {
+   "hasPluginsApi": true,
+   "persistent": true,
+   "hasId": true,
+   "ephemeral": false,
+   "results": [
+    {
+     "label": "control: PING (0), internal",
+     "internal": true,
+     "command": 0,
+     "outcome": "reply",
+     "error": 0,
+     "value": null
+    },
+    {
+     "label": "control: FIND_PEER (2), external, 32-byte target",
+     "internal": false,
+     "command": 2,
+     "outcome": "reply",
+     "error": 0,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, value null",
+     "internal": false,
+     "command": 10,
+     "outcome": "error",
+     "code": "REQUEST_TIMEOUT",
+     "errorNumber": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"x\" v1 cmd 2 (the plugin is registered on the node only for withId)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 0,
+     "value": "706f6e67"
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"y\" v1 cmd 2 (the plugin is not registered)",
+     "internal": false,
+     "command": 10,
+     "outcome": "error",
+     "code": "REQUEST_TIMEOUT",
+     "errorNumber": null
+    },
+    {
+     "label": "PLUGIN (10), internal (internal flag: dht-rpc does not pass it to hyperdht)",
+     "internal": true,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "unknown external (11)",
+     "internal": false,
+     "command": 11,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    }
+   ]
+  }
+ },
+ "old": {
+  "version": "6.30.0",
+  "withoutId": {
+   "hasPluginsApi": false,
+   "persistent": false,
+   "hasId": false,
+   "ephemeral": true,
+   "results": [
+    {
+     "label": "control: PING (0), internal",
+     "internal": true,
+     "command": 0,
+     "outcome": "reply",
+     "error": 0,
+     "value": null
+    },
+    {
+     "label": "control: FIND_PEER (2), external, 32-byte target",
+     "internal": false,
+     "command": 2,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, value null",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"x\" v1 cmd 2 (the plugin is registered on the node only for withId)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"y\" v1 cmd 2 (the plugin is not registered)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), internal (internal flag: dht-rpc does not pass it to hyperdht)",
+     "internal": true,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "unknown external (11)",
+     "internal": false,
+     "command": 11,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    }
+   ]
+  },
+  "withId": {
+   "hasPluginsApi": false,
+   "persistent": true,
+   "hasId": true,
+   "ephemeral": false,
+   "results": [
+    {
+     "label": "control: PING (0), internal",
+     "internal": true,
+     "command": 0,
+     "outcome": "reply",
+     "error": 0,
+     "value": null
+    },
+    {
+     "label": "control: FIND_PEER (2), external, 32-byte target",
+     "internal": false,
+     "command": 2,
+     "outcome": "reply",
+     "error": 0,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, value null",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"x\" v1 cmd 2 (the plugin is registered on the node only for withId)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), external, pluginRequest \"y\" v1 cmd 2 (the plugin is not registered)",
+     "internal": false,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "PLUGIN (10), internal (internal flag: dht-rpc does not pass it to hyperdht)",
+     "internal": true,
+     "command": 10,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    },
+    {
+     "label": "unknown external (11)",
+     "internal": false,
+     "command": 11,
+     "outcome": "reply",
+     "error": 1,
+     "value": null
+    }
+   ]
+  }
+ }
+}

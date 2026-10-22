@@ -1,0 +1,13 @@
+[36mHolesail CLI - Instantly share and connect to servers[0m
+  [36m
+Connect to a Holesail server[0m    
+  [1mUsage:[0m
+  [33mholesail --connect <key> [options][0m
+  [33mholesail <key> [options][0m
+  
+  [1mOptions:[0m
+  [33m--host <address>[0m   Use a custom host.
+  [33m--udp[0m              Use UDP protocol.
+  [33m--port <port>[0m      Use a custom port.
+  [33m--public[0m           Force the connection to use public mode (otherwise autodetected).
+    

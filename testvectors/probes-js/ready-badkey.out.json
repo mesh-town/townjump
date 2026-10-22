@@ -1,0 +1,18 @@
+{
+ "not!valid": {
+  "new": "ok",
+  "ready": {
+   "name": "Error",
+   "message": "Invalid character in base32 input: \"!\" at position 3"
+  },
+  "logLines": 0
+ },
+ "!!!": {
+  "new": "ok",
+  "ready": {
+   "name": "Error",
+   "message": "Invalid character in base32 input: \"!\" at position 0"
+  },
+  "logLines": 0
+ }
+}

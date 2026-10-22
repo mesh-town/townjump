@@ -1,0 +1,35 @@
+[package]
+name = "libudx"
+version = "1.7.3"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+description = "Pure Rust implementation of the UDX protocol (tokio-compatible)"
+readme = "README.md"
+keywords = ["udp", "transport", "networking", "p2p", "congestion-control"]
+categories = ["network-programming", "asynchronous"]
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
+[dependencies]
+socket2 = "0.6"
+tokio = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+# "Do not fragment" option (native/socket_dontfrag.rs): socket2 0.6 does not provide it, so it is set with a raw setsockopt. Both dependencies are already in the graph (socket2 uses them too).
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = ">=0.60, <0.62", features = ["Win32_Networking_WinSock"] }
+
+[dev-dependencies]
+rand = "0.9"
+serde_json = { workspace = true }
+sha2 = "0.10"
+tokio = { workspace = true, features = ["full", "test-util"] }
+tracing-subscriber = "0.3"

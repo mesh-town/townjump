@@ -1,0 +1,907 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/deltas.udx (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "udx-native": "1.21.3"
+  }
+ },
+ "note": "Raw UDP peer against a JS udx-native stream: new = 1.21.3 (reference), old = 1.19.2. Packets are whole hex (20-byte LE header: [0]=ff [1]=01 [2]=type [3]=data_offset [4..8)=remote_id [8..12)=window [12..16)=seq [16..20)=ack). approxMs rounded to 100 ms, tolerance ±50. JS stream: id 5, remote_id 7.",
+ "versions": {
+  "new": "1.21.3",
+  "old": "1.19.2"
+ },
+ "results": {
+  "new": {
+   "packetsOnWire": {
+    "emptyMessage": [
+     {
+      "type": 8,
+      "seq": 0,
+      "ack": 0,
+      "len": 20,
+      "hex": "ff01080007000000000040000000000000000000"
+     }
+    ],
+    "keepalive300": {
+     "firstHeartbeat": {
+      "type": 32,
+      "seq": 0,
+      "ack": 0,
+      "len": 20,
+      "hex": "ff01200007000000000040000000000000000000"
+     },
+     "countIn1000ms": 3,
+     "gapsMs": [
+      300,
+      300
+     ]
+    }
+   },
+   "heartbeatReply": [
+    {
+     "label": "plain",
+     "sent": "ff01200005000000000040000000000000000000",
+     "replies": [
+      {
+       "type": 0,
+       "seq": 0,
+       "ack": 0,
+       "len": 20,
+       "hex": "ff01000007000000000040000000000000000000"
+      }
+     ]
+    },
+    {
+     "label": "garbage fields",
+     "sent": "ff0120000500000000000000e703000039300000",
+     "replies": [
+      {
+       "type": 0,
+       "seq": 0,
+       "ack": 0,
+       "len": 20,
+       "hex": "ff01000007000000000040000000000000000000"
+      }
+     ]
+    }
+   ],
+   "ackPerData": {
+    "steps": [
+     {
+      "sentSeq": 0,
+      "sent": "ff01010005000000000040000000000000000000a0",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 1,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000001000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 1,
+      "sent": "ff01010005000000000040000100000000000000a1",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 2,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000002000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 2,
+      "sent": "ff01010005000000000040000200000000000000a2",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 3,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000003000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 4,
+      "sent": "ff01010005000000000040000400000000000000a4",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 3,
+        "len": 28,
+        "hex": "ff010400070000000000400000000000030000000400000005000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 5,
+      "sent": "ff01010005000000000040000500000000000000a5",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 3,
+        "len": 28,
+        "hex": "ff010400070000000000400000000000030000000400000006000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 7,
+      "sent": "ff01010005000000000040000700000000000000a7",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 3,
+        "len": 36,
+        "hex": "ff0104000700000000004000000000000300000004000000060000000700000008000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 3,
+      "sent": "ff01010005000000000040000300000000000000a3",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 6,
+        "len": 28,
+        "hex": "ff010400070000000000400000000000060000000700000008000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 6,
+      "sent": "ff01010005000000000040000600000000000000a6",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 8,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000008000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 2,
+      "sent": "ff01010005000000000040000200000000000000a2",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 8,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000008000000"
+       }
+      ]
+     }
+    ],
+    "deliveredInOrder": [
+     "a0",
+     "a1",
+     "a2",
+     "a3",
+     "a4",
+     "a5",
+     "a6",
+     "a7"
+    ]
+   },
+   "zwp": [
+    {
+     "approxMs": 100,
+     "type": 32,
+     "len": 20
+    },
+    {
+     "approxMs": 1100,
+     "type": 32,
+     "len": 20
+    },
+    {
+     "approxMs": 3100,
+     "type": 32,
+     "len": 20
+    },
+    {
+     "approxMs": 5100,
+     "type": 32,
+     "len": 20
+    },
+    {
+     "approxMs": 7100,
+     "type": 32,
+     "len": 20
+    }
+   ],
+   "rto": {
+    "packets": [
+     {
+      "approxMs": 0,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 1000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 3000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 5000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 7000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 9000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 11000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     }
+    ],
+    "events": [
+     {
+      "approxMs": 13000,
+      "error": "ETIMEDOUT"
+     },
+     {
+      "approxMs": 13000,
+      "close": true
+     }
+    ]
+   },
+   "strictSack_valid": {
+    "label": "valid: ack=0, block [0,2)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        2
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     5
+    ]
+   },
+   "strictSack_endEqSeq": {
+    "label": "end == seq: ack=0, block [0,6) (seq=6)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        6
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": []
+   },
+   "strictSack_endAboveSeq": {
+    "label": "end > seq: ack=0, block [0,7)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        7
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     0
+    ]
+   },
+   "strictSack_startBelowAcked": {
+    "label": "start < remote_acked: ack=2, block [1,3)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 2,
+      "blocks": [
+       [
+        1,
+        3
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     2,
+     5
+    ]
+   },
+   "strictSack_startAtAcked": {
+    "label": "control, start == remote_acked: ack=2, block [2,4)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 2,
+      "blocks": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     4
+    ]
+   },
+   "strictSack_startEqEnd": {
+    "label": "start == end: ack=0, blocks [0,0) then [0,2)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        2
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     5
+    ]
+   },
+   "strictSack_endBelowStart": {
+    "label": "end < start: ack=0, blocks [5,0) then [0,2)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        5,
+        0
+       ],
+       [
+        0,
+        2
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     5
+    ]
+   },
+   "strictSack_mixed": {
+    "label": "valid and invalid in one packet: ack=0, blocks [0,2) then [4,9)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        2
+       ],
+       [
+        4,
+        9
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     5
+    ]
+   }
+  },
+  "old": {
+   "packetsOnWire": {
+    "emptyMessage": [
+     {
+      "type": 8,
+      "seq": 0,
+      "ack": 0,
+      "len": 20,
+      "hex": "ff01080007000000000040000000000000000000"
+     }
+    ],
+    "keepalive300": {
+     "error": "setKeepalive is missing in this version of udx-native"
+    }
+   },
+   "heartbeatReply": [
+    {
+     "label": "plain",
+     "sent": "ff01200005000000000040000000000000000000",
+     "replies": []
+    },
+    {
+     "label": "garbage fields",
+     "sent": "ff0120000500000000000000e703000039300000",
+     "replies": []
+    }
+   ],
+   "ackPerData": {
+    "steps": [
+     {
+      "sentSeq": 0,
+      "sent": "ff01010005000000000040000000000000000000a0",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 1,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000001000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 1,
+      "sent": "ff01010005000000000040000100000000000000a1",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 2,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000002000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 2,
+      "sent": "ff01010005000000000040000200000000000000a2",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 3,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000003000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 4,
+      "sent": "ff01010005000000000040000400000000000000a4",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 3,
+        "len": 28,
+        "hex": "ff010400070000000000400000000000030000000400000005000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 5,
+      "sent": "ff01010005000000000040000500000000000000a5",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 3,
+        "len": 28,
+        "hex": "ff010400070000000000400000000000030000000400000006000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 7,
+      "sent": "ff01010005000000000040000700000000000000a7",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 3,
+        "len": 36,
+        "hex": "ff0104000700000000004000000000000300000004000000060000000700000008000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 3,
+      "sent": "ff01010005000000000040000300000000000000a3",
+      "replies": [
+       {
+        "type": 4,
+        "seq": 0,
+        "ack": 6,
+        "len": 28,
+        "hex": "ff010400070000000000400000000000060000000700000008000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 6,
+      "sent": "ff01010005000000000040000600000000000000a6",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 8,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000008000000"
+       }
+      ]
+     },
+     {
+      "sentSeq": 2,
+      "sent": "ff01010005000000000040000200000000000000a2",
+      "replies": [
+       {
+        "type": 0,
+        "seq": 0,
+        "ack": 8,
+        "len": 20,
+        "hex": "ff01000007000000000040000000000008000000"
+       }
+      ]
+     }
+    ],
+    "deliveredInOrder": [
+     "a0",
+     "a1",
+     "a2",
+     "a3",
+     "a4",
+     "a5",
+     "a6",
+     "a7"
+    ]
+   },
+   "zwp": [
+    {
+     "approxMs": 100,
+     "type": 1,
+     "len": 25
+    }
+   ],
+   "rto": {
+    "packets": [
+     {
+      "approxMs": 0,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 1000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 3000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 5000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 7000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 9000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     },
+     {
+      "approxMs": 11000,
+      "type": 1,
+      "len": 25,
+      "seq": 0
+     }
+    ],
+    "events": [
+     {
+      "approxMs": 13000,
+      "error": "ETIMEDOUT"
+     },
+     {
+      "approxMs": 13000,
+      "close": true
+     }
+    ]
+   },
+   "strictSack_valid": {
+    "label": "valid: ack=0, block [0,2)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        2
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "strictSack_endEqSeq": {
+    "label": "end == seq: ack=0, block [0,6) (seq=6)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        6
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": []
+   },
+   "strictSack_endAboveSeq": {
+    "label": "end > seq: ack=0, block [0,7)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        7
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": []
+   },
+   "strictSack_startBelowAcked": {
+    "label": "start < remote_acked: ack=2, block [1,3)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 2,
+      "blocks": [
+       [
+        1,
+        3
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     3,
+     4,
+     5
+    ]
+   },
+   "strictSack_startAtAcked": {
+    "label": "control, start == remote_acked: ack=2, block [2,4)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 2,
+      "blocks": [
+       [
+        2,
+        4
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     4,
+     5
+    ]
+   },
+   "strictSack_startEqEnd": {
+    "label": "start == end: ack=0, blocks [0,0) then [0,2)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        0
+       ],
+       [
+        0,
+        2
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     2,
+     3,
+     4,
+     5
+    ]
+   },
+   "strictSack_mixed": {
+    "label": "valid and invalid in one packet: ack=0, blocks [0,2) then [4,9)",
+    "firstDataSeqs": [
+     0,
+     1,
+     2,
+     3,
+     4,
+     5
+    ],
+    "plan": [
+     {
+      "ack": 0,
+      "blocks": [
+       [
+        0,
+        2
+       ],
+       [
+        4,
+        9
+       ]
+      ]
+     }
+    ],
+    "retransmittedSeqsIn1500ms": [
+     2,
+     3
+    ]
+   }
+  }
+ }
+}

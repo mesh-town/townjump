@@ -1,0 +1,122 @@
+== open / direct: S server=53600 client=53754; holders=3; to=127.0.0.1:53600
+    C sends from C.client(54601) -> 127.0.0.1:53600 len=156 byte0=3
+    S PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:54601 arrived on S.server peerAddress=null relayAddress=null
+    SERVER reply: arrived on S.server, reply.socket=null (=arrival socket)
+    S sends from S.server(53600) -> 127.0.0.1:54601 len=133 byte0=19
+    CLIENT got handshake reply: serverAddress=127.0.0.1:53600 clientAddress=127.0.0.1:54601 relayed=false
+   connect opened=true
+== open / relay: S server=60505 client=63535; holders=3; to=127.0.0.1:52423
+    C sends from C.client(50162) -> 127.0.0.1:52423 len=156 byte0=3
+    N5 PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:50162 arrived on N5.server peerAddress=null relayAddress=null
+    S PEER_HANDSHAKE FROM_RELAY from=127.0.0.1:52423 arrived on S.server peerAddress=127.0.0.1:50162 relayAddress=null
+    SERVER reply: arrived on S.server, reply.socket=null (=arrival socket)
+    S sends from S.server(60505) -> 127.0.0.1:52423 len=172 byte0=3
+    N5 PEER_HANDSHAKE FROM_SERVER from=127.0.0.1:60505 arrived on N5.server peerAddress=127.0.0.1:50162 relayAddress=null
+    CLIENT got handshake reply: serverAddress=127.0.0.1:60505 clientAddress=127.0.0.1:50162 relayed=true
+   connect opened=true
+== open / second: S server=58912 client=60083; holders=3; to=127.0.0.1:58959
+    C sends from C.client(62226) -> 127.0.0.1:58959 len=162 byte0=3
+    N2 PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:62226 arrived on N2.server peerAddress=null relayAddress=127.0.0.1:52925
+    N4 PEER_HANDSHAKE FROM_RELAY from=127.0.0.1:58959 arrived on N4.server peerAddress=127.0.0.1:62226 relayAddress=null
+    S PEER_HANDSHAKE FROM_SECOND_RELAY from=127.0.0.1:52925 arrived on S.server peerAddress=127.0.0.1:62226 relayAddress=127.0.0.1:58959
+    SERVER reply: arrived on S.server, reply.socket=null (=arrival socket)
+    S sends from S.server(58912) -> 127.0.0.1:58959 len=172 byte0=3
+    N2 PEER_HANDSHAKE FROM_SERVER from=127.0.0.1:58912 arrived on N2.server peerAddress=127.0.0.1:62226 relayAddress=null
+    CLIENT got handshake reply: serverAddress=127.0.0.1:58912 clientAddress=127.0.0.1:62226 relayed=true
+   connect opened=true
+== fw-nolan / direct: S server=61487 client=62314; holders=3; to=127.0.0.1:61487
+    C sends from C.client(62333) -> 127.0.0.1:61487 len=156 byte0=3
+    S PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:62333 arrived on S.server peerAddress=null relayAddress=null
+    SERVER reply: arrived on S.server, reply.socket=null (=arrival socket)
+    S sends from S.server(61487) -> 127.0.0.1:62333 len=132 byte0=19
+    CLIENT got handshake reply: serverAddress=127.0.0.1:61487 clientAddress=127.0.0.1:62333 relayed=false
+   connect opened=true
+== fw-nolan / relay: S server=63909 client=49171; holders=3; to=127.0.0.1:58959
+    C sends from C.client(59856) -> 127.0.0.1:58959 len=156 byte0=3
+    N2 PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:59856 arrived on N2.server peerAddress=null relayAddress=null
+    S PEER_HANDSHAKE FROM_RELAY from=127.0.0.1:58959 arrived on S.client peerAddress=127.0.0.1:59856 relayAddress=null
+    S sends from S.pool1(57034) -> 127.0.0.1:58959 len=11 byte0=3
+    S sends from S.pool1(57034) -> 127.0.0.1:55683 len=11 byte0=3
+    S sends from S.pool1(57034) -> 127.0.0.1:52925 len=11 byte0=3
+    S sends from S.pool1(57034) -> 127.0.0.1:55682 len=11 byte0=3
+    SERVER reply: arrived on S.client, reply.socket=S.pool1
+    S sends from S.pool1(57034) -> 127.0.0.1:58959 len=171 byte0=3
+    N2 PEER_HANDSHAKE FROM_SERVER from=127.0.0.1:57034 arrived on N2.server peerAddress=127.0.0.1:59856 relayAddress=null
+    CLIENT got handshake reply: serverAddress=127.0.0.1:57034 clientAddress=127.0.0.1:59856 relayed=true
+    C sends from C.pool0(64798) -> 127.0.0.1:58959 len=11 byte0=3
+    C sends from C.pool0(64798) -> 127.0.0.1:54032 len=11 byte0=3
+    C sends from C.pool0(64798) -> 127.0.0.1:55683 len=11 byte0=3
+    C sends from C.pool0(64798) -> 127.0.0.1:55682 len=11 byte0=3
+    C sends from C.pool0(64798) -> 127.0.0.1:58959 len=104 byte0=3
+    S sends from S.pool1(57034) -> 127.0.0.1:58959 len=137 byte0=3
+   connect opened=true
+== fw-nolan / second: S server=50714 client=58550; holders=3; to=127.0.0.1:58959
+    C sends from C.client(63531) -> 127.0.0.1:58959 len=162 byte0=3
+    N2 PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:63531 arrived on N2.server peerAddress=null relayAddress=127.0.0.1:52925
+    N4 PEER_HANDSHAKE FROM_RELAY from=127.0.0.1:58959 arrived on N4.server peerAddress=127.0.0.1:63531 relayAddress=null
+    S PEER_HANDSHAKE FROM_SECOND_RELAY from=127.0.0.1:52925 arrived on S.client peerAddress=127.0.0.1:63531 relayAddress=127.0.0.1:58959
+    S sends from S.pool1(52191) -> 127.0.0.1:52925 len=11 byte0=3
+    S sends from S.pool1(52191) -> 127.0.0.1:55683 len=11 byte0=3
+    S sends from S.pool1(52191) -> 127.0.0.1:58959 len=11 byte0=3
+    S sends from S.pool1(52191) -> 127.0.0.1:54032 len=11 byte0=3
+    SERVER reply: arrived on S.client, reply.socket=S.pool1
+    S sends from S.pool1(52191) -> 127.0.0.1:58959 len=171 byte0=3
+    N2 PEER_HANDSHAKE FROM_SERVER from=127.0.0.1:52191 arrived on N2.server peerAddress=127.0.0.1:63531 relayAddress=null
+    CLIENT got handshake reply: serverAddress=127.0.0.1:52191 clientAddress=127.0.0.1:63531 relayed=true
+    C sends from C.pool0(62548) -> 127.0.0.1:58959 len=11 byte0=3
+    C sends from C.pool0(62548) -> 127.0.0.1:54032 len=11 byte0=3
+    C sends from C.pool0(62548) -> 127.0.0.1:55683 len=11 byte0=3
+    C sends from C.pool0(62548) -> 127.0.0.1:55682 len=11 byte0=3
+    C sends from C.pool0(62548) -> 127.0.0.1:58959 len=104 byte0=3
+    S sends from S.pool1(52191) -> 127.0.0.1:58959 len=137 byte0=3
+   connect opened=true
+== fw-lan / direct: S server=63764 client=63636; holders=3; to=127.0.0.1:63764
+    C sends from C.client(59857) -> 127.0.0.1:63764 len=163 byte0=3
+    S PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:59857 arrived on S.server peerAddress=null relayAddress=null
+    SERVER reply: arrived on S.server, reply.socket=null (=arrival socket)
+    S sends from S.server(63764) -> 127.0.0.1:59857 len=139 byte0=19
+    CLIENT got handshake reply: serverAddress=127.0.0.1:63764 clientAddress=127.0.0.1:59857 relayed=false
+   connect opened=true
+== fw-lan / relay: S server=51750 client=51869; holders=3; to=127.0.0.1:52658
+    C sends from C.client(65240) -> 127.0.0.1:52658 len=163 byte0=3
+    N3 PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:65240 arrived on N3.server peerAddress=null relayAddress=null
+    S PEER_HANDSHAKE FROM_RELAY from=127.0.0.1:52658 arrived on S.client peerAddress=127.0.0.1:65240 relayAddress=null
+    S sends from S.pool1(51281) -> 127.0.0.1:52658 len=11 byte0=3
+    S sends from S.pool1(51281) -> 127.0.0.1:55682 len=11 byte0=3
+    S sends from S.pool1(51281) -> 127.0.0.1:52423 len=11 byte0=3
+    S sends from S.pool1(51281) -> 127.0.0.1:54032 len=11 byte0=3
+    SERVER reply: arrived on S.client, reply.socket=null (=arrival socket)
+    S sends from S.client(51869) -> 127.0.0.1:52658 len=178 byte0=3
+    N3 PEER_HANDSHAKE FROM_SERVER from=127.0.0.1:51869 arrived on N3.server peerAddress=127.0.0.1:65240 relayAddress=null
+    CLIENT got handshake reply: serverAddress=127.0.0.1:51869 clientAddress=127.0.0.1:65240 relayed=true
+    C sends from C.client(65240) -> 127.0.0.1:51750 len=11 byte0=3
+    C sends from C.pool0(52306) -> 127.0.0.1:52658 len=11 byte0=3
+    C sends from C.pool0(52306) -> 127.0.0.1:52925 len=11 byte0=3
+    C sends from C.pool0(52306) -> 127.0.0.1:58959 len=11 byte0=3
+    C sends from C.pool0(52306) -> 127.0.0.1:55682 len=11 byte0=3
+    C sends from C.pool0(52306) -> 127.0.0.1:52658 len=104 byte0=3
+    S sends from S.server(51750) -> 127.0.0.1:65240 len=10 byte0=19
+    S sends from S.pool1(51281) -> 127.0.0.1:52658 len=137 byte0=3
+   connect opened=true
+== fw-lan / second: S server=57736 client=60747; holders=3; to=127.0.0.1:55682
+    C sends from C.client(62081) -> 127.0.0.1:55682 len=169 byte0=3
+    N1 PEER_HANDSHAKE FROM_CLIENT from=127.0.0.1:62081 arrived on N1.server peerAddress=null relayAddress=127.0.0.1:52423
+    N5 PEER_HANDSHAKE FROM_RELAY from=127.0.0.1:55682 arrived on N5.server peerAddress=127.0.0.1:62081 relayAddress=null
+    S PEER_HANDSHAKE FROM_SECOND_RELAY from=127.0.0.1:52423 arrived on S.client peerAddress=127.0.0.1:62081 relayAddress=127.0.0.1:55682
+    S sends from S.pool1(56815) -> 127.0.0.1:52423 len=11 byte0=3
+    S sends from S.pool1(56815) -> 127.0.0.1:55682 len=11 byte0=3
+    S sends from S.pool1(56815) -> 127.0.0.1:52658 len=11 byte0=3
+    S sends from S.pool1(56815) -> 127.0.0.1:52925 len=11 byte0=3
+    SERVER reply: arrived on S.client, reply.socket=null (=arrival socket)
+    S sends from S.client(60747) -> 127.0.0.1:55682 len=178 byte0=3
+    N1 PEER_HANDSHAKE FROM_SERVER from=127.0.0.1:60747 arrived on N1.server peerAddress=127.0.0.1:62081 relayAddress=null
+    CLIENT got handshake reply: serverAddress=127.0.0.1:60747 clientAddress=127.0.0.1:62081 relayed=true
+    C sends from C.client(62081) -> 127.0.0.1:57736 len=11 byte0=3
+    C sends from C.pool0(51116) -> 127.0.0.1:55682 len=11 byte0=3
+    C sends from C.pool0(51116) -> 127.0.0.1:52423 len=11 byte0=3
+    C sends from C.pool0(51116) -> 127.0.0.1:52658 len=11 byte0=3
+    C sends from C.pool0(51116) -> 127.0.0.1:52925 len=11 byte0=3
+    C sends from C.pool0(51116) -> 127.0.0.1:55682 len=104 byte0=3
+    S sends from S.server(57736) -> 127.0.0.1:62081 len=10 byte0=19
+    S sends from S.pool1(56815) -> 127.0.0.1:55682 len=137 byte0=3
+   connect opened=true
