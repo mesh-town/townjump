@@ -1,0 +1,76 @@
+{
+ "udpServer_normal": {
+  "serviceGot": [
+   "hello",
+   "a",
+   "bb"
+  ],
+  "writtenToRemoteBytes": [
+   9
+  ],
+  "log": [
+   "DEBUG Data from remote to local: 9 bytes",
+   "DEBUG Data from local to remote: 5 bytes",
+   "DEBUG Data from remote to local: 11 bytes"
+  ]
+ },
+ "udpServer_afterStreamError": {
+  "writableEnded": true,
+  "events": [
+   "error",
+   "finish"
+  ],
+  "newDatagrams": 0,
+  "log": [
+   "DEBUG Data from remote to local: 15 bytes"
+  ]
+ },
+ "udpServer_afterRemoteEnd": {
+  "writableEnded": true,
+  "events": [
+   "end",
+   "finish",
+   "close"
+  ],
+  "log": []
+ },
+ "udpProxy_busyPort": {
+  "thrownSynchronously": {
+   "name": "Error",
+   "code": "EADDRINUSE",
+   "message": "address already in use"
+  },
+  "onBindCalled": false,
+  "log": []
+ },
+ "udpProxy_remoteEndVsDestroy": {
+  "afterPushNull": {
+   "events": [
+    "end"
+   ],
+   "clients": 1,
+   "log": []
+  },
+  "afterDestroy": {
+   "events": [
+    "end",
+    "close"
+   ],
+   "clients": 0,
+   "log": [
+    "DEBUG Remote close for 127.0.0.1:58695"
+   ]
+  }
+ },
+ "tcpProxy_directions": [
+  "DEBUG Data from local to remote: 6 bytes",
+  "DEBUG Data from remote to local: 4 bytes"
+ ],
+ "connPiper_directions": [
+  "DEBUG Data from local to remote: 5 bytes",
+  "DEBUG Data from remote to local: 7 bytes"
+ ],
+ "connPiper_remoteWrittenFromLoc": [
+  "12345"
+ ]
+}

@@ -1,0 +1,118 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/secret-stream.negative (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "@hyperswarm/secret-stream": "6.9.2"
+  }
+ },
+ "note": "Responder with ready IK keys (see ik-hyperdht.json) gets corrupted chunks; errors — Error messages from destroy. The write limit is checked with an initiator-responder pair.",
+ "cases": [
+  {
+   "label": "header id wrong",
+   "description": "first byte of id changed",
+   "inputChunks": [
+    "380000a07a84241fe672327be52e435fc89ba7a16c68e5bc15903d8f1c7fdd15b820a3650ddac2fd33ef07285da2d722e6b9f422c89a6dff090d95"
+   ],
+   "plainReceived": [],
+   "errors": [
+    "Invalid header received"
+   ],
+   "destroyed": true
+  },
+  {
+   "label": "header wrong length",
+   "description": "header length 55 bytes instead of 56 (prefix 0x37)",
+   "inputChunks": [
+    "370000a17a84241fe672327be52e435fc89ba7a16c68e5bc15903d8f1c7fdd15b820a3650ddac2fd33ef07285da2d722e6b9f422c89a6dff090d"
+   ],
+   "plainReceived": [],
+   "errors": [
+    "Invalid header message received"
+   ],
+   "destroyed": true
+  },
+  {
+   "label": "header body short of prefix",
+   "description": "prefix promises 56 bytes, 55 arrived: the parser waits for the rest, no error",
+   "inputChunks": [
+    "380000a17a84241fe672327be52e435fc89ba7a16c68e5bc15903d8f1c7fdd15b820a3650ddac2fd33ef07285da2d722e6b9f422c89a6dff090d"
+   ],
+   "plainReceived": [],
+   "errors": [],
+   "destroyed": false
+  },
+  {
+   "label": "frame tampered",
+   "description": "last ciphertext byte of the first frame changed",
+   "inputChunks": [
+    "380000a17a84241fe672327be52e435fc89ba7a16c68e5bc15903d8f1c7fdd15b820a3650ddac2fd33ef07285da2d722e6b9f422c89a6dff090d95",
+    "1200000323476417d291844122386ea38c016e35c8"
+   ],
+   "plainReceived": [],
+   "errors": [
+    "pull failed"
+   ],
+   "destroyed": true
+  },
+  {
+   "label": "frame shorter than ABYTES",
+   "description": "a 10-byte frame (less than 17 authentication bytes)",
+   "inputChunks": [
+    "380000a17a84241fe672327be52e435fc89ba7a16c68e5bc15903d8f1c7fdd15b820a3650ddac2fd33ef07285da2d722e6b9f422c89a6dff090d95",
+    "0a000000000000000000000000"
+   ],
+   "plainReceived": [],
+   "errors": [
+    "Invalid message received"
+   ],
+   "destroyed": true
+  },
+  {
+   "label": "frame before header",
+   "description": "frame instead of header: the length is not 56",
+   "inputChunks": [
+    "1200000323476417d291844122386ea38c016e35c9"
+   ],
+   "plainReceived": [],
+   "errors": [
+    "Invalid header message received"
+   ],
+   "destroyed": true
+  },
+  {
+   "label": "XX msg1 31 bytes",
+   "description": "XX responder got a 31-byte msg1 (32 needed)",
+   "inputChunks": [
+    "1f000000000000000000000000000000000000000000000000000000000000000000"
+   ],
+   "errors": [
+    "Noise handshake failed"
+   ],
+   "destroyed": true
+  },
+  {
+   "label": "isInitiator not boolean",
+   "description": "new NoiseSecretStream(\"yes\", null)",
+   "errors": [
+    "isInitiator should be a boolean"
+   ]
+  },
+  {
+   "label": "write of 16777198 bytes",
+   "description": "frame limit: 3 + n + 17 - 3 <= 16777215, that is n <= 16777198",
+   "plainLen": 16777198,
+   "errors": [],
+   "destroyed": false
+  },
+  {
+   "label": "write of 16777199 bytes",
+   "description": "frame limit: 3 + n + 17 - 3 <= 16777215, that is n <= 16777198",
+   "plainLen": 16777199,
+   "errors": [
+    "Message is too large for an atomic write. Max size is 16777215 bytes."
+   ],
+   "destroyed": true
+  }
+ ]
+}

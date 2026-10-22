@@ -1,0 +1,16 @@
+// A silent peer: the JS stream writes 5 bytes, there are no replies. Prints the packet moments and the close time.
+const dgram = require('dgram')
+const UDX = require(process.env.UDXPATH)
+const raw = dgram.createSocket('udp4')
+const t0 = Date.now()
+raw.on('message', (m) => console.log(Date.now() - t0, 'ms', m.length, 'B', m.toString('hex').slice(0, 40)))
+raw.bind(0, '127.0.0.1', () => {
+  const u = new UDX()
+  const sock = u.createSocket(); sock.bind(0, '127.0.0.1')
+  const s = u.createStream(5)
+  s.on('error', (e) => console.log(Date.now() - t0, 'ms error', e.code || e.message))
+  s.on('close', () => { console.log(Date.now() - t0, 'ms close'); process.exit(0) })
+  s.connect(sock, 7, raw.address().port, '127.0.0.1')
+  s.write(Buffer.from('hello'))
+  setTimeout(() => { console.log('timeout, no close'); process.exit(0) }, 40000)
+})

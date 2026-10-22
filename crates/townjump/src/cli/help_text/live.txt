@@ -1,0 +1,11 @@
+[36mHolesail CLI - Instantly share and connect to servers[0m
+  [36m
+Reverse proxy a specific port[0m    
+  [1mUsage:[0m
+  [33mholesail --live <port> [options][0m
+  [1mOptions:[0m
+  [33m--host <address>[0m   Use a custom host.
+  [33m--udp[0m              Use UDP protocol.
+  [33m--public[0m           Uses a different key to connect than the one used to start the server.
+  [33m--key <key>[0m        Set a custom key.
+    

@@ -1,0 +1,22 @@
+[package]
+name = "townjump-dht"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Traits of the DHT network: the seam between the Holesail layer and an implementation (peeroxide or a mock)."
+
+[dependencies]
+townjump-keys.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+
+[lints]
+workspace = true

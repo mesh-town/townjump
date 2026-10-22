@@ -1,0 +1,128 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/deltas.blind-relay (see all.mjs)",
+  "node": "24.x",
+  "versions": {}
+ },
+ "note": "Blind-relay server without a network: new = 1.6.1, old = 1.4.0. Token is 32 bytes of 0x42. Order of streams in the destroyed arrays: [responder, initiator] (the server creates them by links[+isInitiator]); initiatorSessionGone = the initiator connection to the server dropped.",
+ "results": {
+  "new": {
+   "initiatorUnpair": {
+    "before": {
+     "streamsCreatedByServer": 2,
+     "destroyed": [
+      false,
+      false
+     ]
+    },
+    "after": {
+     "destroyed": [
+      true,
+      true
+     ]
+    },
+    "serverStats": {
+     "pairingsMatched": 1,
+     "pairingsCancelled": 1,
+     "streamsOpened": 2,
+     "streamsClosed": 2,
+     "sessionsClosed": 0
+    }
+   },
+   "responderUnpair": {
+    "before": {
+     "streamsCreatedByServer": 2,
+     "destroyed": [
+      false,
+      false
+     ]
+    },
+    "after": {
+     "destroyed": [
+      true,
+      true
+     ]
+    },
+    "serverStats": {
+     "pairingsMatched": 1,
+     "pairingsCancelled": 1,
+     "streamsOpened": 2,
+     "streamsClosed": 2,
+     "sessionsClosed": 0
+    }
+   },
+   "initiatorSessionGone": {
+    "before": {
+     "streamsCreatedByServer": 2,
+     "destroyed": [
+      false,
+      false
+     ]
+    },
+    "after": {
+     "destroyed": [
+      false,
+      true
+     ]
+    },
+    "serverStats": {
+     "pairingsMatched": 1,
+     "pairingsCancelled": 0,
+     "streamsOpened": 2,
+     "streamsClosed": 1,
+     "sessionsClosed": 1
+    }
+   }
+  },
+  "old": {
+   "initiatorUnpair": {
+    "before": {
+     "streamsCreatedByServer": 2,
+     "destroyed": [
+      false,
+      false
+     ]
+    },
+    "after": {
+     "destroyed": [
+      false,
+      true
+     ]
+    },
+    "serverStats": "no stats in this version"
+   },
+   "responderUnpair": {
+    "before": {
+     "streamsCreatedByServer": 2,
+     "destroyed": [
+      false,
+      false
+     ]
+    },
+    "after": {
+     "destroyed": [
+      true,
+      false
+     ]
+    },
+    "serverStats": "no stats in this version"
+   },
+   "initiatorSessionGone": {
+    "before": {
+     "streamsCreatedByServer": 2,
+     "destroyed": [
+      false,
+      false
+     ]
+    },
+    "after": {
+     "destroyed": [
+      false,
+      true
+     ]
+    },
+    "serverStats": "no stats in this version"
+   }
+  }
+ }
+}

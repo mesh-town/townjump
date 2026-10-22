@@ -1,0 +1,26 @@
+[package]
+name = "townjump-testkit"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Test support: reference-vector loader, mock DHT, shared conformance suite (dev-only)."
+
+[dependencies]
+townjump-dht.workspace = true
+townjump-keys.workspace = true
+townjump-logger.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+hex.workspace = true
+ed25519-dalek.workspace = true
+
+[dev-dependencies]
+
+[lints]
+workspace = true

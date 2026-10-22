@@ -1,0 +1,82 @@
+{
+ "server secure=true no key": {
+  "secure": true,
+  "keyIsRandom": true,
+  "seedLen": 64
+ },
+ "server secure=true key=K": {
+  "secure": true,
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=false no key": {
+  "secure": false,
+  "keyIsRandom": false
+ },
+ "server secure=false key=K": {
+  "secure": false,
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=\"false\" no key": {
+  "secure": "false",
+  "keyIsRandom": true,
+  "seedLen": 64
+ },
+ "server secure=\"false\" key=K": {
+  "secure": "false",
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=\"true\" no key": {
+  "secure": "true",
+  "keyIsRandom": true,
+  "seedLen": 64
+ },
+ "server secure=\"true\" key=K": {
+  "secure": "true",
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=0 no key": {
+  "secure": 0,
+  "keyIsRandom": false
+ },
+ "server secure=0 key=K": {
+  "secure": 0,
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=1 no key": {
+  "secure": 1,
+  "keyIsRandom": true,
+  "seedLen": 64
+ },
+ "server secure=1 key=K": {
+  "secure": 1,
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=undefined no key": {
+  "keyIsRandom": false
+ },
+ "server secure=undefined key=K": {
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "server secure=\"\" no key": {
+  "secure": "",
+  "keyIsRandom": false
+ },
+ "server secure=\"\" key=K": {
+  "secure": "",
+  "key": "KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK",
+  "seed": "07a98710826ae6fb9194e7c0a2c46e86227315fa75e42c21ea856d6f2d95d9d2"
+ },
+ "serverModule": {
+  "1": false,
+  "true": true,
+  "\"false\"": false,
+  "\"true\"": false
+ }
+}

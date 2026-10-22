@@ -1,0 +1,22 @@
+[package]
+name = "townjump-jsval"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "JavaScript value semantics needed for argv and DHT records (`Number#toString`, JSON, port validation)."
+
+[dependencies]
+thiserror.workspace = true
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["float_roundtrip"] }
+
+[lints]
+workspace = true

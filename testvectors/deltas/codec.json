@@ -1,0 +1,663 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/deltas.codec (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "hyperdht": "6.34.0",
+   "compact-encoding": "3.5.2",
+   "protomux": "3.12.1",
+   "hypercore-crypto": "3.7.0"
+  }
+ },
+ "note": "D1 (NS_PLUGIN, pluginRequest, NS prefixes), D12 (c.uint, c.buffer on compact-encoding 3.5.2 = new, 2.19.2 = old), D13 (protomux frames on 3.12.1 = new, 3.10.1 = old).",
+ "d1": {
+  "commands": {
+   "PEER_HANDSHAKE": 0,
+   "PEER_HOLEPUNCH": 1,
+   "FIND_PEER": 2,
+   "LOOKUP": 3,
+   "ANNOUNCE": 4,
+   "UNANNOUNCE": 5,
+   "MUTABLE_PUT": 6,
+   "MUTABLE_GET": 7,
+   "IMMUTABLE_PUT": 8,
+   "IMMUTABLE_GET": 9,
+   "PLUGIN": 10
+  },
+  "nsPlugin": "6b8a2a8623f28c6c02a1e22abe515ce31cafd9af61d4b69970639aa7eb96a8d5",
+  "namespaces": [
+   {
+    "id": 0,
+    "hex": "14d6d4b49214ab1033ed204976caa258bae9e1e8543b9ad1fd996a910b0c4e3a"
+   },
+   {
+    "id": 1,
+    "hex": "f1191cd5e67b10b54a507033280ed1ff0e12278268d5679c8f93d417210d168b"
+   },
+   {
+    "id": 2,
+    "hex": "0ea5f9f225bac23c9e6396d3f8842089c4723d72163be3c7cbcb56485c969834"
+   },
+   {
+    "id": 3,
+    "hex": "c9e2bffb41e679fcae30a0328a33d111d99fa1f538c9411ebfe70cea6818c059"
+   },
+   {
+    "id": 4,
+    "hex": "36386adddf9f6fd60db83a6f42fc159d1146aa8644037664230aaa1f0179d497"
+   },
+   {
+    "id": 5,
+    "hex": "ded293cd93fb395e756ecf5fff426529e72c36eacc22e5ed944d9099a2561e32"
+   },
+   {
+    "id": 6,
+    "hex": "668e823edd5ce7f5338d68bf1161f4a3c28ce437ee2ab49efd30d99366039b1e"
+   },
+   {
+    "id": 7,
+    "hex": "cda4d97105a38a415f17cd0e0923a257a2a2ee28f9106c7f11fa7cbe4b9e2bc4"
+   },
+   {
+    "id": 8,
+    "hex": "1ce0cc184aa7d8159d79d8015ecbe91cdbd2b3be7857b79d14a6419f074c8d75"
+   },
+   {
+    "id": 9,
+    "hex": "ff40419103cc021440a9f727c76174ac56fcfe20fa698c29d71e8ad8fd8dbe35"
+   },
+   {
+    "id": 10,
+    "hex": "6b8a2a8623f28c6c02a1e22abe515ce31cafd9af61d4b69970639aa7eb96a8d5"
+   },
+   {
+    "id": 11,
+    "hex": "d3c98c1e7a84e405e4ed73a8d9292105ddc5c96a000ac6c8827dae73631232ee"
+   },
+   {
+    "id": 12,
+    "hex": "4d7cd7a2bcad2c60768ce4047ade9fea9dfaf1dc289acdaa2396f11f59bbf4c7"
+   }
+  ],
+  "pluginRequest": [
+   {
+    "label": "value null",
+    "plugin": "x",
+    "version": 1,
+    "command": 2,
+    "valueHex": "null",
+    "encodedHex": "0178010200",
+    "decoded": {
+     "plugin": "x",
+     "version": 1,
+     "command": 2,
+     "value": "null"
+    }
+   },
+   {
+    "label": "value empty Buffer",
+    "plugin": "x",
+    "version": 1,
+    "command": 2,
+    "valueHex": "",
+    "encodedHex": "017801020100",
+    "decoded": {
+     "plugin": "x",
+     "version": 1,
+     "command": 2,
+     "value": ""
+    }
+   },
+   {
+    "label": "value aabb",
+    "plugin": "x",
+    "version": 1,
+    "command": 2,
+    "valueHex": "aabb",
+    "encodedHex": "017801020102aabb",
+    "decoded": {
+     "plugin": "x",
+     "version": 1,
+     "command": 2,
+     "value": "aabb"
+    }
+   },
+   {
+    "label": "value undefined (key absent)",
+    "plugin": "x",
+    "version": 1,
+    "command": 2,
+    "valueHex": "absent",
+    "encodedHex": "0178010200",
+    "decoded": {
+     "plugin": "x",
+     "version": 1,
+     "command": 2,
+     "value": "null"
+    }
+   }
+  ]
+ },
+ "d12": {
+  "new": {
+   "version": "3.5.2",
+   "uints": [
+    {
+     "value": "0",
+     "encoded": {
+      "ok": "00"
+     }
+    },
+    {
+     "value": "252",
+     "encoded": {
+      "ok": "fc"
+     }
+    },
+    {
+     "value": "253",
+     "encoded": {
+      "ok": "fdfd00"
+     }
+    },
+    {
+     "value": "65535",
+     "encoded": {
+      "ok": "fdffff"
+     }
+    },
+    {
+     "value": "65536",
+     "encoded": {
+      "ok": "fe00000100"
+     }
+    },
+    {
+     "value": "4294967295",
+     "encoded": {
+      "ok": "feffffffff"
+     }
+    },
+    {
+     "value": "4294967296",
+     "encoded": {
+      "ok": "ff0000000001000000"
+     }
+    },
+    {
+     "value": "9007199254740991",
+     "encoded": {
+      "ok": "ffffffffffffff1f00"
+     }
+    },
+    {
+     "value": "9007199254740992",
+     "encoded": {
+      "error": "uint must be between 0 and 9007199254740991, use biguint"
+     }
+    }
+   ],
+   "decodeUints": [
+    {
+     "hex": "00",
+     "decoded": {
+      "ok": "0"
+     }
+    },
+    {
+     "hex": "fc",
+     "decoded": {
+      "ok": "252"
+     }
+    },
+    {
+     "hex": "fdfd00",
+     "decoded": {
+      "ok": "253"
+     }
+    },
+    {
+     "hex": "fdffff",
+     "decoded": {
+      "ok": "65535"
+     }
+    },
+    {
+     "hex": "fe00000100",
+     "decoded": {
+      "ok": "65536"
+     }
+    },
+    {
+     "hex": "feffffffff",
+     "decoded": {
+      "ok": "4294967295"
+     }
+    },
+    {
+     "hex": "ff0000000001000000",
+     "decoded": {
+      "ok": "4294967296"
+     }
+    },
+    {
+     "hex": "ffffffffffffff1f00",
+     "decoded": {
+      "ok": "9007199254740991"
+     }
+    },
+    {
+     "hex": "ff0000000000002000",
+     "decoded": {
+      "error": "uint must be between 0 and 9007199254740991, use biguint"
+     }
+    },
+    {
+     "hex": "ffffffffffffffff",
+     "decoded": {
+      "error": "Out of bounds"
+     }
+    }
+   ],
+   "bufferDecode": [
+    {
+     "hex": "00",
+     "decoded": {
+      "ok": ""
+     }
+    },
+    {
+     "hex": "03aabbcc",
+     "decoded": {
+      "ok": "aabbcc"
+     }
+    },
+    {
+     "hex": "0300",
+     "decoded": {
+      "error": "Out of bounds"
+     }
+    },
+    {
+     "hex": "03aa",
+     "decoded": {
+      "error": "Out of bounds"
+     }
+    }
+   ],
+   "bufferEncode": [
+    {
+     "label": "null",
+     "encoded": {
+      "error": "Cannot read properties of null (reading 'length')"
+     }
+    },
+    {
+     "label": "empty",
+     "encoded": {
+      "ok": "00"
+     }
+    },
+    {
+     "label": "aabb",
+     "encoded": {
+      "ok": "02aabb"
+     }
+    }
+   ],
+   "rawBufferEmpty": {
+    "ok": ""
+   }
+  },
+  "old": {
+   "version": "2.19.2",
+   "uints": [
+    {
+     "value": "0",
+     "encoded": {
+      "ok": "00"
+     }
+    },
+    {
+     "value": "252",
+     "encoded": {
+      "ok": "fc"
+     }
+    },
+    {
+     "value": "253",
+     "encoded": {
+      "ok": "fdfd00"
+     }
+    },
+    {
+     "value": "65535",
+     "encoded": {
+      "ok": "fdffff"
+     }
+    },
+    {
+     "value": "65536",
+     "encoded": {
+      "ok": "fe00000100"
+     }
+    },
+    {
+     "value": "4294967295",
+     "encoded": {
+      "ok": "feffffffff"
+     }
+    },
+    {
+     "value": "4294967296",
+     "encoded": {
+      "ok": "ff0000000001000000"
+     }
+    },
+    {
+     "value": "9007199254740991",
+     "encoded": {
+      "ok": "ffffffffffffff1f00"
+     }
+    },
+    {
+     "value": "9007199254740992",
+     "encoded": {
+      "ok": "ff0000000000002000"
+     }
+    }
+   ],
+   "decodeUints": [
+    {
+     "hex": "00",
+     "decoded": {
+      "ok": "0"
+     }
+    },
+    {
+     "hex": "fc",
+     "decoded": {
+      "ok": "252"
+     }
+    },
+    {
+     "hex": "fdfd00",
+     "decoded": {
+      "ok": "253"
+     }
+    },
+    {
+     "hex": "fdffff",
+     "decoded": {
+      "ok": "65535"
+     }
+    },
+    {
+     "hex": "fe00000100",
+     "decoded": {
+      "ok": "65536"
+     }
+    },
+    {
+     "hex": "feffffffff",
+     "decoded": {
+      "ok": "4294967295"
+     }
+    },
+    {
+     "hex": "ff0000000001000000",
+     "decoded": {
+      "ok": "4294967296"
+     }
+    },
+    {
+     "hex": "ffffffffffffff1f00",
+     "decoded": {
+      "ok": "9007199254740991"
+     }
+    },
+    {
+     "hex": "ff0000000000002000",
+     "decoded": {
+      "ok": "9007199254740992"
+     }
+    },
+    {
+     "hex": "ffffffffffffffff",
+     "decoded": {
+      "error": "Out of bounds"
+     }
+    }
+   ],
+   "bufferDecode": [
+    {
+     "hex": "00",
+     "decoded": {
+      "ok": "null"
+     }
+    },
+    {
+     "hex": "03aabbcc",
+     "decoded": {
+      "ok": "aabbcc"
+     }
+    },
+    {
+     "hex": "0300",
+     "decoded": {
+      "error": "Out of bounds"
+     }
+    },
+    {
+     "hex": "03aa",
+     "decoded": {
+      "error": "Out of bounds"
+     }
+    }
+   ],
+   "bufferEncode": [
+    {
+     "label": "null",
+     "encoded": {
+      "ok": "00"
+     }
+    },
+    {
+     "label": "empty",
+     "encoded": {
+      "ok": "00"
+     }
+    },
+    {
+     "label": "aabb",
+     "encoded": {
+      "ok": "02aabb"
+     }
+    }
+   ],
+   "rawBufferEmpty": {
+    "ok": ""
+   }
+  }
+ },
+ "d13": {
+  "new": {
+   "version": "3.12.1",
+   "note": "writtenAfterFrame — bytes that mux wrote to the stream in response (without the frame length: secret-stream adds it)",
+   "frames": [
+    {
+     "label": "plain message ch1 \"abc\"",
+     "frameHex": "010003616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "01000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch one exact (len 5)",
+     "frameHex": "000001050003616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "01000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch two \"abc\",\"def\"",
+     "frameHex": "000001050003616263050003646566",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "0000010300015203000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch two \"R\",\"R\" (reply is batch)",
+     "frameHex": "0000010300015203000152",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "0000010300015203000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch len 0x14 > rest",
+     "frameHex": "000001140003616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "01000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch len 0x14 > rest, string longer than data",
+     "frameHex": "000001140009616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [],
+     "streamDestroyed": true,
+     "closed": "channel closed",
+     "err": "Out of bounds"
+    },
+    {
+     "label": "batch len 0 then switch channel, empty rest",
+     "frameHex": "0000010001",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch empty",
+     "frameHex": "000001",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    }
+   ]
+  },
+  "old": {
+   "version": "3.10.1",
+   "note": "writtenAfterFrame — bytes that mux wrote to the stream in response (without the frame length: secret-stream adds it)",
+   "frames": [
+    {
+     "label": "plain message ch1 \"abc\"",
+     "frameHex": "010003616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "01000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch one exact (len 5)",
+     "frameHex": "000001050003616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "01000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch two \"abc\",\"def\"",
+     "frameHex": "000001050003616263050003646566",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "0000010300015203000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch two \"R\",\"R\" (reply is batch)",
+     "frameHex": "0000010300015203000152",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "0000010300015203000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch len 0x14 > rest",
+     "frameHex": "000001140003616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "00000103000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch len 0x14 > rest, string longer than data",
+     "frameHex": "000001140009616263",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [
+      "00000103000152"
+     ],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch len 0 then switch channel, empty rest",
+     "frameHex": "0000010001",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    },
+    {
+     "label": "batch empty",
+     "frameHex": "000001",
+     "writtenAfterOpen": [],
+     "writtenAfterFrame": [],
+     "streamDestroyed": false,
+     "closed": null,
+     "err": null
+    }
+   ]
+  }
+ }
+}

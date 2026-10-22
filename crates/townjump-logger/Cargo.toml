@@ -1,0 +1,20 @@
+[package]
+name = "townjump-logger"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "The debug log and the channel for unhandled errors."
+
+[dependencies]
+tokio.workspace = true
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+
+[lints]
+workspace = true

@@ -1,0 +1,147 @@
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  check-tag:
+    name: check tag matches Cargo.toml
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare tag and workspace version
+        id: v
+        run: |
+          set -euo pipefail
+          version=$(sed -n '/^\[workspace.package\]/,/^\[/{s/^version *= *"\(.*\)"/\1/p}' Cargo.toml | head -n 1)
+          if [ -z "$version" ]; then
+            echo "cannot read version from Cargo.toml" >&2
+            exit 1
+          fi
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${version}" >&2
+            exit 1
+          fi
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: build (${{ matrix.target }})
+    needs: check-tag
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-15
+            zig: false
+          - target: x86_64-apple-darwin
+            os: macos-15
+            zig: false
+          - target: x86_64-unknown-linux-musl
+            os: ubuntu-24.04
+            zig: true
+          - target: aarch64-unknown-linux-musl
+            os: ubuntu-24.04
+            zig: true
+          - target: armv7-unknown-linux-musleabihf
+            os: ubuntu-24.04
+            zig: true
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+            zig: false
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install toolchain
+        shell: bash
+        run: |
+          rustup show active-toolchain || rustup toolchain install
+          rustup target add "${{ matrix.target }}"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+      - name: Install zig and cargo-zigbuild
+        if: matrix.zig
+        run: |
+          pip3 install --user ziglang
+          cargo install cargo-zigbuild --locked
+      - name: Build (native)
+        if: ${{ !matrix.zig }}
+        run: cargo build --release --locked -p townjump --target ${{ matrix.target }}
+      - name: Build (zigbuild)
+        if: matrix.zig
+        run: cargo zigbuild --release --locked -p townjump --target ${{ matrix.target }}
+      - name: Binary name
+        id: bin
+        shell: bash
+        run: |
+          set -euo pipefail
+          bin=$(cargo metadata --no-deps --format-version 1 | jq -r --arg p townjump '.packages[]|select(.name==$p).targets[]|select(.kind==["bin"]).name')
+          test -n "$bin"
+          echo "bin=$bin" >> "$GITHUB_OUTPUT"
+      - name: Package (unix)
+        if: ${{ !contains(matrix.target, 'windows') }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="townjump-${VERSION}-${{ matrix.target }}"
+          mkdir "$name"
+          cp "target/${{ matrix.target }}/release/${{ steps.bin.outputs.bin }}" LICENSE README.md "$name/"
+          tar -czf "$name.tar.gz" "$name"
+          echo "ASSET=$name.tar.gz" >> "$GITHUB_ENV"
+      - name: Package (windows)
+        if: contains(matrix.target, 'windows')
+        shell: bash
+        run: |
+          set -euo pipefail
+          name="townjump-${VERSION}-${{ matrix.target }}"
+          mkdir "$name"
+          cp "target/${{ matrix.target }}/release/${{ steps.bin.outputs.bin }}.exe" LICENSE README.md "$name/"
+          7z a -tzip "$name.zip" "$name"
+          echo "ASSET=$name.zip" >> "$GITHUB_ENV"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-${{ matrix.target }}
+          path: ${{ env.ASSET }}
+          if-no-files-found: error
+
+  publish:
+    name: publish release
+    needs: [check-tag, build]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: asset-*
+          merge-multiple: true
+          path: dist
+      - name: Source archive
+        run: |
+          git archive --format=tar.gz --prefix="townjump-${VERSION}/" \
+            -o "dist/townjump-${VERSION}.tar.gz" "${GITHUB_REF_NAME}"
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum -- *.tar.gz *.zip > SHA256SUMS
+      - name: Create release
+        run: |
+          gh release create "${GITHUB_REF_NAME}" dist/* \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${GITHUB_REF_NAME}" \
+            --generate-notes
