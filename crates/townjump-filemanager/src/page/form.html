@@ -1,0 +1,22 @@
+
+    <form method="POST" action="{{ACTION}}">
+        <div>
+            <label for="item_type">New Item Type</label>
+            <select name="item_type" id="item_type">
+                <option value="folder">Folder</option>
+                <option value="file">File</option>
+            </select>
+        </div>
+        <div>
+            <label for="name">Name</label>
+            <input type="text" name="name" id="name" placeholder="Name of the file/folder*" required>
+        </div>
+        <div>
+            <label for="directory">Select Directory</label>
+            <select name="directory" id="directory">
+                <option value="">Current Directory</option>
+                {{OPTIONS}}
+            </select>
+        </div>
+        <button class="btn" type="submit">Create</button>
+    </form>

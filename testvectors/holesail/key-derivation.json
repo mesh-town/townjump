@@ -1,0 +1,2227 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/holesail.key-derivation (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "holesail": "2.4.4",
+   "holesail-server": "2.4.0",
+   "holesail-client": "2.3.0",
+   "hyperdht": "6.34.0",
+   "z32": "1.1.0",
+   "hyper-cmd-lib-keys": "0.1.1"
+  }
+ },
+ "note": "Real new Holesail(opts) + HolesailServer.generateKeyPair + HolesailClient (constructor) without a network. randomBytes is replaced: always rnd. Server: seedHex — h.seed (hex sha256 K or null), generatedSeedHex — the seed the pair was built with (random without a secret), serverKey — HolesailServer.key, infoKey/url — Holesail.info. Client: seedZ32OrKey — h.seed, publicKey — HolesailClient.publicKey. Errors are as is (name, message). For K without a URL wrapper the same is in holesail-cli/keyderivation-vectors.json (checked by the script).",
+ "randomBytesHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+ "vectors": [
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "infoKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "url": "hs://0000bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "abc",
+    "secure": null
+   },
+   "result": {
+    "seedZ32OrKey": "abc",
+    "secureFlag": false,
+    "publicKey": "c058",
+    "keyPair": null
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": true,
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "infoKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "url": "hs://0000bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "abc",
+    "secure": false
+   },
+   "result": {
+    "seedZ32OrKey": "abc",
+    "secureFlag": false,
+    "publicKey": "c058",
+    "keyPair": null
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abc"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": "false",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abcdefghijklmnopqrstuvwxyz012345",
+    "seed": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "generatedSeedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "secretKey": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "serverKey": "e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y",
+    "infoKey": "e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y",
+    "url": "hs://0000e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"l\" at position 11"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abcdefghijklmnopqrstuvwxyz012345",
+    "seed": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "generatedSeedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "secretKey": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "serverKey": "cw75njn6ok8h5j84kx6pme666s6zci8gk84wsoj1sh6zj31rgzny",
+    "infoKey": "abcdefghijklmnopqrstuvwxyz012345",
+    "url": "hs://s000abcdefghijklmnopqrstuvwxyz012345"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abcdefghijklmnopqrstuvwxyz012345",
+    "seed": "cw75njn6ok8h5j84kx6pme666s6zci8gk84wsoj1sh6zj31rgzny",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "cw75njn6ok8h5j84kx6pme666s6zci8gk84wsoj1sh6zj31rgzny",
+    "secureFlag": true,
+    "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "keyPair": {
+     "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+     "secretKey": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abcdefghijklmnopqrstuvwxyz012345",
+    "seed": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "generatedSeedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "secretKey": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "serverKey": "e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y",
+    "infoKey": "e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y",
+    "url": "hs://0000e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"l\" at position 11"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abcdefghijklmnopqrstuvwxyz012345",
+    "seed": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "generatedSeedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4",
+    "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "secretKey": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "serverKey": "e39hbuw6g3z3nns5ayy5695h759g9r7z6b5ajfh8h8sikeusaa8y",
+    "infoKey": "abcdefghijklmnopqrstuvwxyz012345",
+    "url": "hs://s000abcdefghijklmnopqrstuvwxyz012345"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "abcdefghijklmnopqrstuvwxyz012345"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abcdefghijklmnopqrstuvwxyz012345",
+    "seed": "cw75njn6ok8h5j84kx6pme666s6zci8gk84wsoj1sh6zj31rgzny",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "cw75njn6ok8h5j84kx6pme666s6zci8gk84wsoj1sh6zj31rgzny",
+    "secureFlag": "false",
+    "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+    "keyPair": {
+     "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+     "secretKey": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "3whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o",
+    "infoKey": "3whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o",
+    "url": "hs://00003whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"0\" at position 0"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secureFlag": true,
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "keyPair": {
+     "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+     "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "3whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o",
+    "infoKey": "3whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o",
+    "url": "hs://00003whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"0\" at position 0"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "3whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secureFlag": "false",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "keyPair": {
+     "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+     "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "seed": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "generatedSeedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "secretKey": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a29f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "serverKey": "uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy",
+    "infoKey": "uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy",
+    "url": "hs://0000uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"κ\" at position 0"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "seed": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "generatedSeedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "secretKey": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a29f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "serverKey": "qki6783ynburhpc75hqnxag3ug7foyn7wiommw878sma6paio6ty",
+    "infoKey": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "url": "hs://s000κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "seed": "qki6783ynburhpc75hqnxag3ug7foyn7wiommw878sma6paio6ty",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "qki6783ynburhpc75hqnxag3ug7foyn7wiommw878sma6paio6ty",
+    "secureFlag": true,
+    "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "keyPair": {
+     "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+     "secretKey": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a29f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "seed": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "generatedSeedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "secretKey": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a29f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "serverKey": "uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy",
+    "infoKey": "uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy",
+    "url": "hs://0000uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"κ\" at position 0"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "seed": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "generatedSeedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2",
+    "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "secretKey": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a29f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "serverKey": "uh5oyun18y8k5uq75zydftoncnjahuxaknwehgbfegctwa8797gy",
+    "infoKey": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "url": "hs://s000κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ-κλωξ",
+    "seed": "qki6783ynburhpc75hqnxag3ug7foyn7wiommw878sma6paio6ty",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "qki6783ynburhpc75hqnxag3ug7foyn7wiommw878sma6paio6ty",
+    "secureFlag": "false",
+    "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+    "keyPair": {
+     "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+     "secretKey": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a29f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": true,
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": true,
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": true,
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000abc"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": true,
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "infoKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "url": "hs://0000bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "abc",
+    "secure": null
+   },
+   "result": {
+    "seedZ32OrKey": "abc",
+    "secureFlag": false,
+    "publicKey": "c058",
+    "keyPair": null
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": true,
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "infoKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "url": "hs://0000bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "abc",
+    "secure": false
+   },
+   "result": {
+    "seedZ32OrKey": "abc",
+    "secureFlag": false,
+    "publicKey": "c058",
+    "keyPair": null
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "generatedSeedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "serverKey": "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y",
+    "infoKey": "abc",
+    "url": "hs://s000abc"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000abc"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "abc",
+    "seed": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8fwnd9sdhoynsso",
+    "secureFlag": "false",
+    "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+    "keyPair": {
+     "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+     "secretKey": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secureFlag": true,
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "keyPair": {
+     "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+     "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secureFlag": true,
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "keyPair": {
+     "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+     "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secureFlag": true,
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "keyPair": {
+     "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+     "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "secureFlag": true,
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "keyPair": {
+     "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+     "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "generatedSeedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "secretKey": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "serverKey": "61pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy",
+    "infoKey": "61pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy",
+    "url": "hs://000061pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "secure": null
+   },
+   "result": {
+    "seedZ32OrKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "secureFlag": false,
+    "publicKey": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "keyPair": null
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "generatedSeedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "secretKey": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "serverKey": "eezo1444k38ng4o7rcb1q1qyapyjjg1c8ezi1wdgaznc57ey3zro",
+    "infoKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "url": "hs://s000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "eezo1444k38ng4o7rcb1q1qyapyjjg1c8ezi1wdgaznc57ey3zro",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "eezo1444k38ng4o7rcb1q1qyapyjjg1c8ezi1wdgaznc57ey3zro",
+    "secureFlag": true,
+    "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "keyPair": {
+     "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+     "secretKey": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "generatedSeedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "secretKey": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "serverKey": "61pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy",
+    "infoKey": "61pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy",
+    "url": "hs://000061pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "secure": false
+   },
+   "result": {
+    "seedZ32OrKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "secureFlag": false,
+    "publicKey": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "keyPair": null
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "generatedSeedHex": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9",
+    "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "secretKey": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "serverKey": "61pjxp59up7exe1grh84dfigdxex7cjpfnu67ja11bkcidjwjmzy",
+    "infoKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "url": "hs://s000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "seed": "eezo1444k38ng4o7rcb1q1qyapyjjg1c8ezi1wdgaznc57ey3zro",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "eezo1444k38ng4o7rcb1q1qyapyjjg1c8ezi1wdgaznc57ey3zro",
+    "secureFlag": "false",
+    "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+    "keyPair": {
+     "publicKey": "f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee",
+     "secretKey": "422f096b5a564e236a1d23032749c0c340949a4c3a2f595066c5c4cdf500cdc9f49a97b77f9b7a87a246270fa196a61bd0feb12d28a7eea7129054ca8d344aee"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "123456",
+    "seed": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "generatedSeedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "secretKey": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c920363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "serverKey": "yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay",
+    "infoKey": "yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay",
+    "url": "hs://0000yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"2\" at position 1"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "123456",
+    "seed": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "generatedSeedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "secretKey": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c920363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "serverKey": "tsmj755q3mjhfgt4ckjeb3wg3hgd6zk4o4z981o1yegjrqshp1jy",
+    "infoKey": "123456",
+    "url": "hs://s000123456"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "123456",
+    "seed": "tsmj755q3mjhfgt4ckjeb3wg3hgd6zk4o4z981o1yegjrqshp1jy",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "tsmj755q3mjhfgt4ckjeb3wg3hgd6zk4o4z981o1yegjrqshp1jy",
+    "secureFlag": true,
+    "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "keyPair": {
+     "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+     "secretKey": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c920363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "123456",
+    "seed": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "generatedSeedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "secretKey": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c920363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "serverKey": "yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay",
+    "infoKey": "yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay",
+    "url": "hs://0000yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"2\" at position 1"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "123456",
+    "seed": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "generatedSeedHex": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c92",
+    "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "secretKey": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c920363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "serverKey": "yptsj87xxkb7bxypu6ija4169kfpa73b1nhyqeooz1bftfqkgiay",
+    "infoKey": "123456",
+    "url": "hs://s000123456"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "number",
+     "value": 123456
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "123456",
+    "seed": "tsmj755q3mjhfgt4ckjeb3wg3hgd6zk4o4z981o1yegjrqshp1jy",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "tsmj755q3mjhfgt4ckjeb3wg3hgd6zk4o4z981o1yegjrqshp1jy",
+    "secureFlag": "false",
+    "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+    "keyPair": {
+     "publicKey": "0363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570",
+     "secretKey": "8d969eef6ecad3c29a3a629280e686cf0c3f5d5a86aff3ca12020c923adc6c920363649faf7a83d0bc0d9faa9c6a5efa8adc772190b8072210bc825895ca3570"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "0123456789012345678901234567890123456789",
+    "seed": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "secure": null
+   },
+   "result": {
+    "seedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "generatedSeedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "secretKey": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "serverKey": "wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo",
+    "infoKey": "wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo",
+    "url": "hs://0000wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"0\" at position 0"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "0123456789012345678901234567890123456789",
+    "seed": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "generatedSeedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "secretKey": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "serverKey": "9pjg3ifpb5rztopjh68zab3eqreuufhrrumbt43ntx13heeatfay",
+    "infoKey": "0123456789012345678901234567890123456789",
+    "url": "hs://s0000123456789012345678901234567890123456789"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "0123456789012345678901234567890123456789",
+    "seed": "9pjg3ifpb5rztopjh68zab3eqreuufhrrumbt43ntx13heeatfay",
+    "secure": true
+   },
+   "result": {
+    "seedZ32OrKey": "9pjg3ifpb5rztopjh68zab3eqreuufhrrumbt43ntx13heeatfay",
+    "secureFlag": true,
+    "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "keyPair": {
+     "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+     "secretKey": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "0123456789012345678901234567890123456789",
+    "seed": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "secure": false
+   },
+   "result": {
+    "seedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "generatedSeedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "secretKey": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "serverKey": "wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo",
+    "infoKey": "wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo",
+    "url": "hs://0000wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": null
+   },
+   "error": {
+    "name": "Error",
+    "message": "Invalid character in base32 input: \"0\" at position 0"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "0123456789012345678901234567890123456789",
+    "seed": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "generatedSeedHex": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970",
+    "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "secretKey": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "serverKey": "wk6ipyjqngermgtfwm31xbx8q6tn5a8kdfk58g75tf9i87u16puo",
+    "infoKey": "0123456789012345678901234567890123456789",
+    "url": "hs://s0000123456789012345678901234567890123456789"
+   }
+  },
+  {
+   "input": {
+    "role": "client",
+    "key": {
+     "type": "string",
+     "value": "0123456789012345678901234567890123456789"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": null
+   },
+   "holesail": {
+    "key": "0123456789012345678901234567890123456789",
+    "seed": "9pjg3ifpb5rztopjh68zab3eqreuufhrrumbt43ntx13heeatfay",
+    "secure": "false"
+   },
+   "result": {
+    "seedZ32OrKey": "9pjg3ifpb5rztopjh68zab3eqreuufhrrumbt43ntx13heeatfay",
+    "secureFlag": "false",
+    "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+    "keyPair": {
+     "publicKey": "a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367",
+     "secretKey": "fb526cd4ad0ec978c1a9e78f7c0728711139978424d618eb228be59e21188970a2bd56812e1190459a25a2f32785e777a22de0ea1955b39bbb897f53f672f367"
+    }
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "undefined"
+    },
+    "secure": {
+     "type": "undefined"
+    },
+    "randomBytesHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   },
+   "holesail": {
+    "key": "",
+    "seed": null,
+    "secure": null
+   },
+   "result": {
+    "seedHex": null,
+    "generatedSeedHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "publicKey": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "secretKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "serverKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "infoKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "url": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "undefined"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": true
+    },
+    "randomBytesHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": true
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "p1dcpksf9c1m37q31qqmxi6ictqq8fya6tr6yq3gfzkxwffwzrio",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "undefined"
+    },
+    "secure": {
+     "type": "boolean",
+     "value": false
+    },
+    "randomBytesHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   },
+   "holesail": {
+    "key": "",
+    "seed": null,
+    "secure": false
+   },
+   "result": {
+    "seedHex": null,
+    "generatedSeedHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "publicKey": "03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "secretKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f03a107bff3ce10be1d70dd18e74bc09967e4d6309ba50d5f1ddc8664125531b8",
+    "serverKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "infoKey": "yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy",
+    "url": "hs://0000yqooxx9u3aemh8mo5wcqq16yufu6jitouq1o4za751dger1igghy"
+   }
+  },
+  {
+   "input": {
+    "role": "server",
+    "key": {
+     "type": "undefined"
+    },
+    "secure": {
+     "type": "string",
+     "value": "false"
+    },
+    "randomBytesHex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   },
+   "holesail": {
+    "key": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "seed": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "secure": "false"
+   },
+   "result": {
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "generatedSeedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b",
+    "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "secretKey": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92bcd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+    "serverKey": "3whp691jedt8p49a4xjc75piox4gwk9mftuxncpmwssukodx614o",
+    "infoKey": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+    "url": "hs://s000000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+   }
+  }
+ ]
+}

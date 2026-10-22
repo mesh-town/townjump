@@ -1,0 +1,21 @@
+[package]
+name = "townjump-pipe"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Stream splicing: TCP and framed UDP."
+
+[dependencies]
+townjump-logger.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+
+[lints]
+workspace = true

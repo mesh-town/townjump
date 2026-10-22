@@ -1,0 +1,22 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/deltas.handshake-socket (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "hyperdht": "6.34.0"
+  }
+ },
+ "note": "Client and server on one host 127.0.0.1 (the same external address). everyReplyAdvertisedNoPuncherSocket=true — in all handshake replies the server did not announce the holepuncher socket (the reply left from the regular server socket). Ports are not written. On the loopback testnet both versions are the same: the branch «client on the same network + private addresses» (replacing the reply from the holepuncher socket with the server socket) is not distinguished by the 127.0.0.1 testnet.",
+ "new": {
+  "version": "6.34.0",
+  "connectionOpened": true,
+  "repliesSeenAtLeastOne": true,
+  "everyReplyAdvertisedNoPuncherSocket": true
+ },
+ "old": {
+  "version": "6.30.0",
+  "connectionOpened": true,
+  "repliesSeenAtLeastOne": true,
+  "everyReplyAdvertisedNoPuncherSocket": true
+ }
+}

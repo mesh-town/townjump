@@ -1,0 +1,29 @@
+[36mHolesail CLI - Instantly share and connect to servers[0m
+
+[1mUsage:[0m
+  [33mholesail [command] [options][0m
+
+  
+[1mCommands:[0m
+  [33m--help <command>|-h[0m     Display help information.
+  [33m--version|-v[0m            Display version information.
+  [33m--live <port>[0m           Start a Holesail server on <port>.
+  [33m--connect <key>[0m         Connect to a Holesail server.
+  [33m--filemanager[0m           Start a filemanager session.  
+  [33m--lookup <key>[0m          Lookup details for a Holesail connection key.
+
+[1mOptions:[0m
+  [33m--host <host>[0m           Specify the host address (default: 127.0.0.1).
+  [33m--udp[0m                   Use UDP instead of TCP.
+  [33m--public[0m                Start in public mode for sharing.
+  [33m--port <port>[0m           Use a custom port (default: 8989).
+  [33m--log[0m                   Enable the debug log.
+
+[1mExamples:[0m
+  [33mholesail --live 3000[0m      Start a server on port 3000.
+  [33mholesail --filemanager .[0m  Start filemanager in current directory.
+  [33mholesail <key>[0m            Connect to a server.
+
+[1mNotes:[0m
+  Treat private keys like SSH keys. Public keys are shareable, but secure sensitive data with passwords or connectors.
+

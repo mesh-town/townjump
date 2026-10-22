@@ -1,0 +1,28 @@
+[package]
+name = "townjump-client"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Client side: connects to a server by key and exposes it on a local port."
+
+[dependencies]
+townjump-jsval.workspace = true
+townjump-keys.workspace = true
+townjump-logger.workspace = true
+townjump-dht.workspace = true
+townjump-pipe.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+serde_json.workspace = true
+hex.workspace = true
+
+[lints]
+workspace = true

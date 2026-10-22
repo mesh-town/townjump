@@ -1,0 +1,31 @@
+[package]
+name = "townjump-server"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Server side: publishes a local port in the DHT and proxies incoming connections to it."
+
+[dependencies]
+townjump-jsval.workspace = true
+townjump-keys.workspace = true
+townjump-logger.workspace = true
+townjump-dht.workspace = true
+townjump-pipe.workspace = true
+tokio.workspace = true
+thiserror.workspace = true
+getrandom = "0.3"
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+hex.workspace = true
+serde_json.workspace = true
+# `start_paused` (record refresh every 50 minutes) requires `test-util`.
+tokio = { workspace = true, features = ["test-util"] }
+
+[lints]
+workspace = true

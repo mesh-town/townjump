@@ -1,0 +1,25 @@
+[package]
+name = "townjump-dht-peeroxide"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "Adapter of `townjump-dht` over the peeroxide fork; the only crate that sees the fork."
+
+[dependencies]
+townjump-dht.workspace = true
+townjump-keys.workspace = true
+peeroxide-dht.workspace = true
+libudx.workspace = true
+tokio.workspace = true
+
+[dev-dependencies]
+townjump-pipe.workspace = true
+townjump-testkit.workspace = true
+
+[lints]
+workspace = true

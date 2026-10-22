@@ -1,0 +1,337 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/holesail.dht-record-live (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "holesail-server": "2.4.0",
+   "holesail-client": "2.3.0",
+   "hyperdht": "6.34.0",
+   "compact-encoding": "3.5.2",
+   "sodium-universal": "4.0.1",
+   "z32": "1.1.0"
+  }
+ },
+ "note": "Real HolesailServer.start/put, HolesailClient.get/ping on a local testnet (a new network of 4 nodes on 127.0.0.1 for each case). seq and value — step by step; the signature is checked against signMutable. ping — the result of HolesailClient.ping(argKey), as in Holesail.lookup.",
+ "cases": [
+  {
+   "label": "private tcp key=abc",
+   "args": {
+    "host": "127.0.0.1",
+    "port": 3000,
+    "udp": "undefined",
+    "secure": true,
+    "seedHex": "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+   },
+   "publicKey": "0bdf51005e5a525cc9bfb59f18070af6a8a6013106530eb8944554a5ae4c3cfa",
+   "target": "bc0f1b659c59331cccd76a4123181cb231324126db41b839fecb9131da89321e",
+   "steps": [
+    {
+     "step": "start",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+      "signature": "4c7d77e57e6a05923f0dd17dcae11c1028edf9ccf409357d6cb9dfc5b13bd2b0553fce5120e3a3c52c0b0a0702a1d00a1f814406108d74da244a1dbdd9ec9f02"
+     }
+    },
+    {
+     "step": "put same value again",
+     "putReturnedSeq": 0,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+      "signature": "4c7d77e57e6a05923f0dd17dcae11c1028edf9ccf409357d6cb9dfc5b13bd2b0553fce5120e3a3c52c0b0a0702a1d00a1f814406108d74da244a1dbdd9ec9f02"
+     }
+    },
+    {
+     "step": "put changed port",
+     "putReturnedSeq": 1,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+     "read": {
+      "seq": 1,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+      "signature": "b5ef685d95dcef4568161ca445d7b040139ec7f23981819d997a1bc4a0a8899ee521ffd0fc94b6160170a4e715ceee9b3a26f1692367ab1c399d822706a89200"
+     }
+    },
+    {
+     "step": "put changed port again",
+     "putReturnedSeq": 2,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3002}",
+     "read": {
+      "seq": 2,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3002}",
+      "signature": "b073e791279eabde2fd853a4cd26d135f7a292f98c144ff875e7b6b4f080b5ea447caef86ac8cff97f04cd2129a49f3ac238ff79a67b0343f26651c49bc69308"
+     }
+    },
+    {
+     "step": "put back to original",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+      "signature": "be70260b2bb54d6b85d1aee6ad49ef7529b8f276e7599f414d64ca46cb94e7ec19c50bbf5f48b54737cfc4a63ff47b128684b09d81aad07aa3a1245e82c91805"
+     }
+    },
+    {
+     "step": "put same as previous",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3000}",
+      "signature": "be70260b2bb54d6b85d1aee6ad49ef7529b8f276e7599f414d64ca46cb94e7ec19c50bbf5f48b54737cfc4a63ff47b128684b09d81aad07aa3a1245e82c91805"
+     }
+    }
+   ],
+   "ping": {
+    "host": "127.0.0.1",
+    "port": 3000,
+    "protocol": "tcp"
+   }
+  },
+  {
+   "label": "private udp",
+   "args": {
+    "host": "127.0.0.1",
+    "port": 4000,
+    "udp": true,
+    "secure": true,
+    "seedHex": "653bb1245e828fcda4fa53fcd5a3def5bd7654e651f54b4132b73d74e64435c4"
+   },
+   "publicKey": "467fc0ce9e366f910adbc001bf7f7ceefe6f93b7f077849787e1ed552276c60e",
+   "target": "563239075538c636948cc39704c7b65c88a1db1e37e7e1cb65998357f7e696e6",
+   "steps": [
+    {
+     "step": "start",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+      "signature": "ece804415c0d10cd1cbe156e0056255d47cc909fcdb14fcef1fbc4460393a1514681fca75c34c37fe41debdefd994091a6e0b34d954efddd05f67ff4feeb1004"
+     }
+    },
+    {
+     "step": "put same value again",
+     "putReturnedSeq": 0,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+      "signature": "ece804415c0d10cd1cbe156e0056255d47cc909fcdb14fcef1fbc4460393a1514681fca75c34c37fe41debdefd994091a6e0b34d954efddd05f67ff4feeb1004"
+     }
+    },
+    {
+     "step": "put changed port",
+     "putReturnedSeq": 1,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4001}",
+     "read": {
+      "seq": 1,
+      "valueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4001}",
+      "signature": "cc1667be9b54114cbb973d4f44ea7d00d17ed64f52dc7a37365525eea59c7bbe4401b2f6ba3d7e9ba5a7a2310e3bdffc479bff5d9f9bd4e22a8ef21f1f1ae70f"
+     }
+    },
+    {
+     "step": "put changed port again",
+     "putReturnedSeq": 2,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4002}",
+     "read": {
+      "seq": 2,
+      "valueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4002}",
+      "signature": "d491814de8515f23e6f1b0993c641a3c7f0bcc11110372ffec396553147cd340f4917168aa1e07dfa4c4cd08c0058a19f08f95b6864f10cd774a66fed1d79d0d"
+     }
+    },
+    {
+     "step": "put back to original",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+      "signature": "ab5ba95d2ba27e00884293a3f34f82876a3bd55c1b8a80099cac723e7e1838b8f43f4fc03149bdca9c19b1c1616c2da97f7bede2bab02114a2c4673811573c07"
+     }
+    },
+    {
+     "step": "put same as previous",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"127.0.0.1\",\"udp\":true,\"port\":4000}",
+      "signature": "ab5ba95d2ba27e00884293a3f34f82876a3bd55c1b8a80099cac723e7e1838b8f43f4fc03149bdca9c19b1c1616c2da97f7bede2bab02114a2c4673811573c07"
+     }
+    }
+   ],
+   "ping": {
+    "host": "127.0.0.1",
+    "udp": true,
+    "port": 4000,
+    "protocol": "udp"
+   }
+  },
+  {
+   "label": "public tcp (seed = sha256(key))",
+   "args": {
+    "host": "127.0.0.1",
+    "port": 3001,
+    "udp": "undefined",
+    "secure": false,
+    "seedHex": "6c86c6aac5fb24bcf5d9939cb7d7d5645ce39418f449e03b262dd4fa14b4b92b"
+   },
+   "publicKey": "cd38df7e4940e276ebf8d3d2ceedb583f46a2beb2c66f131aba5ad35406ff4b5",
+   "target": "c3742fb5804f4b5224d17bfa1711383342c075fe33deba2b9269ed77520e25f2",
+   "steps": [
+    {
+     "step": "start",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+      "signature": "f2c996c57fce665c29a11da028c72c1e3af1abe14586baf858fd4d75b10e2d589c56d8e967190ec3f595c35340c746c22dee4117237bf61b3f515cf4f71d1703"
+     }
+    },
+    {
+     "step": "put same value again",
+     "putReturnedSeq": 0,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+      "signature": "f2c996c57fce665c29a11da028c72c1e3af1abe14586baf858fd4d75b10e2d589c56d8e967190ec3f595c35340c746c22dee4117237bf61b3f515cf4f71d1703"
+     }
+    },
+    {
+     "step": "put changed port",
+     "putReturnedSeq": 1,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3002}",
+     "read": {
+      "seq": 1,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3002}",
+      "signature": "b43846d0739745a2815b27bc26e61179b438bf113f0e07f721f2ef8d0d0fb38ea76ac7bea6fa8bee1c60cf8e3fafc25d3d14e70415ba61e6593db8febc74f201"
+     }
+    },
+    {
+     "step": "put changed port again",
+     "putReturnedSeq": 2,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3003}",
+     "read": {
+      "seq": 2,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3003}",
+      "signature": "cadde14b3f3a2a25e2c6ae5bf6ebacdfd7aaf151d59cd0426513e9c368588cb632882cd611b6afbf83b289d1bde12837d818a0a57cc7be5bd18d48254f2dcd00"
+     }
+    },
+    {
+     "step": "put back to original",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+      "signature": "987d35e65095c5ddca35dcb12a671045b3013a467215033300723b5e2a5d033249dfccb9896b8db4063d47aa5dbf35aca698f1dc2fe5d32a9400ba8779a27607"
+     }
+    },
+    {
+     "step": "put same as previous",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"127.0.0.1\",\"port\":3001}",
+      "signature": "987d35e65095c5ddca35dcb12a671045b3013a467215033300723b5e2a5d033249dfccb9896b8db4063d47aa5dbf35aca698f1dc2fe5d32a9400ba8779a27607"
+     }
+    }
+   ],
+   "ping": {
+    "host": "127.0.0.1",
+    "port": 3001,
+    "protocol": "tcp"
+   }
+  },
+  {
+   "label": "public udp string false",
+   "args": {
+    "host": "localhost",
+    "port": 3002,
+    "udp": "false",
+    "secure": false,
+    "seedHex": "72abee9f2010664e359ddf1c27e0d999ba58005da560b5d0fd3d978f371587a2"
+   },
+   "publicKey": "9f37004c52380eadcdddddc032c60260938e4df850a88e182541991a60fdff4c",
+   "target": "4521a21a4ad268b676643752138820b39b7baeaf55f307c9d5e2836db1ae84e2",
+   "steps": [
+    {
+     "step": "start",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+      "signature": "2f4fcca8885af153ba55401b11abd7f65ab94a18d2764a999180e02a12af100758cb201a2af1b5bbd116dcfdb025cf6b8f0dcd2e8eb03b78875e14e890563406"
+     }
+    },
+    {
+     "step": "put same value again",
+     "putReturnedSeq": 0,
+     "putValueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+     "read": {
+      "seq": 0,
+      "valueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+      "signature": "2f4fcca8885af153ba55401b11abd7f65ab94a18d2764a999180e02a12af100758cb201a2af1b5bbd116dcfdb025cf6b8f0dcd2e8eb03b78875e14e890563406"
+     }
+    },
+    {
+     "step": "put changed port",
+     "putReturnedSeq": 1,
+     "putValueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3003}",
+     "read": {
+      "seq": 1,
+      "valueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3003}",
+      "signature": "495fdb674ad9646efd10b863f3b3e3b8673e68ca847c15da2590d6e3e21a97094eb405bc14e9134522578ea78e35e07e85eb500baf1829da588cfe2be71d8502"
+     }
+    },
+    {
+     "step": "put changed port again",
+     "putReturnedSeq": 2,
+     "putValueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3004}",
+     "read": {
+      "seq": 2,
+      "valueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3004}",
+      "signature": "405bafb482f44399dc13abdd94eb457c9863f13a04a90237804a4432f6cab6db96db9a467ddd4d80fdd40e41ddf63dd688b75d0af8cef8beb2b41ef13d1bba01"
+     }
+    },
+    {
+     "step": "put back to original",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+      "signature": "b023ea8e2e912f18fbb48575d589b1c7fdccdcc58f164b88051c778be0bb9788a30decd0edf876551e4abad93d78c271b0972db03165d29d53e9f22327ecdf07"
+     }
+    },
+    {
+     "step": "put same as previous",
+     "putReturnedSeq": 3,
+     "putValueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+     "read": {
+      "seq": 3,
+      "valueText": "{\"host\":\"localhost\",\"udp\":\"false\",\"port\":3002}",
+      "signature": "b023ea8e2e912f18fbb48575d589b1c7fdccdcc58f164b88051c778be0bb9788a30decd0edf876551e4abad93d78c271b0972db03165d29d53e9f22327ecdf07"
+     }
+    }
+   ],
+   "ping": {
+    "host": "localhost",
+    "udp": "false",
+    "port": 3002,
+    "protocol": "udp"
+   }
+  }
+ ],
+ "lookupExtra": {
+  "noRecord": null,
+  "notJsonRecord": null,
+  "utf8Record": {
+   "host": "χοστ",
+   "port": 3000,
+   "protocol": "tcp"
+  },
+  "notJsonPublicKey": "fbe8dbd0b8c7bee12833459088b861679d39a291ad0568331ff890b2b5089495"
+ }
+}

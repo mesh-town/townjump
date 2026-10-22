@@ -1,0 +1,299 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/dht-rpc.header (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "dht-rpc": "6.27.0"
+  }
+ },
+ "note": "Request: Request._encodeRequest, reply: Request._sendReply on a fake io (node id 0xee*32, token 0xdd*32, closest nodes fixed); decoded — Request.decode of the same bytes. Byte 0: 0x03 request, 0x13 reply; byte 1: flags.",
+ "requests": [
+  {
+   "label": "ping: internal, no target, no value, no token, ephemeral",
+   "input": {
+    "command": 0,
+    "internal": true,
+    "target": null,
+    "value": null,
+    "token": null,
+    "ephemeral": true,
+    "tid": 0,
+    "to": {
+     "host": "127.0.0.1",
+     "port": 49001
+    }
+   },
+   "encoded": "030400007f00000169bf00",
+   "decoded": {
+    "tid": 0,
+    "to": {
+     "id": null,
+     "host": "127.0.0.1",
+     "port": 49001
+    },
+    "token": null,
+    "internal": true,
+    "command": 0,
+    "target": null,
+    "value": null
+   }
+  },
+  {
+   "label": "non-ephemeral adds id (flag 1)",
+   "input": {
+    "command": 0,
+    "internal": true,
+    "target": null,
+    "value": null,
+    "token": null,
+    "ephemeral": false,
+    "tid": 1,
+    "to": {
+     "host": "127.0.0.1",
+     "port": 49001
+    }
+   },
+   "encoded": "030501007f00000169bfeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee00",
+   "decoded": {
+    "tid": 1,
+    "to": {
+     "id": null,
+     "host": "127.0.0.1",
+     "port": 49001
+    },
+    "token": null,
+    "internal": true,
+    "command": 0,
+    "target": null,
+    "value": null
+   }
+  },
+  {
+   "label": "token (flag 2)",
+   "input": {
+    "command": 1,
+    "internal": true,
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "value": null,
+    "token": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "ephemeral": true,
+    "tid": 255,
+    "to": {
+     "host": "127.0.0.1",
+     "port": 49001
+    }
+   },
+   "encoded": "030eff007f00000169bfdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd010909090909090909090909090909090909090909090909090909090909090909",
+   "decoded": {
+    "tid": 255,
+    "to": {
+     "id": null,
+     "host": "127.0.0.1",
+     "port": 49001
+    },
+    "token": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "internal": true,
+    "command": 1,
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "value": null
+   }
+  },
+  {
+   "label": "external command, value",
+   "input": {
+    "command": 10,
+    "internal": false,
+    "target": null,
+    "value": "aabbcc",
+    "token": null,
+    "ephemeral": true,
+    "tid": 256,
+    "to": {
+     "host": "127.0.0.1",
+     "port": 49001
+    }
+   },
+   "encoded": "031000017f00000169bf0a03aabbcc",
+   "decoded": {
+    "tid": 256,
+    "to": {
+     "id": null,
+     "host": "127.0.0.1",
+     "port": 49001
+    },
+    "token": null,
+    "internal": false,
+    "command": 10,
+    "target": null,
+    "value": "aabbcc"
+   }
+  },
+  {
+   "label": "all flags",
+   "input": {
+    "command": 4,
+    "internal": true,
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "value": "01",
+    "token": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "ephemeral": false,
+    "tid": 65535,
+    "to": {
+     "host": "127.0.0.1",
+     "port": 49001
+    }
+   },
+   "encoded": "031fffff7f00000169bfeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd0409090909090909090909090909090909090909090909090909090909090909090101",
+   "decoded": {
+    "tid": 65535,
+    "to": {
+     "id": null,
+     "host": "127.0.0.1",
+     "port": 49001
+    },
+    "token": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "internal": true,
+    "command": 4,
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "value": "01"
+   }
+  }
+ ],
+ "replies": [
+  {
+   "label": "ok, no value, token, no closer nodes (target null)",
+   "tid": 258,
+   "from": {
+    "host": "127.0.0.1",
+    "port": 49002
+   },
+   "input": {
+    "target": null,
+    "error": 0,
+    "value": null,
+    "token": true,
+    "closer": true,
+    "ephemeral": true
+   },
+   "closerNodes": [
+    {
+     "host": "127.0.0.1",
+     "port": 49737
+    },
+    {
+     "host": "10.1.2.3",
+     "port": 6000
+    }
+   ],
+   "encoded": "130202017f0000016abfdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+  },
+  {
+   "label": "ok, value, no token, closer nodes (target set)",
+   "tid": 258,
+   "from": {
+    "host": "127.0.0.1",
+    "port": 49002
+   },
+   "input": {
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "error": 0,
+    "value": "aa",
+    "token": false,
+    "closer": true,
+    "ephemeral": true
+   },
+   "closerNodes": [
+    {
+     "host": "127.0.0.1",
+     "port": 49737
+    },
+    {
+     "host": "10.1.2.3",
+     "port": 6000
+    }
+   ],
+   "encoded": "131402017f0000016abf027f00000149c20a010203701701aa"
+  },
+  {
+   "label": "error 1 UNKNOWN_COMMAND, no token",
+   "tid": 258,
+   "from": {
+    "host": "127.0.0.1",
+    "port": 49002
+   },
+   "input": {
+    "target": null,
+    "error": 1,
+    "value": null,
+    "token": false,
+    "closer": false,
+    "ephemeral": true
+   },
+   "closerNodes": [
+    {
+     "host": "127.0.0.1",
+     "port": 49737
+    },
+    {
+     "host": "10.1.2.3",
+     "port": 6000
+    }
+   ],
+   "encoded": "130802017f0000016abf01"
+  },
+  {
+   "label": "error 2, id (non-ephemeral), closer nodes",
+   "tid": 258,
+   "from": {
+    "host": "127.0.0.1",
+    "port": 49002
+   },
+   "input": {
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "error": 2,
+    "value": null,
+    "token": false,
+    "closer": true,
+    "ephemeral": false
+   },
+   "closerNodes": [
+    {
+     "host": "127.0.0.1",
+     "port": 49737
+    },
+    {
+     "host": "10.1.2.3",
+     "port": 6000
+    }
+   ],
+   "encoded": "130d02017f0000016abfeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee027f00000149c20a010203701702"
+  },
+  {
+   "label": "everything",
+   "tid": 258,
+   "from": {
+    "host": "127.0.0.1",
+    "port": 49002
+   },
+   "input": {
+    "target": "0909090909090909090909090909090909090909090909090909090909090909",
+    "error": 3,
+    "value": "bbcc",
+    "token": true,
+    "closer": true,
+    "ephemeral": false
+   },
+   "closerNodes": [
+    {
+     "host": "127.0.0.1",
+     "port": 49737
+    },
+    {
+     "host": "10.1.2.3",
+     "port": 6000
+    }
+   ],
+   "encoded": "131f02017f0000016abfeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeedddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd027f00000149c20a01020370170302bbcc"
+  }
+ ]
+}

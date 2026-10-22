@@ -1,0 +1,21 @@
+[package]
+name = "townjump-filemanager"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "The `--filemanager` web file manager (port of livefiles 1.1.0)."
+
+[dependencies]
+tokio = { workspace = true, features = ["fs"] }
+townjump-jsval.workspace = true
+
+[dev-dependencies]
+townjump-testkit.workspace = true
+
+[lints]
+workspace = true

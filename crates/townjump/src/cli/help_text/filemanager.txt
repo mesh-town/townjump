@@ -1,0 +1,14 @@
+[36mHolesail CLI - Instantly share and connect to servers[0m
+  [36m
+Start a file server at given location.[0m    
+  [1mUsage:[0m
+  [33mholesail --filemanager <dir> [options][0m
+  
+  [1mOptions:[0m
+  [33m--host <host>[0m      Use a custom host.
+  [33m--port <port>[0m      Use a custom port.
+  [33m--public[0m           Force the connection to use public mode (otherwise autodetected).
+  [33m--username <user>[0m  Set a custom username (Default: admin).
+  [33m--password <pass>[0m  Set a custom password (Default: admin).
+  [33m--role <admin|user>[0mSet a user role.
+    

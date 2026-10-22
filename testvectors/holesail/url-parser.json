@@ -1,0 +1,407 @@
+{
+ "_meta": {
+  "generator": "testvectors/gen/holesail.url-parser (see all.mjs)",
+  "node": "24.x",
+  "versions": {
+   "holesail": "2.4.4",
+   "holesail-server": "2.4.0",
+   "holesail-client": "2.3.0",
+   "hyperdht": "6.34.0",
+   "z32": "1.1.0",
+   "hyper-cmd-lib-keys": "0.1.1"
+  }
+ },
+ "note": "Holesail.urlParser(input) as is. secure: null means undefined («not set»), the method never returns false. input.type: as typeof in JS, undefined and null are marked separately.",
+ "vectors": [
+  {
+   "input": {
+    "type": "undefined"
+   },
+   "key": "",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "null"
+   },
+   "key": "",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": ""
+   },
+   "key": "",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "number",
+    "value": 0
+   },
+   "key": "",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "number",
+    "value": 123456
+   },
+   "key": "123456",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "0"
+   },
+   "key": "0",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "boolean",
+    "value": false
+   },
+   "key": "",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "boolean",
+    "value": true
+   },
+   "key": "true",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s000abc"
+   },
+   "key": "abc",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://0000abc"
+   },
+   "key": "abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://x000abc"
+   },
+   "key": "abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://sXYZabc"
+   },
+   "key": "abc",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s000"
+   },
+   "key": "",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://0000"
+   },
+   "key": "",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s0000"
+   },
+   "key": "0",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://"
+   },
+   "key": "hs://",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s00"
+   },
+   "key": "hs://s00",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s000K"
+   },
+   "key": "K",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s0000000000000000000000000000000000000000000000000000000000000000000"
+   },
+   "key": "0000000000000000000000000000000000000000000000000000000000000000",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://00008pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ewo"
+   },
+   "key": "8pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ewo",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "HS://s000abc"
+   },
+   "key": "HS://s000abc",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": " hs://s000abc"
+   },
+   "key": " hs://s000abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs:/s000abc"
+   },
+   "key": "hs:/s000abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs//s000abc"
+   },
+   "key": "hs//s000abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "https://s000abc"
+   },
+   "key": "https://s000abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://S000abc"
+   },
+   "key": "abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s000hs://s000x"
+   },
+   "key": "hs://s000x",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abc"
+   },
+   "key": "abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abcde"
+   },
+   "key": "abcde",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abcdes"
+   },
+   "key": "abcdes",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abcdesX"
+   },
+   "key": "abcdesX",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abcdefs"
+   },
+   "key": "abcdefs",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abcdef"
+   },
+   "key": "abcdef",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://κλωξ-κλωξ"
+   },
+   "key": "-κλωξ",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s000κλωξ"
+   },
+   "key": "κλωξ",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "κλωξ-κλωξ-κλωξ"
+   },
+   "key": "κλωξ-κλωξ-κλωξ",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "κλωξsκλωξ"
+   },
+   "key": "κλωξsκλωξ",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "κλωξ-κλωξ-s"
+   },
+   "key": "κλωξ-κλωξ-s",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "😀😀😀abc"
+   },
+   "key": "😀😀😀abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://😀000abc"
+   },
+   "key": "0abc",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "hs://s😀abc"
+   },
+   "key": "bc",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "ab😀s"
+   },
+   "key": "ab😀s",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "abcd😀s0"
+   },
+   "key": "abcd😀s0",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "bpeuispw1jybm1ojymsoxrnr4qsf5xsngbzopfrcndpe7pzduhso"
+   },
+   "key": "bpeuispw1jybm1ojymsoxrnr4qsf5xsngbzopfrcndpe7pzduhso",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "4ibyxso3jf5737dk5x9cfxbqqs414swkeecr95x7ayynjh8d7dpy"
+   },
+   "key": "4ibyxso3jf5737dk5x9cfxbqqs414swkeecr95x7ayynjh8d7dpy",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "quhf3stw48b8attbjbdud4eix8b7utsxadcwsky4wrxjnaoftkwo"
+   },
+   "key": "quhf3stw48b8attbjbdud4eix8b7utsxadcwsky4wrxjnaoftkwo",
+   "secure": true
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "8pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ewo"
+   },
+   "key": "8pinxxgqs41n4aididenw5apqp1urfmzdztr8jt4abrkdn435ewo",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "tkrq8zmwb8a3m9k15csu3q17qmfgqnp9dskbrg9uq1rydpyxp7qy"
+   },
+   "key": "tkrq8zmwb8a3m9k15csu3q17qmfgqnp9dskbrg9uq1rydpyxp7qy",
+   "secure": null
+  },
+  {
+   "input": {
+    "type": "string",
+    "value": "orhzqdiexwmi6iidktucgud63ufa5nwtsuzdxe176a8izd6jsqky"
+   },
+   "key": "orhzqdiexwmi6iidktucgud63ufa5nwtsuzdxe176a8izd6jsqky",
+   "secure": null
+  }
+ ]
+}
