@@ -3,9 +3,6 @@
 
 use super::*;
 
-#[path = "linger.rs"]
-mod linger;
-
 /// Removes the stream's entry in the socket table when the processor task ends in any way:
 /// normally, by panic or by `abort()` (the future is destroyed together with the guard).
 /// `UdxStream::Drop` and `destroy` remove the entry themselves: there is no task before `connect`; removing twice
@@ -43,20 +40,6 @@ impl Drop for ClosedGuard {
     }
 }
 
-/// On any end of the processor task (declared after `ClosedGuard`, so it is dropped first) the stream's table entry
-/// becomes a tombstone (`linger.rs`) instead of disappearing; when no tombstone is due, the entry is removed as before.
-struct Grave {
-    entry: TableEntry,
-    inner: Arc<Mutex<StreamInner>>,
-    home: std::sync::Weak<tokio::net::UdpSocket>,
-}
-
-impl Drop for Grave {
-    fn drop(&mut self) {
-        linger::bury(&self.entry, &self.inner, &self.home);
-    }
-}
-
 impl UdxStream {
     /// Takes the stream's input channel and starts the processor; after the task starts, the table entry
     /// `socket` does not outlive it.
@@ -81,22 +64,10 @@ impl UdxStream {
             local_id: self.local_id,
             tx: tx.downgrade(),
         };
-        let home = socket
-            .udp_arc()
-            .ok()
-            .map(|udp| Arc::downgrade(&udp))
-            .unwrap_or_default();
-        let local_id = self.local_id;
-        // Built before the spawn: `abort()` before the first poll drops the captured guard too (then it also buries).
-        let grave = Grave {
-            entry,
-            inner: Arc::clone(&inner),
-            home,
-        };
         let handle = tokio::spawn(async move {
             let _closed = closed;
-            let _grave = grave;
-            process_incoming(inner, incoming_rx, notify_rx, local_id).await;
+            let _entry = entry;
+            process_incoming(inner, incoming_rx, notify_rx).await;
         });
         *self.processor.lock().unwrap_or_else(|e| e.into_inner()) = Some(handle);
         Ok(())

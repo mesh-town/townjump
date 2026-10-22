@@ -3,7 +3,8 @@
 //! everything still running in it. Neighbours: `handle` creates sessions and sends the
 //! `DestroySession` command that `node_query::destroy_session` executes.
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
+use portable_atomic::AtomicU64;
 
 use super::command::DhtCommand;
 use super::handle::DhtHandle;

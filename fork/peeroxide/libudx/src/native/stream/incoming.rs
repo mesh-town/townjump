@@ -2,8 +2,7 @@
 //! Incoming packet processor `process_incoming` (reliability engine); related — `acks.rs`, `receive.rs`, `wire.rs`.
 
 use super::send_step::{
-    AckKick, LoopTimers, ack_kick, drain_notifies, kick_by_timer, log_rto_failure, notify_step,
-    send_step,
+    AckKick, LoopTimers, ack_kick, drain_notifies, kick_by_timer, notify_step, send_step,
 };
 use super::*;
 
@@ -13,10 +12,7 @@ pub(super) async fn process_incoming(
     inner: Arc<Mutex<StreamInner>>,
     mut incoming_rx: mpsc::UnboundedReceiver<IncomingPacket>,
     mut notify_rx: mpsc::UnboundedReceiver<StreamNotify>,
-    local_id: u32,
 ) {
-    let started = Instant::now();
-    let mut last_endwait: Option<Instant> = None;
     let mut shutting_down = false;
     let mut timers = LoopTimers::new();
 
@@ -163,17 +159,10 @@ pub(super) async fn process_incoming(
 
                 // ── ACK + SACK processing ────────────────────────────
                 let sacks = incoming_sacks(&header, &packet.data);
-                let outcome = {
-                    let mut guard = inner.lock().unwrap_or_else(|e| e.into_inner());
-                    let acked_before = guard.remote_acked;
-                    let end_pending = guard.end_seq.is_some() && !guard.end_acked;
-                    let outcome = guard.on_ack_packet(header.ack, header.recv_window, &sacks);
-                    if end_pending && last_endwait.is_none_or(|at| at.elapsed() >= std::time::Duration::from_secs(1)) {
-                        last_endwait = Some(Instant::now());
-                        tracing::debug!(target: "udx::endwait", local_id, ack = header.ack, remote_acked_before = acked_before, remote_acked_after = guard.remote_acked, outgoing = guard.outgoing.len(), flags = header.type_flags, addr = ?packet.addr, "packet while our END pending");
-                    }
-                    outcome
-                };
+                let outcome = inner
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .on_ack_packet(header.ack, header.recv_window, &sacks);
                 for tx in outcome.completed.into_iter().flatten() {
                     let _ = tx.send(Ok(()));
                 }
@@ -273,8 +262,7 @@ pub(super) async fn process_incoming(
             _ = &mut timers.rto => {
                 let next = inner.lock().unwrap_or_else(|e| e.into_inner()).on_rto_fire();
                 let Some(next) = next else {
-                    let guard = inner.lock().unwrap_or_else(|e| e.into_inner());
-                    log_rto_failure(&guard, local_id, shutting_down, started.elapsed());
+                    tracing::warn!("stream failed: exceeded max RTO timeouts");
                     break;
                 };
                 timers.arm_rto(next);

@@ -27,7 +27,6 @@ impl StreamInner {
         sacks: &[SackRange],
     ) -> AckOutcome {
         self.zp.proc_n += 1;
-        self.last_rx = Some(Instant::now());
         let outcome = self.ack_outcome(ack, recv_window, sacks);
         self.settle_change();
         if diag::mode().z {

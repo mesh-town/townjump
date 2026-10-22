@@ -63,7 +63,6 @@ impl UdxSocketInner {
 
         let handle = tokio::spawn(async move {
             let mut buf = vec![0u8; 65536];
-            let mut unknown_log = demux_log::UnknownIdLog::default();
             while let Some((len, addr)) = recv::recv_next(&udp, &mut buf).await {
                 if super::stream::diag::mode().z {
                     super::stream::diag::count_recv();
@@ -80,10 +79,6 @@ impl UdxSocketInner {
                                 stamp: super::stream::diag::mode().z.then(std::time::Instant::now),
                             });
                             continue;
-                        }
-                        drop(guard);
-                        if unknown_log.note(hdr.remote_id, std::time::Instant::now()) {
-                            tracing::debug!(target: "udx::demux", sid = hdr.remote_id, seq = hdr.seq, ack = hdr.ack, flags = hdr.type_flags, %addr, "packet for unknown stream id");
                         }
                     }
                 }
@@ -303,13 +298,6 @@ use dontfrag::configure_dontfrag;
 #[path = "socket_recv.rs"]
 mod recv;
 
-#[path = "socket_demux_log.rs"]
-mod demux_log;
-
 #[cfg(test)]
 #[path = "socket_buffers_tests.rs"]
 mod buffer_tests;
-
-#[cfg(test)]
-#[path = "socket_demux_log_tests.rs"]
-mod demux_log_tests;
