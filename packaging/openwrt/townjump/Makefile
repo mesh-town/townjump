@@ -11,7 +11,7 @@ PKG_BUILD_DIR:=$(BUILD_DIR)/townjump-$(PKG_VERSION)
 # expected hash (or: shasum -a 256 <tarball>).
 PKG_HASH:=skip
 
-PKG_MAINTAINER:=Mesh Town <meshtown.app@gmail.com>
+PKG_MAINTAINER:=Mesh Town <340663027+mesh-town@users.noreply.github.com>
 PKG_LICENSE:=AGPL-3.0-only
 PKG_LICENSE_FILES:=LICENSE
 
