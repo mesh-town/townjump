@@ -21,6 +21,7 @@ mod connect_finish;
 mod connect_flow;
 mod connect_holders;
 mod connect_holepunch;
+mod connect_lan;
 mod connect_payload;
 mod connect_race;
 mod connect_relayed;
@@ -30,6 +31,7 @@ mod connection;
 mod handle;
 mod keypair;
 mod lan_pick;
+mod lan_probe;
 mod lookup;
 mod node;
 mod node_handshake;
@@ -49,6 +51,10 @@ use crate::rpc::DhtError;
 #[cfg(test)]
 pub(crate) use connect_finish::client_same_host;
 pub(crate) use connect_finish::is_addr_private;
+#[cfg(test)]
+pub(crate) use connect_lan::{LAN_PROBE_DEADLINE, LanProbe, LanRewrite};
+#[cfg(test)]
+pub(crate) use lan_probe::LanProbes;
 pub(crate) use relay::{AbortOnDrop, DirectSource, RelayPaired, Upgrade, pair_via_relay};
 #[cfg(test)]
 pub(crate) use reuse::LINGER;

@@ -9,42 +9,31 @@ use crate::messages::Ipv4Peer;
 
 #[test]
 fn direct_connect_when_not_relayed() {
-    assert!(should_direct_connect(false, FIREWALL_RANDOM, true, false));
+    assert!(should_direct_connect(false, FIREWALL_RANDOM, true));
 }
 
 #[test]
 fn direct_connect_when_firewall_open() {
-    assert!(should_direct_connect(true, FIREWALL_OPEN, true, false));
+    assert!(should_direct_connect(true, FIREWALL_OPEN, true));
 }
 
 #[test]
 fn direct_connect_when_not_holepunchable() {
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, false, false));
-}
-
-#[test]
-fn direct_connect_when_same_host() {
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, true, true));
+    assert!(should_direct_connect(true, FIREWALL_RANDOM, false));
 }
 
 #[test]
 fn holepunch_when_relayed_firewalled_holepunchable_different_host() {
-    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true, false));
-    assert!(!should_direct_connect(
-        true,
-        FIREWALL_CONSISTENT,
-        true,
-        false
-    ));
-    assert!(!should_direct_connect(true, FIREWALL_UNKNOWN, true, false));
+    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true));
+    assert!(!should_direct_connect(true, FIREWALL_CONSISTENT, true));
+    assert!(!should_direct_connect(true, FIREWALL_UNKNOWN, true));
 }
 
 #[test]
 fn direct_connect_all_conditions_false_except_one() {
-    assert!(should_direct_connect(false, FIREWALL_RANDOM, true, false));
-    assert!(should_direct_connect(true, FIREWALL_OPEN, true, false));
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, false, false));
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, true, true));
+    assert!(should_direct_connect(false, FIREWALL_RANDOM, true));
+    assert!(should_direct_connect(true, FIREWALL_OPEN, true));
+    assert!(should_direct_connect(true, FIREWALL_RANDOM, false));
 }
 
 // ── Scenario-matrix topology tests ───────────────────────────────────
@@ -63,71 +52,51 @@ fn direct_connect_all_conditions_false_except_one() {
 #[test]
 fn topology_both_open() {
     // T1: Neither side relayed, both FIREWALL_OPEN → direct connect
-    assert!(should_direct_connect(false, FIREWALL_OPEN, true, false));
+    assert!(should_direct_connect(false, FIREWALL_OPEN, true));
 }
 
 #[test]
 fn topology_sender_firewalled_receiver_open() {
     // T2: Sender is firewalled, discovered receiver via relay (relayed=true).
     // Receiver is FIREWALL_OPEN → direct connect (firewall==OPEN branch).
-    assert!(should_direct_connect(true, FIREWALL_OPEN, true, false));
+    assert!(should_direct_connect(true, FIREWALL_OPEN, true));
 }
 
 #[test]
 fn topology_sender_open_receiver_firewalled() {
     // T3: Sender is open. Found receiver via relay (relayed=true).
     // Receiver is firewalled (CONSISTENT), holepunchable → holepunch.
-    assert!(!should_direct_connect(
-        true,
-        FIREWALL_CONSISTENT,
-        true,
-        false
-    ));
+    assert!(!should_direct_connect(true, FIREWALL_CONSISTENT, true));
     // If receiver is NOT holepunchable → direct connect (fallback).
-    assert!(should_direct_connect(
-        true,
-        FIREWALL_CONSISTENT,
-        false,
-        false
-    ));
+    assert!(should_direct_connect(true, FIREWALL_CONSISTENT, false));
 }
 
 #[test]
 fn topology_both_firewalled_same_network() {
-    // T4: Both firewalled, same network (same_host=true).
-    // same_host → direct connect regardless of firewall state.
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, true, true));
-    assert!(should_direct_connect(true, FIREWALL_CONSISTENT, true, true));
+    // T4: Both firewalled, same network.
+    // Same network → hole-punch branch, LAN candidates race inside it.
+    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true));
+    assert!(!should_direct_connect(true, FIREWALL_CONSISTENT, true));
 }
 
 #[test]
 fn topology_both_firewalled_different_networks() {
     // T5: Both firewalled, different networks.
     // When holepunchable → holepunch attempt.
-    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true, false));
-    assert!(!should_direct_connect(
-        true,
-        FIREWALL_CONSISTENT,
-        true,
-        false
-    ));
+    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true));
+    assert!(!should_direct_connect(true, FIREWALL_CONSISTENT, true));
     // When NOT holepunchable → direct connect fallback (no HP relay).
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, false, false));
-    assert!(should_direct_connect(
-        true,
-        FIREWALL_CONSISTENT,
-        false,
-        false
-    ));
+    assert!(should_direct_connect(true, FIREWALL_RANDOM, false));
+    assert!(should_direct_connect(true, FIREWALL_CONSISTENT, false));
 }
 
 #[test]
 fn topology_one_behind_cgnat() {
     // T6: CGNAT peer is FIREWALL_RANDOM and holepunchable.
     // Non-CGNAT peer connects via relay → holepunch.
-    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true, false));
+    assert!(!should_direct_connect(true, FIREWALL_RANDOM, true));
     // CGNAT peer with no holepunch support → direct connect fallback.
-    assert!(should_direct_connect(true, FIREWALL_RANDOM, false, false));
+    assert!(should_direct_connect(true, FIREWALL_RANDOM, false));
 }
 
 #[test]

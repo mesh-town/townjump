@@ -27,6 +27,8 @@ mod freeze_tests;
 mod handle;
 mod handshake;
 mod keepalive;
+#[cfg(test)]
+mod lan_dial_tests;
 mod opts;
 mod plan;
 mod punch;

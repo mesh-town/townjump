@@ -167,7 +167,7 @@ async fn respond(
         &adm.remote.addresses4,
         adm.direct,
     );
-    let plan = plan(adm.remote.firewall, adm.direct, firewall, same);
+    let plan = plan(adm.remote.firewall, adm.direct, firewall);
     tracing::debug!(
         plan = ?plan,
         same_host = same,

@@ -1,7 +1,7 @@
 // JS: hyperdht/lib/server.js:440-445
 //! Cluster tests of the same-host rule on the handshake path: a relayed client that sits behind the
-//! server's own public IP is answered from the server's node socket (no puncher); any other client
-//! keeps the puncher. The cluster is on 127.0.0.1, so "the same host" is the loopback address and
+//! server's own public IP is answered by the server's puncher, exactly like any other client; the
+//! client then reaches that puncher over its LAN address. The cluster is on 127.0.0.1, so "the same host" is the loopback address and
 //! "another host" is a node bound to this machine's LAN address. Included from `handshake_tests.rs`.
 
 use super::*;
@@ -30,15 +30,15 @@ mod loopback_cluster_firewalled_server {
     }
 
     #[tokio::test]
-    async fn lan_client_is_answered_from_the_node_socket() {
+    async fn lan_client_gets_the_puncher() {
         within(async {
             // given: both addresses settled; the client announces its own address and a LAN one
             let fx = setup(Opts::same_host()).await;
             let announced = vec![fx.client_remote.clone(), peer("192.168.1.5", 1)];
             // when: a relayed hello
             let answer = fx.when_hello(announced).await;
-            // then: the reply leaves from the node socket and announces only that socket
-            fx.then_answered_from_node_socket(&answer);
+            // then: the reply leaves from a puncher and announces only puncher sockets
+            fx.then_answered_by_puncher(&answer);
         })
         .await;
     }
@@ -204,20 +204,6 @@ impl Fixture {
         let next = tokio::time::timeout(Duration::from_secs(10), self.server.incoming.recv()).await;
         next.expect("no incoming connection in 10 s")
             .expect("incoming channel closed")
-    }
-
-    fn then_answered_from_node_socket(&self, answer: &Answer) {
-        assert_eq!(
-            answer.port, self.node_port,
-            "reply left from the node socket"
-        );
-        assert!(
-            !answer.addresses4.is_empty(),
-            "the reply announces addresses"
-        );
-        for address in &answer.addresses4 {
-            assert_eq!(address.port, self.node_port, "announced {address:?}");
-        }
     }
 
     fn then_answered_by_puncher(&self, answer: &Answer) {

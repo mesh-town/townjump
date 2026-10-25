@@ -9,6 +9,7 @@ use crate::messages::Ipv4Peer;
 
 use super::config::ConnectOpts;
 use super::connect_flow::Handshaken;
+use super::connect_lan::lan_for;
 use super::connect_relayed::{PunchCtx, Relayed};
 use super::connect_trace::trace;
 use super::connection::{ConnectResult, PeerConnection};
@@ -40,16 +41,11 @@ pub(crate) fn is_addr_private(host: &str) -> bool {
 /// - The handshake was NOT relayed (client reached server directly)
 /// - Server reports FIREWALL_OPEN
 /// - Server has no holepunch relays (can't holepunch even if we wanted to)
-/// - Both peers share the same host address
 ///
-/// Matches Node.js connect.js decision logic.
-pub fn should_direct_connect(
-    relayed: bool,
-    firewall: u64,
-    remote_holepunchable: bool,
-    same_host: bool,
-) -> bool {
-    !relayed || firewall == FIREWALL_OPEN || !remote_holepunchable || same_host
+/// Peers behind one public address take the hole-punch branch like any others; their private
+/// addresses are probed inside it.
+pub fn should_direct_connect(relayed: bool, firewall: u64, remote_holepunchable: bool) -> bool {
+    !relayed || firewall == FIREWALL_OPEN || !remote_holepunchable
 }
 
 /// Client-side "same host as the server" check: our sampled public host equals the server's.
@@ -167,7 +163,6 @@ impl HyperDhtHandle {
             hs_result.relayed,
             remote_payload.firewall,
             remote_holepunchable,
-            same_host,
         ) {
             // Pick the dial target. When same-host is true (both peers
             // share a NAT), prefer a private/loopback address from the
@@ -235,32 +230,25 @@ impl HyperDhtHandle {
             return Ok(conn);
         }
 
-        // Phase 2: holepunch rounds, raced against the relay when there is a role.
-        let server_address = hs_result.server_address.clone();
-        let Some(role) = role else {
-            let hp_result = self
-                .run_holepunch_rounds(
-                    &nw_result,
-                    &remote_payload,
-                    relay,
-                    &target,
-                    &server_address,
-                    runtime,
-                    local_stream_id,
-                    opts.holepunch.as_ref(),
-                )
-                .await?;
-            return self
-                .punched_connection(&hp_result, None, runtime, reusable, remote_public_key)
-                .await;
-        };
+        // Phase 2: holepunch rounds (with the private candidates probed next to them on a shared
+        // public address), raced against the relay when there is a role.
+        let lan = lan_for(same_host, &remote_payload.addresses4, opts);
         let ctx = PunchCtx {
             nw_result,
             remote_payload,
             relay: relay.clone(),
             target,
-            server_address,
+            server_address: hs_result.server_address.clone(),
             local_stream_id,
+            lan,
+        };
+        let Some(role) = role else {
+            let hp_result = self
+                .punch_or_lan(&ctx, runtime, opts.holepunch.as_ref())
+                .await?;
+            return self
+                .punched_connection(&hp_result, None, runtime, reusable, remote_public_key)
+                .await;
         };
         // Boxed: the pairing connects to the relay, which is a connect of its own.
         match Box::pin(self.connect_relayed(key_pair, ctx, role, runtime, opts)).await? {
