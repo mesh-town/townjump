@@ -12,51 +12,6 @@ use tokio::time::{Instant as TokioInstant, Sleep};
 /// How many notifications one step drains; the rest goes to the next `select!` turn.
 const DRAIN_MAX: usize = 64;
 
-/// Fields of the WARN at the stream's failure by RTO.
-pub(super) struct RtoFailure {
-    pub(super) unacked: usize,
-    pub(super) age_ms: u64,
-    /// Packets that reached the ACK processing (`zp.proc_n`).
-    pub(super) rx: u64,
-    /// Milliseconds since the last such packet; -1 if there was none.
-    pub(super) last_rx_ms: i64,
-    pub(super) remote_acked: u32,
-    pub(super) end_seq: Option<u32>,
-    pub(super) rto_ms: u64,
-}
-
-pub(super) fn rto_failure_fields(inner: &StreamInner, now: Instant, age: Duration) -> RtoFailure {
-    RtoFailure {
-        unacked: inner.outgoing.len(),
-        age_ms: age.as_millis() as u64,
-        rx: inner.zp.proc_n,
-        last_rx_ms: inner.last_rx.map_or(-1, |at| {
-            now.saturating_duration_since(at).as_millis() as i64
-        }),
-        remote_acked: inner.remote_acked,
-        end_seq: inner.end_seq,
-        rto_ms: u64::from(inner.rto),
-    }
-}
-
-/// The WARN at the stream's failure by RTO: log analysis greps the text prefix, the fields follow it.
-pub(super) fn log_rto_failure(inner: &StreamInner, local_id: u32, closing: bool, age: Duration) {
-    let f = rto_failure_fields(inner, Instant::now(), age);
-    tracing::warn!(
-        local_id,
-        remote_addr = ?inner.remote_addr,
-        unacked = f.unacked,
-        closing,
-        age_ms = f.age_ms,
-        rx = f.rx,
-        last_rx_ms = f.last_rx_ms,
-        remote_acked = f.remote_acked,
-        end_seq = ?f.end_seq,
-        rto_ms = f.rto_ms,
-        "stream failed: exceeded max RTO timeouts"
-    );
-}
-
 /// Four stream-loop timers; by default all far in the future.
 pub(super) struct LoopTimers {
     pub(super) rto: Pin<Box<Sleep>>,
@@ -246,7 +201,3 @@ pub(super) async fn notify_step(
 #[cfg(test)]
 #[path = "send_step_tests.rs"]
 mod tests;
-
-#[cfg(test)]
-#[path = "rto_failure_tests.rs"]
-mod rto_failure_tests;

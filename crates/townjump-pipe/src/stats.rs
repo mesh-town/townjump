@@ -2,7 +2,7 @@
 // Related: piper.rs (writes the counters and calls `on_destroy`).
 use std::io;
 use std::sync::Arc;
-use std::sync::atomic::AtomicI64;
+use portable_atomic::AtomicI64;
 use townjump_logger::Logger;
 
 /// Join counters: local and remote connections right now, rejections in total.

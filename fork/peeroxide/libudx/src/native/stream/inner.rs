@@ -38,8 +38,6 @@ pub(crate) struct StreamInner {
     pub(super) rttvar: u32,
     pub(super) rto: u32,
     pub(super) rto_timeouts: u32,
-    /// Time of the last packet that reached the ACK processing (`on_ack_packet`); `None` until the first one.
-    pub(super) last_rx: Option<Instant>,
     /// Diagnostics: RTO firings over the stream's lifetime (for `stats()` only).
     pub(super) rto_fires: u32,
     /// Z diagnostics: loss-marking counters and the `ZP` line clock.

@@ -25,7 +25,6 @@ impl StreamInner {
             rttvar: 0,
             rto: INITIAL_RTO_MS,
             rto_timeouts: 0,
-            last_rx: None,
             rto_fires: 0,
             zp: diag::Zp::default(),
             send_rwnd: DEFAULT_RWND,

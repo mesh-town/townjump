@@ -21,7 +21,6 @@ pub const OPEN_WINDOW: u32 = 4_194_304;
 pub const FLAG_DATA: u8 = 0x01;
 pub const FLAG_END: u8 = 0x02;
 pub const FLAG_SACK: u8 = 0x04;
-pub const FLAG_DESTROY: u8 = 0x10;
 pub const FLAG_HEARTBEAT: u8 = 0x20;
 
 /// A packet received by the peer: ms from the peer's clock and the whole bytes.

@@ -11,6 +11,7 @@ homepage.workspace = true
 description = "Stream splicing: TCP and framed UDP."
 
 [dependencies]
+portable-atomic = { version = "1", features = ["fallback"] }
 townjump-logger.workspace = true
 tokio.workspace = true
 

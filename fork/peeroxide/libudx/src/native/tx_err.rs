@@ -8,7 +8,8 @@
 // The log is rate-limited: on RTO the window goes out as an unpaced batch and errors arrive in bursts, so a line for each would slow the sender down.
 use std::net::SocketAddr;
 use std::sync::OnceLock;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
+use portable_atomic::AtomicU64;
 use std::time::Instant;
 
 use tokio::net::UdpSocket;

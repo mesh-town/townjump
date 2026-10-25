@@ -8,7 +8,8 @@ use crate::mock::trace::MockTrace;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddrV4;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
+use portable_atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use townjump_dht::MutableRecord;
 
