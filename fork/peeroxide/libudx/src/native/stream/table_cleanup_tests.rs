@@ -38,21 +38,8 @@ async fn wait_table_len_within(socket: &UdxSocket, n: usize, limit: Duration) ->
     true
 }
 
-/// A closed stream's entry stays as a tombstone for 20 s and more (`linger.rs`); the test runs the clock past it
-/// instead of waiting: pause, advance in 1 s steps (tasks get turns between them), resume real time.
-async fn run_clock_past_linger() {
-    tokio::time::pause();
-    for _ in 0..70 {
-        tokio::time::advance(Duration::from_secs(1)).await;
-    }
-    tokio::time::resume();
-}
-
-const LINGER_WAIT: Duration = Duration::from_secs(3);
-
 async fn wait_table_len(socket: &UdxSocket, n: usize) {
-    run_clock_past_linger().await;
-    let ok = wait_table_len_within(socket, n, LINGER_WAIT).await;
+    let ok = wait_table_len_within(socket, n, Duration::from_secs(2)).await;
     assert!(ok, "table has {} entries, expected {n}", table_len(socket));
 }
 
@@ -146,8 +133,7 @@ async fn dropped_stream_with_unsent_data_keeps_entry_until_processor_exits_then_
     drop(a);
     // without await: the processor task is still alive, so the entry is held
     assert_eq!(table_len(&sockets.a), 1);
-    run_clock_past_linger().await;
-    let ok = wait_table_len_within(&sockets.a, 0, Duration::from_secs(3)).await;
+    let ok = wait_table_len_within(&sockets.a, 0, Duration::from_secs(5)).await;
     assert!(ok, "entry not removed after the processor exited");
 }
 
@@ -191,10 +177,7 @@ async fn registered_unconnected_stream_leaves_table_empty() {
     stream.register(&sockets.a).expect("register");
     assert_eq!(table_len(&sockets.a), 1);
     drop(stream.into_async_stream());
-    assert!(
-        wait_table_len_within(&sockets.a, 0, Duration::from_secs(2)).await,
-        "no tombstone expected: entry must go within 2 s"
-    );
+    wait_table_len(&sockets.a, 0).await;
 }
 
 #[tokio::test]
@@ -207,41 +190,5 @@ async fn firewall_hook_stream_leaves_table_empty() {
         .expect("set_firewall_hook");
     assert_eq!(table_len(&sockets.a), 1);
     drop(stream.into_async_stream());
-    assert!(
-        wait_table_len_within(&sockets.a, 0, Duration::from_secs(2)).await,
-        "no tombstone expected: entry must go within 2 s"
-    );
-}
-
-/// Closed streams of both kinds (END exchange and abandoned) leave tombstones that expire; the table ends empty.
-#[tokio::test]
-async fn hundred_closed_streams_leave_table_empty_after_linger() {
-    let runtime = UdxRuntime::new().expect("runtime");
-    let sockets = two_sockets(&runtime).await;
-    let ids: Vec<(u32, u32)> = (1..=100).map(|i| (i, 1000 + i)).collect();
-    let set = pairs(&runtime, &sockets, &ids).await;
-    for (i, (mut a, mut b)) in set.into_iter().enumerate() {
-        if i < 50 {
-            a.shutdown().await.expect("shutdown a");
-            b.shutdown().await.expect("shutdown b");
-            let mut rest = Vec::new();
-            a.read_to_end(&mut rest).await.expect("read a");
-            b.read_to_end(&mut rest).await.expect("read b");
-        }
-        drop(a);
-        drop(b);
-    }
-    tokio::time::sleep(Duration::from_secs(1)).await;
-    assert!(table_len(&sockets.a) > 0, "no tombstones on A");
-    assert!(table_len(&sockets.b) > 0, "no tombstones on B");
-    run_clock_past_linger().await;
-    let limit = Duration::from_secs(3);
-    assert!(
-        wait_table_len_within(&sockets.a, 0, limit).await,
-        "A not empty"
-    );
-    assert!(
-        wait_table_len_within(&sockets.b, 0, limit).await,
-        "B not empty"
-    );
+    wait_table_len(&sockets.a, 0).await;
 }

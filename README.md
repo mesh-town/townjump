@@ -196,7 +196,7 @@ Release 0.1.0 is not published yet; the commands below describe the prepared cha
 - **Prebuilt binaries:** download the archive for your platform from the
   [releases page](https://github.com/mesh-town/townjump/releases) and verify it against `SHA256SUMS`.
   Targets: macOS (Apple silicon, Intel), Linux static (x86_64, aarch64, armv7), Windows (x86_64).
-- **Homebrew (macOS, Linux):** `brew tap mesh-town/meshtown && brew install townjump`
+- **Homebrew (macOS, Linux):** `brew tap mesh-town/tap && brew install townjump`
 - **OpenWrt:** build the package from `packaging/openwrt/townjump` with the OpenWrt SDK or as a feed.
 - **From source:** `cargo install --locked --path crates/townjump` (Rust 1.94 or newer; see
   [docs/building.md](docs/building.md)).

@@ -31,7 +31,8 @@
 use crate::compact_encoding::{self as c, State};
 use crate::protomux::{self, Channel, ChannelEvent, Mux};
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
+use portable_atomic::{AtomicI64, AtomicU64};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 use thiserror::Error;

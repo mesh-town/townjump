@@ -8,7 +8,7 @@ Release 0.1.0 is not published yet; the channels below are prepared.
 ## Homebrew
 
 ```
-brew tap mesh-town/meshtown
+brew tap mesh-town/tap
 brew install townjump
 ```
 

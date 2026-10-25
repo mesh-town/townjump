@@ -17,7 +17,8 @@
 //! Press Ctrl-C to shut down gracefully.
 
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::Ordering;
+use portable_atomic::AtomicU64;
 use std::time::Duration;
 
 use peeroxide_dht::hyperdht::{self, DEFAULT_BOOTSTRAP, HyperDhtConfig, ServerEvent};

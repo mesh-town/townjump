@@ -9,7 +9,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The "stream failed: exceeded max RTO timeouts" warning carries local_id, remote_addr, unacked, closing and age_ms.
 - Loss detection follows the send order (RACK with `reo_wnd = 0`): a packet below the highest SACK is lost only if it was sent earlier than the latest delivered SACKed packet that was never re-sent, and a hole is re-sent at most once per RTT; an RTT sample is not taken from a SACKed packet. Before this every ACK re-marked and re-sent the same holes, and after a burst loss the storm of re-sends overran the receiver's UDP buffer and stalled the transfer (which is why `WRITE_HIGH_WATER` had to stay at 512 KiB).
 - `UdxAsyncStream::poll_write` no longer waits for the ACK of the previous write: it accepts data while the payload without ACK or SACK is below `UdxAsyncStream::WRITE_HIGH_WATER` (256 KiB, as C `UDX_HIGH_WATERMARK`) plus `min(cwnd * mss, peer receive window)` (with any room above zero it accepts up to 64 KiB, so up to 64 KiB - 1 over); a SACK frees its bytes at once, not only the cumulative ACK; `poll_flush` and `poll_shutdown` wait for the ACK of everything accepted.
 - Dropping a `UdxAsyncStream` before the stream has ended (our FIN acknowledged and the peer's FIN read) now sends DESTROY, so the peer's reader fails with `ConnectionReset` instead of a silent timeout; a peer DESTROY surfaces as `ConnectionReset` on read, a peer FIN stays EOF. New `UdxAsyncStream::abort(self)` always sends DESTROY.
@@ -28,7 +27,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Closed streams linger as tombstones for clamp(14·rto, 20 s, 60 s): a late DATA or END from the peer gets a DESTROY, or an ACK when both ENDs were exchanged, at most once per rto.
 - Zero-window probe: a 20-byte HEARTBEAT right after a write into an idle stream with window 0, then after `rto`, then every `rto * 2`, until the window opens.
 
 ## [1.7.3](https://github.com/Rightbracket/peeroxide/compare/libudx-v1.7.2...libudx-v1.7.3) - 2026-07-12

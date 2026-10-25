@@ -11,6 +11,7 @@ homepage.workspace = true
 description = "Test support: reference-vector loader, mock DHT, shared conformance suite (dev-only)."
 
 [dependencies]
+portable-atomic = { version = "1", features = ["fallback"] }
 townjump-dht.workspace = true
 townjump-keys.workspace = true
 townjump-logger.workspace = true
