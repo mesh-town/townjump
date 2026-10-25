@@ -2,10 +2,10 @@
 //! Neighbours: `connection` carries the `Lease`; `handle` owns the `Reuse`.
 // JS: hyperdht/lib/socket-pool.js
 
+use portable_atomic::AtomicU64;
 use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
 use std::time::Duration;
 

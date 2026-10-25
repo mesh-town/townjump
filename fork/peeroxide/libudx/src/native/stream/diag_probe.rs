@@ -1,8 +1,8 @@
 //! The `ZP` probe (under `UDX_DIAG=z`): once a second a snapshot of the window edge and loss-marking counters, per stream.
 //! Does not change sender decisions: counters accumulate by plain additions, the line is printed from `diag_step`.
 use super::now_us;
-use std::sync::atomic::Ordering;
 use portable_atomic::AtomicU64;
+use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
 /// "Lost" marking counters since stream start and the print clock.

@@ -5,11 +5,11 @@ use crate::mock::config::MockConfig;
 use crate::mock::knobs::Switches;
 use crate::mock::server::ServerInner;
 use crate::mock::trace::MockTrace;
+use portable_atomic::AtomicU64;
 use serde_json::Value;
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddrV4;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::sync::{Arc, Mutex};
 use townjump_dht::MutableRecord;
 
