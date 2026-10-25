@@ -6,7 +6,7 @@ use peeroxide_dht::rpc::DhtMode;
 use std::net::SocketAddrV4;
 use townjump_dht::{DhtError, NodeMode};
 
-/// `persistent = !ephemeral`; an address whose host is not a numeric IPv4 becomes `None`.
+/// `persistent = !ephemeral`; `firewalled` is copied; an address whose host is not a numeric IPv4 becomes `None`.
 pub(crate) fn node_mode(mode: &DhtMode) -> NodeMode {
     let address = mode.address.as_ref().and_then(|peer| {
         let host = peer.host.parse().ok()?;
@@ -15,6 +15,7 @@ pub(crate) fn node_mode(mode: &DhtMode) -> NodeMode {
     NodeMode {
         persistent: !mode.ephemeral,
         adaptive: mode.adaptive,
+        firewalled: mode.firewalled,
         address,
     }
 }

@@ -13,4 +13,4 @@ pub use incoming::Incoming;
 pub use mode::NodeMode;
 pub use townjump_keys::KeyPair;
 pub use traits::{Dht, DhtFactory, DhtServer};
-pub use types::{ConnectOpts, DhtConnection, Firewall, MutableRecord, ServerOpts};
+pub use types::{ConnectOpts, DhtConnection, Firewall, MutableRecord, RttProbe, ServerOpts};

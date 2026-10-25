@@ -2,7 +2,8 @@
 // Trace (cli-matrix.json): `firewall` is a function only in private mode, `reusableSocket: true`, UDP `connect` without `opts`.
 use super::*;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 mod server_opts {
@@ -150,6 +151,57 @@ mod connection {
             text.ends_with(", .. }"),
             "the stream is not printed, the field list is incomplete: {text}"
         );
+        assert!(text.contains("remote_addr"), "{text}");
+    }
+
+    #[test]
+    fn new_connection_has_no_remote_addr() {
+        let conn = DhtConnection::new([1; 32], Box::new(tokio::io::duplex(8).0));
+
+        assert_eq!(conn.remote_addr(), None);
+    }
+
+    #[test]
+    fn with_remote_addr_is_read_back() {
+        let addr: SocketAddr = "127.0.0.1:9".parse().unwrap();
+        let conn = DhtConnection::new([1; 32], Box::new(tokio::io::duplex(8).0))
+            .with_remote_addr(Some(addr));
+
+        assert_eq!(conn.remote_addr(), Some(addr));
+    }
+
+    #[test]
+    fn rtt_is_none_without_a_probe() {
+        let conn = DhtConnection::new([1; 32], Box::new(tokio::io::duplex(8).0));
+
+        assert_eq!(conn.rtt(), None);
+        assert!(conn.rtt_probe().is_none(), "no probe was attached");
+    }
+
+    #[test]
+    fn rtt_reads_the_probe_each_time() {
+        let millis = Arc::new(AtomicU64::new(5));
+        let conn = DhtConnection::new([1; 32], Box::new(tokio::io::duplex(8).0))
+            .with_rtt_probe(millis_probe(&millis));
+
+        let first = conn.rtt();
+        millis.store(40, Ordering::SeqCst);
+        let second = conn.rtt();
+
+        assert_eq!(first, Some(Duration::from_millis(5)));
+        assert_eq!(second, Some(Duration::from_millis(40)));
+    }
+
+    #[test]
+    fn rtt_probe_outlives_the_moved_stream() {
+        let millis = Arc::new(AtomicU64::new(7));
+        let conn = DhtConnection::new([1; 32], Box::new(tokio::io::duplex(8).0))
+            .with_rtt_probe(millis_probe(&millis));
+
+        let probe = conn.rtt_probe().expect("a probe was attached");
+        let _stream = conn.stream;
+
+        assert_eq!(probe(), Some(Duration::from_millis(7)));
     }
 
     #[tokio::test]
@@ -163,6 +215,12 @@ mod connection {
 
         assert_eq!(&buf, b"hi");
     }
+}
+
+/// Probe that reports the shared counter as milliseconds.
+fn millis_probe(millis: &Arc<AtomicU64>) -> RttProbe {
+    let millis = Arc::clone(millis);
+    Arc::new(move || Some(Duration::from_millis(millis.load(Ordering::SeqCst))))
 }
 
 fn with_firewall(firewall: Firewall) -> ServerOpts {

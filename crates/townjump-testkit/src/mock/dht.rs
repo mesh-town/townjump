@@ -176,3 +176,7 @@ impl Dht for MockDht {
 #[cfg(test)]
 #[path = "dht_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "dht_direct_tests.rs"]
+mod direct_tests;
