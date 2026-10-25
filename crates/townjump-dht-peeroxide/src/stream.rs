@@ -7,7 +7,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
 use tokio::io::{AsyncRead, AsyncWrite, ReadBuf};
-use townjump_dht::DhtConnection;
+use townjump_dht::{DhtConnection, RttProbe};
 
 /// The whole fork connection in a slot: the UDX socket is kept alive as long as the stream; reads and writes go straight to `SecretStream`.
 struct PeerStream {
@@ -61,9 +61,18 @@ pub fn wrap_connection(conn: PeerConnection) -> DhtConnection {
 
 pub(crate) fn wrap_slot(slot: Arc<Slot>) -> DhtConnection {
     let remote_public_key = slot.remote_public_key;
+    let remote_addr = slot.remote_addr;
+    let weak = Arc::downgrade(&slot);
+    let probe: RttProbe = Arc::new(move || weak.upgrade()?.rtt());
     DhtConnection::new(remote_public_key, Box::new(PeerStream { slot }))
+        .with_remote_addr(remote_addr)
+        .with_rtt_probe(probe)
 }
 
 #[cfg(test)]
 #[path = "stream_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "stream_meta_tests.rs"]
+mod meta_tests;
