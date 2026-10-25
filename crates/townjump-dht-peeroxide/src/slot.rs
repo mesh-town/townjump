@@ -4,6 +4,7 @@ use libudx::UdxAsyncStream;
 use peeroxide_dht::hyperdht::PeerConnection;
 use peeroxide_dht::secret_stream::SecretStream;
 use std::io;
+use std::net::SocketAddr;
 use std::pin::Pin;
 use std::sync::{Mutex, MutexGuard};
 use std::task::{Context, Poll, Waker};
@@ -32,6 +33,7 @@ pub(crate) struct Slot {
     conn: Mutex<Option<PeerConnection>>,
     wakers: Mutex<Wakers>,
     pub remote_public_key: [u8; 32],
+    pub remote_addr: Option<SocketAddr>,
 }
 
 impl Slot {
@@ -40,6 +42,7 @@ impl Slot {
         conn.stream.set_keep_alive(KEEP_ALIVE);
         Slot {
             remote_public_key: conn.remote_public_key,
+            remote_addr: conn.remote_addr,
             conn: Mutex::new(Some(conn)),
             wakers: Mutex::new(Wakers::default()),
         }
@@ -47,6 +50,13 @@ impl Slot {
 
     pub fn is_killed(&self) -> bool {
         lock(&self.conn).is_none()
+    }
+
+    /// Smoothed round-trip time of the live connection; `None` before the first sample and after `kill`.
+    pub fn rtt(&self) -> Option<Duration> {
+        let guard = lock(&self.conn);
+        let srtt_ms = guard.as_ref()?.stream.get_ref().stats().srtt_ms;
+        (srtt_ms != 0).then(|| Duration::from_millis(u64::from(srtt_ms)))
     }
 
     /// Polls the stream under the slot lock; after an abort — `ConnectionAborted`. The lock is held until the Waker is recorded,

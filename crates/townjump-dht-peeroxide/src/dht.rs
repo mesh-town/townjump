@@ -5,7 +5,7 @@ use crate::node::{Node, fork_pair};
 use crate::server::PeeroxideServer;
 use peeroxide_dht::hyperdht::{ConnectOpts as ForkConnectOpts, RelayThrough};
 use std::fmt;
-use std::net::SocketAddrV4;
+use std::net::{SocketAddr, SocketAddrV4};
 use std::sync::Arc;
 use townjump_dht::{
     ConnectOpts, Dht, DhtConnection, DhtError, Incoming, MutableRecord, NodeMode, ServerOpts,
@@ -61,6 +61,27 @@ impl Dht for PeeroxideDht {
             node.handle
                 .connect_with_options(&node.identity, remote, &[], &node.runtime, o);
         node.adopt(connected.await.map_err(map_error)?)
+    }
+
+    /// Does not wait for the node bootstrap and does no DHT lookup: dials `addr` directly with default options.
+    async fn connect_direct(
+        &self,
+        remote: [u8; 32],
+        addr: SocketAddrV4,
+    ) -> Result<DhtConnection, DhtError> {
+        self.node.check_alive()?;
+        let node = &self.node;
+        let target = SocketAddr::V4(addr);
+        let connected = node
+            .handle
+            .connect_to(&node.identity, remote, target, &node.runtime);
+        node.adopt(connected.await.map_err(map_error)?)
+    }
+
+    /// Port of the node's DHT socket.
+    async fn local_port(&self) -> Result<u16, DhtError> {
+        self.node.check_alive()?;
+        self.node.handle.local_port().await.map_err(map_error)
     }
 
     async fn mutable_put(
@@ -128,3 +149,7 @@ mod tests;
 #[cfg(test)]
 #[path = "dht_lifecycle_tests.rs"]
 mod lifecycle_tests;
+
+#[cfg(test)]
+#[path = "addr_tests.rs"]
+mod addr_tests;
