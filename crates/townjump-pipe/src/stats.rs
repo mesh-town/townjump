@@ -1,8 +1,8 @@
 // JS: the `stats` and `opts` arguments in hyper-cmd-lib-net/index.js:connPiper (`locCnt`, `remCnt`, `rejectCnt`, `onDestroy`).
 // Related: piper.rs (writes the counters and calls `on_destroy`).
+use portable_atomic::AtomicI64;
 use std::io;
 use std::sync::Arc;
-use portable_atomic::AtomicI64;
 use townjump_logger::Logger;
 
 /// Join counters: local and remote connections right now, rejections in total.

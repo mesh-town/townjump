@@ -2,10 +2,10 @@
 //! Public and internal types of the IO layer: errors, config, stats, events, in-flight entries.
 //! Neighbours: `window` (congestion), `state` (`Io` itself).
 
+use portable_atomic::AtomicU64;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::time::Duration;
 
 use blake2::Blake2bMac;

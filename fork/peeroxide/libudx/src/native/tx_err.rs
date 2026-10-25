@@ -6,10 +6,10 @@
 // did not go out as a result". All six send branches send one datagram per call (no aggregation),
 // so the two shares differ only by the size distribution: a failure on a data packet (~MTU) weighs as much as a dozen service ones.
 // The log is rate-limited: on RTO the window goes out as an unpaced batch and errors arrive in bursts, so a line for each would slow the sender down.
+use portable_atomic::AtomicU64;
 use std::net::SocketAddr;
 use std::sync::OnceLock;
 use std::sync::atomic::Ordering;
-use portable_atomic::AtomicU64;
 use std::time::Instant;
 
 use tokio::net::UdpSocket;
