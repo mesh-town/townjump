@@ -10,20 +10,20 @@ use crate::messages::Ipv4Peer;
 pub(super) enum Plan {
     /// The client is reachable (or asked directly): the server sends first.
     DialClient,
-    /// The server is reachable: wait for the client's first packet.
+    /// The server is reachable (open firewall): wait for the client's first packet.
     AwaitClient,
     /// Both sides are behind NAT: run the PEER_HOLEPUNCH rounds.
     Holepunch,
 }
 
 /// Chooses the plan from the client's firewall, `direct` (no relay in the
-/// request) and our own firewall. `same_host`: the client sits behind our own public IP (see
-/// `same_host`) - wait on the node socket like JS, no puncher.
-pub(super) fn plan(remote_fw: u64, direct: bool, ours: u64, same_host: bool) -> Plan {
+/// request) and our own firewall. A client behind our own public IP is hole-punched like any
+/// other firewalled client; it reaches the puncher over the LAN.
+pub(super) fn plan(remote_fw: u64, direct: bool, ours: u64) -> Plan {
     if remote_fw == FIREWALL_OPEN || direct {
         return Plan::DialClient;
     }
-    if ours == FIREWALL_OPEN || same_host {
+    if ours == FIREWALL_OPEN {
         return Plan::AwaitClient;
     }
     Plan::Holepunch

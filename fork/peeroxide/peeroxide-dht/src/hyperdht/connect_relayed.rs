@@ -30,6 +30,7 @@ pub(super) enum Relayed {
 }
 
 /// Everything the punch task needs, owned (the task outlives the borrow of `finish_connection`).
+#[derive(Clone)]
 pub(super) struct PunchCtx {
     pub nw_result: NoiseWrapResult,
     pub remote_payload: NoisePayload,
@@ -37,6 +38,8 @@ pub(super) struct PunchCtx {
     pub target: [u8; 32],
     pub server_address: Ipv4Peer,
     pub local_stream_id: u32,
+    /// Private candidates probed next to the punch rounds; empty off the shared-address path.
+    pub lan: Vec<Ipv4Peer>,
 }
 
 type PunchTask = AbortOnDrop<Result<ConnectResult, HyperDhtError>>;
@@ -147,26 +150,15 @@ impl HyperDhtHandle {
         let session = self.dht.session();
         let this = self.in_session(&session);
         let runtime = UdxRuntime::shared(runtime.handle());
-        let (nw, payload) = (ctx.nw_result.clone(), ctx.remote_payload.clone());
-        let (relay, target) = (ctx.relay.clone(), ctx.target);
-        let (addr, id) = (ctx.server_address.clone(), ctx.local_stream_id);
-        let (filter, delay) = (opts.holepunch.clone(), opts.punch_delay);
+        let ctx = ctx.clone();
+        let filter = opts.holepunch.clone();
+        let delay = opts.punch_delay;
         AbortOnDrop(tokio::spawn(async move {
             let _session = session;
             if let Some(d) = delay {
                 tokio::time::sleep(d).await;
             }
-            this.run_holepunch_rounds(
-                &nw,
-                &payload,
-                &relay,
-                &target,
-                &addr,
-                &runtime,
-                id,
-                filter.as_ref(),
-            )
-            .await
+            this.punch_or_lan(&ctx, &runtime, filter.as_ref()).await
         }))
     }
 

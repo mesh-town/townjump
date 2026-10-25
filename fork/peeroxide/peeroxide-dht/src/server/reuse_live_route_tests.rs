@@ -1,7 +1,7 @@
 // JS: hyperdht/lib/connect.js (retry_route, fallback to FIND_PEER)
 //! Live tests, part 3: route failure (fallback to a new connection, `drop_route`), a route
 //! on the node IO socket (direct branch, the socket is not held) and a client behind the server's own
-//! public IP (the server answers from its node socket). Fixture and helpers are in the
+//! public IP (the server punches; the client reaches its puncher over LAN). Fixture and helpers are in the
 //! parent (`reuse_live_tests.rs`), included from there.
 
 use super::*;
@@ -123,33 +123,49 @@ mod same_host {
     use super::*;
 
     /// Both nodes firewalled on one host (a loopback cluster), the client announces its LAN
-    /// addresses (`Opts::lan()`), so the server takes the plan without a puncher.
+    /// addresses (`Opts::lan()`): the server punches; the client reaches its puncher over LAN.
     mod client_behind_our_public_ip {
         use super::*;
 
         #[tokio::test]
-        async fn server_answers_on_its_node_socket() {
+        async fn server_answers_from_a_puncher() {
             within(async {
                 // given: a firewalled server and a client on the same host that announces a LAN address
                 let mut fx = setup(Opts::lan()).await;
                 // when: the first connection
                 let first = fx.when_connect().await;
-                // then: the server side runs on its node IO socket (not on a puncher) and holds nothing
+                // then: the server side runs on a puncher socket, not on its node IO socket
                 let io = fx.server_io_socket().await;
                 assert!(
-                    first.server.socket.ptr_eq(&io),
-                    "server answered from a puncher socket"
-                );
-                assert!(
-                    !fx.server_held(&first.server.socket),
-                    "server socket is held"
+                    !first.server.socket.ptr_eq(&io),
+                    "server answered from its node IO socket"
                 );
             })
             .await;
         }
 
         #[tokio::test]
-        async fn second_connection_past_linger_goes_over_the_route() {
+        async fn second_connection_within_linger_goes_over_the_route() {
+            within(async {
+                // given: the first connection is closed on both sides, the puncher socket is still lingering
+                let mut fx = setup(Opts::lan()).await;
+                let first = fx.when_connect().await;
+                drop(first);
+                // when: a second connection right away (well within LINGER)
+                let second = fx.when_connect().await;
+                // then: the route is taken and survives, data flows
+                assert_eq!(fx.hits(), 1, "route not taken");
+                assert_eq!(fx.drops(), 0, "the answer came from a closed puncher");
+                assert!(
+                    echoes(second).await,
+                    "data over the second connection did not arrive"
+                );
+            })
+            .await;
+        }
+
+        #[tokio::test]
+        async fn second_connection_past_linger_dials_afresh() {
             within(async {
                 // given: the first connection is closed on both sides and LINGER + 1 s have passed
                 let mut fx = setup(Opts::lan()).await;
@@ -158,9 +174,8 @@ mod same_host {
                 tokio::time::sleep(LINGER + Duration::from_secs(1)).await;
                 // when: a second connection
                 let second = fx.when_connect().await;
-                // then: the route to the node socket is taken and survives (nothing expired), data flows
-                assert_eq!(fx.hits(), 1, "route not taken");
-                assert_eq!(fx.drops(), 0, "the answer came from a closed puncher");
+                // then: the route expired with the socket and was not tried, a fresh connection works
+                assert_eq!(fx.hits(), 0, "expired route taken");
                 assert!(
                     echoes(second).await,
                     "data over the second connection did not arrive"

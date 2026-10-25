@@ -5,6 +5,8 @@ use std::time::Duration;
 
 use crate::rpc::DhtConfig;
 
+#[cfg(test)]
+use super::connect_lan::LanRewrite;
 #[cfg(doc)]
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
@@ -68,6 +70,9 @@ pub struct ConnectOpts {
     pub punch_delay: Option<Duration>,
     /// Relay chosen by `connect_with_options` for this connect; internal.
     pub(crate) relay_ask: Option<RelayAsk>,
+    /// Test lever: replaces the private candidates probed next to hole-punching.
+    #[cfg(test)]
+    pub(crate) lan_rewrite: Option<LanRewrite>,
 }
 
 impl Default for ConnectOpts {
@@ -80,6 +85,8 @@ impl Default for ConnectOpts {
             holepunch: None,
             punch_delay: None,
             relay_ask: None,
+            #[cfg(test)]
+            lan_rewrite: None,
         }
     }
 }

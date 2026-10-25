@@ -6,7 +6,7 @@ use crate::hyperdht_messages::{FIREWALL_CONSISTENT, FIREWALL_RANDOM, FIREWALL_UN
 #[test]
 fn holepunch_open_client_is_dialed_by_server() {
     assert_eq!(
-        plan(FIREWALL_OPEN, false, FIREWALL_UNKNOWN, false),
+        plan(FIREWALL_OPEN, false, FIREWALL_UNKNOWN),
         Plan::DialClient
     );
 }
@@ -14,23 +14,20 @@ fn holepunch_open_client_is_dialed_by_server() {
 #[test]
 fn direct_request_is_dialed() {
     assert_eq!(
-        plan(FIREWALL_UNKNOWN, true, FIREWALL_UNKNOWN, false),
+        plan(FIREWALL_UNKNOWN, true, FIREWALL_UNKNOWN),
         Plan::DialClient
     );
-    assert_eq!(
-        plan(FIREWALL_RANDOM, true, FIREWALL_OPEN, false),
-        Plan::DialClient
-    );
+    assert_eq!(plan(FIREWALL_RANDOM, true, FIREWALL_OPEN), Plan::DialClient);
 }
 
 #[test]
 fn open_server_awaits_unknown_client() {
     assert_eq!(
-        plan(FIREWALL_UNKNOWN, false, FIREWALL_OPEN, false),
+        plan(FIREWALL_UNKNOWN, false, FIREWALL_OPEN),
         Plan::AwaitClient
     );
     assert_eq!(
-        plan(FIREWALL_CONSISTENT, false, FIREWALL_OPEN, false),
+        plan(FIREWALL_CONSISTENT, false, FIREWALL_OPEN),
         Plan::AwaitClient
     );
 }
@@ -38,11 +35,11 @@ fn open_server_awaits_unknown_client() {
 #[test]
 fn firewalled_server_holepunches_unknown_client() {
     assert_eq!(
-        plan(FIREWALL_UNKNOWN, false, FIREWALL_UNKNOWN, false),
+        plan(FIREWALL_UNKNOWN, false, FIREWALL_UNKNOWN),
         Plan::Holepunch
     );
     assert_eq!(
-        plan(FIREWALL_RANDOM, false, FIREWALL_CONSISTENT, false),
+        plan(FIREWALL_RANDOM, false, FIREWALL_CONSISTENT),
         Plan::Holepunch
     );
 }
@@ -60,41 +57,6 @@ fn only_holepunch_answers_from_the_puncher() {
     assert!(reply_from_puncher(Plan::Holepunch));
     assert!(!reply_from_puncher(Plan::DialClient));
     assert!(!reply_from_puncher(Plan::AwaitClient));
-}
-
-mod plan_for_firewalled_server {
-    use super::*;
-
-    #[test]
-    fn same_host_unknown_client_awaits() {
-        for ours in [FIREWALL_UNKNOWN, FIREWALL_CONSISTENT, FIREWALL_RANDOM] {
-            // given: a relayed, unknown client and a server that is not open
-            // when: the client sits behind our own public IP
-            let got = plan(FIREWALL_UNKNOWN, false, ours, true);
-            // then: the server waits on the node socket instead of punching
-            assert_eq!(got, Plan::AwaitClient, "our firewall = {ours}");
-        }
-    }
-
-    #[test]
-    fn same_host_direct_still_dials() {
-        // given: a direct request, and separately an open client
-        // when: both sit behind our own public IP
-        let direct = plan(FIREWALL_UNKNOWN, true, FIREWALL_UNKNOWN, true);
-        let open = plan(FIREWALL_OPEN, false, FIREWALL_UNKNOWN, true);
-        // then: the server still dials the client
-        assert_eq!(direct, Plan::DialClient, "direct request");
-        assert_eq!(open, Plan::DialClient, "open client");
-    }
-
-    #[test]
-    fn other_host_still_punches() {
-        // given: a relayed, unknown client and a server that is not open
-        // when: the client is not behind our public IP
-        let got = plan(FIREWALL_UNKNOWN, false, FIREWALL_UNKNOWN, false);
-        // then: the server runs the hole-punch rounds
-        assert_eq!(got, Plan::Holepunch);
-    }
 }
 
 /// The client is `127.0.0.1:7` unless a test says otherwise.
