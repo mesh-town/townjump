@@ -48,7 +48,7 @@ pub trait Dht: Send + Sync + 'static {
     fn suspend(&self) -> impl Future<Output = Result<(), DhtError>> + Send;
     /// `dht.resume()`: the inverse of `suspend`.
     fn resume(&self) -> impl Future<Output = Result<(), DhtError>> + Send;
-    /// Current node mode; backends without modes report the default (ephemeral, not adaptive).
+    /// Current node mode; backends without modes report the default (ephemeral, not adaptive, firewalled).
     fn node_mode(&self) -> NodeMode {
         NodeMode::default()
     }
@@ -63,6 +63,24 @@ pub trait Dht: Send + Sync + 'static {
     fn set_adaptive(&self, _on: bool) -> impl Future<Output = Result<(), DhtError>> + Send {
         std::future::ready(Err(DhtError::Backend(
             "adaptive mode is not supported".to_string(),
+        )))
+    }
+    /// Connects to `remote` at a known address of its DHT socket (`IP:local_port()` of the remote node), without
+    /// waiting for bootstrap and without a DHT lookup; default options (no relay, no reusable socket). Fails if
+    /// nobody answers there (after the request timeout) or the node there serves no such key.
+    fn connect_direct(
+        &self,
+        _remote: [u8; 32],
+        _addr: SocketAddrV4,
+    ) -> impl Future<Output = Result<DhtConnection, DhtError>> + Send {
+        std::future::ready(Err(DhtError::Backend(
+            "direct connect is not supported".to_string(),
+        )))
+    }
+    /// Port of the node's DHT socket, the one `connect_direct` of a peer must target.
+    fn local_port(&self) -> impl Future<Output = Result<u16, DhtError>> + Send {
+        std::future::ready(Err(DhtError::Backend(
+            "local port is not supported".to_string(),
         )))
     }
     /// Routing table export, as dht-rpc `toArray()`: freshest first, host and port only; empty for backends without a table.

@@ -13,3 +13,9 @@ First public version of the port of Holesail 2.4.4.
 - DHT layer: a patched fork of peeroxide (`fork/peeroxide`).
 - Web file manager, a port of livefiles 1.1.0.
 - Reference vectors and an interop test harness against JavaScript Holesail.
+- `Dht::connect_direct`: connect to a peer at a known IPv4 address of its DHT socket, without bootstrap or a
+  DHT lookup; `Dht::local_port`: the port of the node's DHT socket.
+- `DhtConnection::remote_addr` and `DhtConnection::rtt`: the peer's address and the smoothed round-trip time
+  of a connection.
+- `NodeMode::firewalled`: whether the node considers itself behind a firewall; `NodeMode::default()` reports
+  `firewalled: true`.

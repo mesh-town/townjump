@@ -45,6 +45,41 @@ mod adaptive_flag {
     }
 }
 
+mod firewalled_flag {
+    use super::*;
+
+    #[test]
+    fn is_copied() {
+        let mut mode = mode_with(true, None);
+        mode.firewalled = true;
+        assert!(node_mode(&mode).firewalled, "true must stay true");
+        mode.firewalled = false;
+        assert!(!node_mode(&mode).firewalled, "false must stay false");
+    }
+
+    #[test]
+    fn default_fork_mode_is_firewalled() {
+        let got = node_mode(&DhtMode::default());
+
+        assert!(got.firewalled);
+        assert!(!got.persistent);
+    }
+
+    #[test]
+    fn modes_differing_only_in_it_are_unequal() {
+        let mut behind = mode_with(true, None);
+        behind.firewalled = true;
+        let mut open = behind.clone();
+        open.firewalled = false;
+
+        assert_ne!(
+            node_mode(&behind),
+            node_mode(&open),
+            "`mode_changed` compares NodeMode as a whole"
+        );
+    }
+}
+
 mod non_ipv4_host {
     use super::*;
 

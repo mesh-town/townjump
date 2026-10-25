@@ -47,7 +47,10 @@ impl Dht for Plain {
 
 mod defaults {
     use super::*;
+    use std::net::{Ipv4Addr, SocketAddrV4};
     use std::time::Duration;
+
+    const WAIT: Duration = Duration::from_secs(2);
 
     #[test]
     fn node_mode_is_the_default_mode() {
@@ -58,6 +61,32 @@ mod defaults {
     async fn set_adaptive_is_a_backend_error() {
         let err = Plain.set_adaptive(true).await.expect_err("must be refused");
         assert!(matches!(err, DhtError::Backend(_)), "got {err:?}");
+    }
+
+    #[tokio::test]
+    async fn connect_direct_is_a_backend_error() {
+        let addr = SocketAddrV4::new(Ipv4Addr::LOCALHOST, 1);
+
+        let answer = tokio::time::timeout(WAIT, Plain.connect_direct([1; 32], addr))
+            .await
+            .expect("the default answers at once");
+
+        assert!(
+            matches!(answer, Err(DhtError::Backend(_))),
+            "got {answer:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn local_port_is_a_backend_error() {
+        let answer = tokio::time::timeout(WAIT, Plain.local_port())
+            .await
+            .expect("the default answers at once");
+
+        assert!(
+            matches!(answer, Err(DhtError::Backend(_))),
+            "got {answer:?}"
+        );
     }
 
     #[tokio::test]
