@@ -1,5 +1,7 @@
 # townjump
 
+Used by **[Mesh Town](https://mesh-town.github.io/)** — reach your home server, NAS or office PC from anywhere: no port forwarding, no central server, no accounts.
+
 Share a local TCP or UDP port with another machine over a peer-to-peer network: no public IP, no port forwarding,
 no VPN and no relay server. One side runs `townjump --live 3000` and gets a key; the other side runs
 `townjump <key>` and the service appears on its own `127.0.0.1`.
