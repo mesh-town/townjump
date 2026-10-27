@@ -149,7 +149,7 @@ The goal is to behave exactly like JavaScript Holesail 2.4.4. Where this port di
   quirks of the original are kept, so that scripts written for `holesail` keep working: for example
   `--public=false` still means public, and `--live P --port Q` ignores `Q`. The list is in
   [docs/spec/holesail/README.md](docs/spec/holesail/README.md).
-- **`--version`** prints `2.4.4`, the version of Holesail this port follows, not the version of the port.
+- **`--version`** prints `2.4.4`, the Holesail version this port follows, not the port version.
 
 ### Different
 
@@ -223,13 +223,13 @@ crates.io yet and the API is not stable; depend on them through git.
 | `townjump-jsval` | JavaScript value semantics needed for argv and DHT records (`Number#toString`, JSON, port validation). |
 | `townjump-pipe` | Stream splicing: TCP and framed UDP. |
 | `townjump-logger` | The debug log and the channel for unhandled errors. |
-| `townjump-dht` | Traits of the DHT network: the seam between the Holesail layer and an implementation (peeroxide or a mock). |
+| `townjump-dht` | DHT network traits: the seam between the Holesail layer and an implementation (peeroxide or a mock). |
 | `townjump-dht-peeroxide` | Adapter of `townjump-dht` over the peeroxide fork; the only crate that sees the fork. |
 | `townjump-filemanager` | The `--filemanager` web file manager (port of livefiles 1.1.0). |
 | `townjump-testkit` | Test support: reference-vector loader, mock DHT, shared conformance suite (dev-only). |
 
 `fork/peeroxide` is a vendored, patched copy of [peeroxide](https://github.com/Rightbracket/peeroxide) 1.7.3
-(the list of changes is in [FORK.md](fork/peeroxide/FORK.md)); it is a separate Cargo workspace.
+(the change list is in [FORK.md](fork/peeroxide/FORK.md)); it is a separate Cargo workspace.
 
 ## Documentation
 
