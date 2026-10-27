@@ -22,19 +22,19 @@ installs `holesail`, so the names do not collide). The help text still says
 
 ## Homebrew (own tap)
 
-1. Once: `brew tap-new mesh-town/homebrew-tap`, push it as `mesh-town/homebrew-tap`
+1. Once: `brew tap-new mesh-town/homebrew-macos`, push it as `mesh-town/homebrew-macos`
    on GitHub (formulas live in `Formula/`).
 2. Copy `homebrew/townjump.rb` to `Formula/townjump.rb` in the tap,
    set `url` (new tag) and `sha256` (step 3 above).
 3. Check locally:
    ```
-   brew install --build-from-source --verbose mesh-town/tap/townjump
-   brew test mesh-town/tap/townjump
-   brew audit --strict --formula mesh-town/tap/townjump
+   brew install --build-from-source --verbose mesh-town/macos/townjump
+   brew test mesh-town/macos/townjump
+   brew audit --strict --formula mesh-town/macos/townjump
    ```
    `--online`/`--new` audits fail on notability until the repository is
    known: expected for a tap.
-4. Users: `brew install mesh-town/tap/townjump`.
+4. Users: `brew install mesh-town/macos/townjump`.
 
 `std_cargo_args` already passes `--locked`, `--root` and `--path`; do not
 add `--locked` again. homebrew-core needs a repository older than 30 days
