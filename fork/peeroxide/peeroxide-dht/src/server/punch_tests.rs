@@ -21,6 +21,7 @@ fn state(round: u64) -> PunchState {
         secure: Some(SecurePayload::new(SECRET)),
         round,
         punching: false,
+        stop: None,
     }
 }
 
