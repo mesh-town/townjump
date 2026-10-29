@@ -99,6 +99,21 @@ async fn dropped_state_scenario() {
     settle("dropped state", base_fds, base_tasks).await;
 }
 
+async fn linger_scenario() {
+    let pool = SocketPool::new("127.0.0.1".into());
+    let rt = UdxRuntime::new().expect("runtime");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let (base_fds, base_tasks) = (fds(), tasks());
+    let mut stops = Vec::new();
+    for _ in 0..N {
+        let (puncher, _port) = server_puzzle(&pool, &rt, FIREWALL_RANDOM).await;
+        stops.push(spawn_puzzle(puncher, Duration::from_secs(1)));
+    }
+    tokio::time::sleep(Duration::from_millis(1500)).await;
+    settle("linger timeout", base_fds, base_tasks).await;
+    drop(stops);
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn puzzle_child() {
     let Ok(scenario) = std::env::var("PUZZLE_SCENARIO") else {
@@ -106,6 +121,7 @@ async fn puzzle_child() {
     };
     match scenario.as_str() {
         "dropped" => dropped_state_scenario().await,
+        "linger" => linger_scenario().await,
         other => panic!("unknown PUZZLE_SCENARIO {other}"),
     }
 }
@@ -113,6 +129,16 @@ async fn puzzle_child() {
 #[test]
 fn dropped_state_releases_early_refused_puzzle() {
     run_child("dropped");
+}
+
+#[test]
+fn linger_timeout_releases_early_refused_puzzle() {
+    run_child("linger");
+}
+
+#[test]
+fn puzzle_linger_covers_full_punch_window() {
+    assert!(PUZZLE_LINGER >= Duration::from_secs(35));
 }
 
 /// A client with a RANDOM NAT punches an OPEN server whose puzzle refused the punch early: the

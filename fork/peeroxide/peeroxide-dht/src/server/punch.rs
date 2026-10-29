@@ -2,8 +2,10 @@
 //! The passive side of hole punching: the puzzle (`Holepuncher`) made at
 //! handshake time and the PEER_HOLEPUNCH rounds (JS lines 516-657).
 
+use std::time::Duration;
+
 use libudx::{UdxRuntime, UdxSocket};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
 
 use super::reply::{abort_payload, round_payload};
 use crate::holepuncher::{HolepunchEvent, Holepuncher};
@@ -13,6 +15,10 @@ use crate::messages::Ipv4Peer;
 use crate::nat::Nat;
 use crate::secure_payload::SecurePayload;
 use crate::socket_pool::SocketPool;
+
+/// How long the reflector of the puzzle lives after an early refusal of `punch()`: the longest
+/// window of a full `punch()` (random probes plus keep-alive, about 35 seconds).
+pub(super) const PUZZLE_LINGER: Duration = Duration::from_secs(35);
 
 /// Hole-punching state of one handshake, kept next to its UDX stream.
 pub(super) struct PunchState {
@@ -25,6 +31,8 @@ pub(super) struct PunchState {
     secure: Option<SecurePayload>,
     round: u64,
     punching: bool,
+    /// Dropping (or destroying) the state stops the running puzzle.
+    pub(super) stop: Option<oneshot::Sender<()>>,
 }
 
 /// What the actor does with the answer of one round.
@@ -76,6 +84,27 @@ async fn socket_and_port(puncher: &Holepuncher) -> Result<(UdxSocket, u16), Hype
     Ok((socket, port))
 }
 
+/// Runs the puzzle in its own task. When `punch()` refuses early, the reflector keeps answering
+/// until the returned sender is dropped or `linger` passes; then the puzzle is destroyed (an
+/// abandoned puzzle would keep its socket alive through the reflector).
+fn spawn_puzzle(mut puncher: Holepuncher, linger: Duration) -> oneshot::Sender<()> {
+    let (stop, stop_rx) = oneshot::channel::<()>();
+    tokio::spawn(async move {
+        let pool = SocketPool::new("0.0.0.0".into());
+        let Ok(rt) = UdxRuntime::new() else {
+            return puncher.destroy();
+        };
+        if !puncher.punch(&pool, &rt).await {
+            tokio::select! {
+                _ = stop_rx => {}
+                _ = tokio::time::sleep(linger) => {}
+            }
+        }
+        puncher.destroy();
+    });
+    stop
+}
+
 impl PunchState {
     fn new(puncher: Holepuncher, punch_addrs: Vec<Ipv4Peer>) -> Self {
         Self {
@@ -84,6 +113,7 @@ impl PunchState {
             secure: None,
             round: 0,
             punching: false,
+            stop: None,
         }
     }
 
@@ -92,7 +122,7 @@ impl PunchState {
         self.secure = Some(SecurePayload::new(holepunch_secret));
     }
 
-    /// Destroys the puzzle if it is still here.
+    /// Destroys the puzzle if it is still here; `stop` goes away with `self`.
     pub(super) fn destroy(self) {
         if let Some(mut puncher) = self.puncher {
             puncher.destroy();
@@ -157,15 +187,10 @@ impl PunchState {
         if !remote_punching {
             return false;
         }
-        let Some(mut puncher) = self.puncher.take() else {
+        let Some(puncher) = self.puncher.take() else {
             return false;
         };
-        tokio::spawn(async move {
-            let pool = SocketPool::new("0.0.0.0".into());
-            if let Ok(rt) = UdxRuntime::new() {
-                puncher.punch(&pool, &rt).await;
-            }
-        });
+        self.stop = Some(spawn_puzzle(puncher, PUZZLE_LINGER));
         self.punching = true;
         true
     }
