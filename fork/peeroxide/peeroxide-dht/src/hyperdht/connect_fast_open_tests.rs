@@ -15,20 +15,31 @@ fn peer(host: &str, port: u16) -> Ipv4Peer {
     }
 }
 
-#[test]
-fn connected_now_returns_the_connected_address() {
+/// A `Connected` event for `addr` plus a clone of its socket for `ptr_eq` checks.
+async fn connected(addr: SocketAddr) -> (HolepunchEvent, UdxSocket) {
+    let rt = libudx::UdxRuntime::new().expect("runtime");
+    let socket = rt.create_socket().await.expect("socket");
+    let keep = socket.clone();
+    (HolepunchEvent::Connected { addr, socket }, keep)
+}
+
+#[tokio::test]
+async fn connected_now_returns_the_address_and_the_receiving_socket() {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let addr: SocketAddr = "203.0.113.7:7000".parse().unwrap();
-    tx.send(HolepunchEvent::Connected { addr }).unwrap();
-    assert_eq!(connected_now(&mut rx), Some(addr));
+    let (ev, sock) = connected(addr).await;
+    tx.send(ev).unwrap();
+    let (a, s) = connected_now(&mut rx).expect("connected");
+    assert_eq!(a, addr);
+    assert!(s.ptr_eq(&sock));
 }
 
 #[test]
 fn connected_now_skips_empty_and_aborted() {
     let (tx, mut rx) = mpsc::unbounded_channel();
-    assert_eq!(connected_now(&mut rx), None);
+    assert!(connected_now(&mut rx).is_none());
     tx.send(HolepunchEvent::Aborted).unwrap();
-    assert_eq!(connected_now(&mut rx), None);
+    assert!(connected_now(&mut rx).is_none());
 }
 
 #[test]
@@ -127,7 +138,7 @@ async fn grace_for_unknown_pauses_one_second() {
 async fn connected_ends_or_connected_without_waiting() {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let addr: SocketAddr = "203.0.113.7:7000".parse().unwrap();
-    tx.send(HolepunchEvent::Connected { addr }).unwrap();
+    tx.send(connected(addr).await.0).unwrap();
     let raced = tokio::time::timeout(
         Duration::from_millis(200),
         or_connected(
@@ -137,7 +148,7 @@ async fn connected_ends_or_connected_without_waiting() {
     )
     .await
     .expect("Connected must end the round without waiting for the reply");
-    assert!(matches!(raced, Ok(Raced::Connected(a)) if a == addr));
+    assert!(matches!(raced, Ok(Raced::Connected(a, _)) if a == addr));
 }
 
 #[tokio::test]
@@ -145,10 +156,10 @@ async fn connected_wins_when_future_is_ready() {
     let addr: SocketAddr = "203.0.113.7:7000".parse().unwrap();
     for i in 0..32 {
         let (tx, mut rx) = mpsc::unbounded_channel();
-        tx.send(HolepunchEvent::Connected { addr }).unwrap();
+        tx.send(connected(addr).await.0).unwrap();
         let raced = or_connected(std::future::ready(Ok::<_, DhtError>(response())), &mut rx).await;
         assert!(
-            matches!(raced, Ok(Raced::Connected(a)) if a == addr),
+            matches!(raced, Ok(Raced::Connected(a, _)) if a == addr),
             "iteration {i}: Connected must beat a ready reply"
         );
     }
@@ -174,14 +185,14 @@ async fn aborted_during_or_connected_is_an_error() {
 async fn connected_beats_pending_analyze_like_future() {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let addr: SocketAddr = "203.0.113.7:7000".parse().unwrap();
-    tx.send(HolepunchEvent::Connected { addr }).unwrap();
+    tx.send(connected(addr).await.0).unwrap();
     let raced = tokio::time::timeout(
         Duration::from_millis(200),
         or_connected(std::future::pending::<bool>(), &mut rx),
     )
     .await
     .expect("Connected must not wait for a pending future");
-    assert!(matches!(raced, Ok(Raced::Connected(a)) if a == addr));
+    assert!(matches!(raced, Ok(Raced::Connected(a, _)) if a == addr));
 }
 
 fn probe_reply(from: &Ipv4Peer, to: Option<Ipv4Peer>) -> ResponseData {

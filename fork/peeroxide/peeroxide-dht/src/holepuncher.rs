@@ -35,7 +35,12 @@ const BIRTHDAY_SOCKETS: usize = 256;
 
 #[non_exhaustive]
 pub enum HolepunchEvent {
-    Connected { addr: SocketAddr },
+    /// `socket`: clone of the puncher socket that received the probe; the
+    /// stream must run on it.
+    Connected {
+        addr: SocketAddr,
+        socket: libudx::UdxSocket,
+    },
     Aborted,
 }
 
@@ -271,10 +276,16 @@ impl Holepuncher {
             return;
         }
 
+        let Some(socket) = self.sockets.get(socket_idx).map(|s| s.socket.clone()) else {
+            return;
+        };
+
         self.connected = true;
         self.punching = false;
 
-        let _ = self.event_tx.send(HolepunchEvent::Connected { addr });
+        let _ = self
+            .event_tx
+            .send(HolepunchEvent::Connected { addr, socket });
     }
 
     fn done(&self) -> bool {
