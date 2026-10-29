@@ -22,6 +22,7 @@ fn state(round: u64) -> PunchState {
         round,
         punching: false,
         stop: None,
+        follow: None,
     }
 }
 

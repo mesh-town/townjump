@@ -3,6 +3,7 @@
 //! handshake, and the two ways to finish it (`dial` and `finish`).
 
 use std::net::SocketAddr;
+use std::sync::{Arc, Mutex};
 use std::time::Duration;
 
 use libudx::{UdxAsyncStream, UdxSocket, UdxStream};
@@ -17,6 +18,7 @@ use crate::hyperdht_messages::NoisePayload;
 use crate::messages::Ipv4Peer;
 use crate::noise_wrap::NoiseWrapResult;
 use crate::secret_stream::SecretStream;
+use crate::socket_pool::UdxFrameSeen;
 
 /// How long the SecretStream identity exchange may take.
 const SESSION_TIMEOUT: Duration = Duration::from_secs(10);
@@ -70,12 +72,16 @@ pub(super) async fn finish(p: Pending, addr: SocketAddr, tx: mpsc::Sender<PeerCo
         stream,
         socket,
         noise,
+        remote_udx_id,
         punch,
         keep,
         ..
     } = p;
     // Decided before the puzzle is destroyed: only a punch socket may be held.
     let punched = punch.is_some();
+    // The client may have reached a birthday socket of the puzzle instead of the primary one.
+    let moved = punch.as_ref().and_then(PunchState::moved_socket);
+    let socket = adopt_moved_socket(&stream, socket, moved, remote_udx_id, addr).await;
     if let Some(punch) = punch {
         punch.destroy();
     }
@@ -151,3 +157,71 @@ pub(super) fn arm_hook(
     })?;
     Ok(())
 }
+
+/// Where the puzzle reports a UDX frame that reached one of its sockets, and the socket it came on.
+#[derive(Clone)]
+pub(super) struct FollowStream {
+    id: u64,
+    internal: UnboundedSender<Internal>,
+    moved: Arc<Mutex<Option<UdxSocket>>>,
+}
+
+impl FollowStream {
+    pub(super) fn new(id: u64, internal: UnboundedSender<Internal>) -> Self {
+        Self {
+            id,
+            internal,
+            moved: Arc::new(Mutex::new(None)),
+        }
+    }
+
+    /// The socket the first frame came on, if one has come.
+    pub(super) fn moved_socket(&self) -> Option<UdxSocket> {
+        let cell = self.moved.lock().unwrap_or_else(|e| e.into_inner());
+        cell.clone()
+    }
+}
+
+/// Waits for the first UDX frame on a puzzle socket: stores its socket, then tells the actor the
+/// client arrived. Returns after that frame (dropping `frames` closes the sinks of the pool); no
+/// frame, no event.
+pub(super) async fn follow_frames(
+    f: FollowStream,
+    mut frames: mpsc::UnboundedReceiver<UdxFrameSeen>,
+) {
+    let Some(seen) = frames.recv().await else {
+        return;
+    };
+    let mut cell = f.moved.lock().unwrap_or_else(|e| e.into_inner());
+    *cell = Some(seen.socket);
+    drop(cell);
+    let _ = f.internal.send(Internal::Arrived {
+        id: f.id,
+        addr: seen.addr,
+    });
+}
+
+/// Runs the stream on the socket that got the client's first frame. Without one, or when the
+/// stream cannot be moved (its hook already fired on the original socket), the original stays.
+pub(super) async fn adopt_moved_socket(
+    stream: &UdxStream,
+    socket: UdxSocket,
+    moved: Option<UdxSocket>,
+    remote_id: u32,
+    addr: SocketAddr,
+) -> UdxSocket {
+    let Some(other) = moved else {
+        return socket;
+    };
+    match stream.connect(&other, remote_id, addr).await {
+        Ok(()) => other,
+        Err(e) => {
+            tracing::debug!(err = %e, %addr, "server: stream stays on its socket");
+            socket
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "conn_tests.rs"]
+mod tests;
