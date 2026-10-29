@@ -9,7 +9,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 
 use super::actor::{Internal, State};
-use super::conn::{Pending, arm_hook, remote_udx_id};
+use super::conn::{FollowStream, Pending, arm_hook, remote_udx_id};
 use super::opts::{FirewallInput, rejects};
 use super::plan::{
     Plan, client_agrees, client_lan, dial_from_arrival, plan, reply_from_puncher, same_host,
@@ -219,6 +219,9 @@ async fn wire(
     let stream = st.rt.create_stream(local_id).await?;
     if plan != Plan::DialClient {
         arm_hook(&stream, &prep.socket, remote_udx_id, id, internal)?;
+        if let Some(punch) = prep.punch.as_mut() {
+            punch.follow(FollowStream::new(id, internal.clone()));
+        }
     }
     let addresses4 = prep.addresses4.clone();
     let udx_id = u64::from(local_id);

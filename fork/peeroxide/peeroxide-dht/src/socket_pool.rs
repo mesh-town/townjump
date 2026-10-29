@@ -31,13 +31,32 @@ pub enum SocketPoolError {
 
 pub type Result<T> = std::result::Result<T, SocketPoolError>;
 
+/// A UDX frame that reached a pooled socket: the socket (a clone) and the sender's address.
+pub(crate) struct UdxFrameSeen {
+    pub(crate) socket: UdxSocket,
+    pub(crate) addr: SocketAddr,
+}
+
+type FrameSink = (UdxSocket, mpsc::UnboundedSender<UdxFrameSeen>);
+
 pub struct SocketPool {
     host: String,
+    udx_frames: Option<mpsc::UnboundedSender<UdxFrameSeen>>,
 }
 
 impl SocketPool {
     pub fn new(host: String) -> Self {
-        Self { host }
+        Self {
+            host,
+            udx_frames: None,
+        }
+    }
+
+    /// Reports every UDX frame that reaches a socket of this pool (frames that no stream of the
+    /// socket claims) instead of dropping it.
+    pub(crate) fn with_udx_frames(mut self, tx: mpsc::UnboundedSender<UdxFrameSeen>) -> Self {
+        self.udx_frames = Some(tx);
+        self
     }
 
     pub async fn acquire(&self, runtime: &UdxRuntime) -> Result<SocketRef> {
@@ -49,7 +68,11 @@ impl SocketPool {
         let (dht_tx, dht_rx) = mpsc::unbounded_channel();
         let recv_rx = socket.recv_start()?;
 
-        let recv_task = tokio::spawn(route_messages(recv_rx, hp_tx, dht_tx));
+        let frames = self
+            .udx_frames
+            .as_ref()
+            .map(|tx| (socket.clone(), tx.clone()));
+        let recv_task = tokio::spawn(route_messages(recv_rx, hp_tx, dht_tx, frames));
 
         Ok(SocketRef {
             socket,
@@ -60,12 +83,33 @@ impl SocketPool {
     }
 }
 
+/// Resolves when the receiving end of the frame sink is gone; never without a sink.
+async fn sink_closed(frames: &Option<FrameSink>) {
+    match frames {
+        Some((_, tx)) => tx.closed().await,
+        None => std::future::pending().await,
+    }
+}
+
 async fn route_messages(
     mut recv_rx: mpsc::UnboundedReceiver<Datagram>,
     hp_tx: mpsc::UnboundedSender<HolepunchEvent>,
     dht_tx: mpsc::UnboundedSender<Datagram>,
+    mut frames: Option<FrameSink>,
 ) {
-    while let Some(dgram) = recv_rx.recv().await {
+    loop {
+        let dgram = tokio::select! {
+            d = recv_rx.recv() => match d {
+                Some(d) => d,
+                None => break,
+            },
+            // The sink holds a clone of the socket; once nobody listens, let go of it so the
+            // socket can close.
+            _ = sink_closed(&frames) => {
+                frames = None;
+                continue;
+            }
+        };
         match classify_inbound(&dgram.data) {
             InboundClass::Holepunch => {
                 tracing::debug!(addr = %dgram.addr, len = dgram.data.len(), "socket_pool: holepunch probe received");
@@ -75,10 +119,21 @@ async fn route_messages(
                 tracing::trace!(addr = %dgram.addr, len = dgram.data.len(), "socket_pool: DHT response forwarded");
                 let _ = dht_tx.send(dgram);
             }
-            InboundClass::UdxFrame | InboundClass::Drop => {
-                // UDX frames are handled by libudx's own demux before fallback
-                // datagrams reach this lane; DHT requests are not expected on
-                // a holepunch socket; both are silently dropped.
+            InboundClass::UdxFrame => {
+                // Frames of known streams never get here; this is a frame for a stream that is
+                // not on this socket. Report it when a sink is set, else drop it.
+                if let Some((socket, tx)) = &frames {
+                    let seen = UdxFrameSeen {
+                        socket: socket.clone(),
+                        addr: dgram.addr,
+                    };
+                    if tx.send(seen).is_err() {
+                        frames = None;
+                    }
+                }
+            }
+            InboundClass::Drop => {
+                // DHT requests are not expected on a holepunch socket; dropped.
             }
         }
     }

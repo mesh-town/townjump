@@ -6,7 +6,9 @@ use std::time::Duration;
 
 use libudx::{UdxRuntime, UdxSocket};
 use tokio::sync::{mpsc, oneshot};
+use tokio::task::JoinHandle;
 
+use super::conn::{FollowStream, follow_frames};
 use super::reply::{abort_payload, round_payload};
 use crate::holepuncher::{HolepunchEvent, Holepuncher};
 use crate::hyperdht::{HolepunchFilter, HolepunchInput, HyperDhtError, HyperDhtHandle};
@@ -33,6 +35,8 @@ pub(super) struct PunchState {
     punching: bool,
     /// Dropping (or destroying) the state stops the running puzzle.
     pub(super) stop: Option<oneshot::Sender<()>>,
+    /// Where to report a UDX frame on a puzzle socket.
+    follow: Option<FollowStream>,
 }
 
 /// What the actor does with the answer of one round.
@@ -87,10 +91,14 @@ async fn socket_and_port(puncher: &Holepuncher) -> Result<(UdxSocket, u16), Hype
 /// Runs the puzzle in its own task. When `punch()` refuses early, the reflector keeps answering
 /// until the returned sender is dropped or `linger` passes; then the puzzle is destroyed (an
 /// abandoned puzzle would keep its socket alive through the reflector).
-fn spawn_puzzle(mut puncher: Holepuncher, linger: Duration) -> oneshot::Sender<()> {
+fn spawn_puzzle(
+    mut puncher: Holepuncher,
+    linger: Duration,
+    follow: Option<FollowStream>,
+) -> oneshot::Sender<()> {
     let (stop, stop_rx) = oneshot::channel::<()>();
     tokio::spawn(async move {
-        let pool = SocketPool::new("0.0.0.0".into());
+        let (pool, watcher) = puzzle_pool(follow);
         let Ok(rt) = UdxRuntime::new() else {
             return puncher.destroy();
         };
@@ -101,8 +109,26 @@ fn spawn_puzzle(mut puncher: Holepuncher, linger: Duration) -> oneshot::Sender<(
             }
         }
         puncher.destroy();
+        // Without a frame the watcher would keep the sink open, and with it the sockets.
+        if let Some(w) = watcher {
+            w.abort();
+        }
     });
     stop
+}
+
+/// The pool of the running puzzle. With `follow`, a watcher reports the first UDX frame that
+/// reaches any of its sockets.
+fn puzzle_pool(follow: Option<FollowStream>) -> (SocketPool, Option<JoinHandle<()>>) {
+    let pool = SocketPool::new("0.0.0.0".into());
+    let Some(f) = follow else {
+        return (pool, None);
+    };
+    let (tx, rx) = mpsc::unbounded_channel();
+    (
+        pool.with_udx_frames(tx),
+        Some(tokio::spawn(follow_frames(f, rx))),
+    )
 }
 
 impl PunchState {
@@ -114,7 +140,17 @@ impl PunchState {
             round: 0,
             punching: false,
             stop: None,
+            follow: None,
         }
+    }
+
+    pub(super) fn follow(&mut self, f: FollowStream) {
+        self.follow = Some(f);
+    }
+
+    /// The puzzle socket that got the client's first UDX frame, if any.
+    pub(super) fn moved_socket(&self) -> Option<UdxSocket> {
+        self.follow.as_ref().and_then(FollowStream::moved_socket)
     }
 
     /// Sets the round cipher from the final handshake's holepunch secret.
@@ -190,7 +226,7 @@ impl PunchState {
         let Some(puncher) = self.puncher.take() else {
             return false;
         };
-        self.stop = Some(spawn_puzzle(puncher, PUZZLE_LINGER));
+        self.stop = Some(spawn_puzzle(puncher, PUZZLE_LINGER, self.follow.clone()));
         self.punching = true;
         true
     }

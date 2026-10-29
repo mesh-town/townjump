@@ -107,7 +107,7 @@ async fn linger_scenario() {
     let mut stops = Vec::new();
     for _ in 0..N {
         let (puncher, _port) = server_puzzle(&pool, &rt, FIREWALL_RANDOM).await;
-        stops.push(spawn_puzzle(puncher, Duration::from_secs(1)));
+        stops.push(spawn_puzzle(puncher, Duration::from_secs(1), None));
     }
     tokio::time::sleep(Duration::from_millis(1500)).await;
     settle("linger timeout", base_fds, base_tasks).await;
