@@ -63,3 +63,49 @@ impl Holepuncher {
 #[cfg(test)]
 #[path = "addresses_tests.rs"]
 mod tests;
+
+pub fn match_address(
+    local_addresses: &[Ipv4Peer],
+    remote_local_addresses: &[Ipv4Peer],
+) -> Option<Ipv4Peer> {
+    if remote_local_addresses.is_empty() {
+        return None;
+    }
+
+    let mut best_segment = 1u8;
+    let mut best_addr: Option<&Ipv4Peer> = None;
+
+    for local in local_addresses {
+        let a: Vec<&str> = local.host.split('.').collect();
+        if a.len() != 4 {
+            continue;
+        }
+
+        for remote in remote_local_addresses {
+            let b: Vec<&str> = remote.host.split('.').collect();
+            if b.len() != 4 {
+                continue;
+            }
+
+            if a[0] == b[0] {
+                if best_segment == 1 {
+                    best_segment = 2;
+                    best_addr = Some(remote);
+                }
+
+                if a[1] == b[1] {
+                    if best_segment == 2 {
+                        best_segment = 3;
+                        best_addr = Some(remote);
+                    }
+
+                    if a[2] == b[2] {
+                        return Some(remote.clone());
+                    }
+                }
+            }
+        }
+    }
+
+    best_addr.cloned()
+}
