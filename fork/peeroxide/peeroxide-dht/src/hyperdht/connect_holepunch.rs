@@ -121,7 +121,7 @@ impl HyperDhtHandle {
                 via.clone(),
             );
             let hp_resp = match or_connected(probe, &mut event_rx).await? {
-                Raced::Connected(addr) => {
+                Raced::Connected(addr, socket) => {
                     // Deviation from JS: a veto also stops an early `Connected`.
                     gate_punch(filter, &mut puncher)?;
                     let by = "packet_before_reply";
@@ -130,7 +130,7 @@ impl HyperDhtHandle {
                         remote_payload,
                         local_stream_id,
                         addr,
-                        via,
+                        socket,
                         round,
                         by,
                     ));
@@ -201,7 +201,7 @@ impl HyperDhtHandle {
                 puncher.update_remote(reply_hp.punching, reply_hp.firewall, addrs, verified_host);
             }
 
-            if let Some(addr) = connected_now(&mut event_rx) {
+            if let Some((addr, socket)) = connected_now(&mut event_rx) {
                 gate_punch(filter, &mut puncher)?;
                 let by = "after_reply";
                 return Ok(fast_mode_result(
@@ -209,7 +209,7 @@ impl HyperDhtHandle {
                     remote_payload,
                     local_stream_id,
                     addr,
-                    via,
+                    socket,
                     round,
                     by,
                 ));
@@ -227,14 +227,14 @@ impl HyperDhtHandle {
 
             // Same race for the 1 s UNKNOWN grace: `Connected` does not wait for a round.
             let grace = or_connected(grace_for_unknown(reply_hp.firewall), &mut event_rx);
-            if let Raced::Connected(addr) = grace.await? {
+            if let Raced::Connected(addr, socket) = grace.await? {
                 let by = "during_grace";
                 return Ok(fast_mode_result(
                     nw_result,
                     remote_payload,
                     local_stream_id,
                     addr,
-                    via,
+                    socket,
                     round,
                     by,
                 ));
@@ -243,7 +243,7 @@ impl HyperDhtHandle {
             // `analyze` merges the background samples (bounded by the 2 s ping timeout).
             if verified_remote_addr.is_some() && reply_hp.firewall != FIREWALL_UNKNOWN {
                 // `Connected` (fast mode) ends the round even while the samples are still pending.
-                if let Raced::Connected(addr) =
+                if let Raced::Connected(addr, socket) =
                     or_connected(puncher.analyze(false), &mut event_rx).await?
                 {
                     let by = "during_analyze";
@@ -252,7 +252,7 @@ impl HyperDhtHandle {
                         remote_payload,
                         local_stream_id,
                         addr,
-                        via,
+                        socket,
                         round,
                         by,
                     ));
@@ -269,14 +269,14 @@ impl HyperDhtHandle {
         }
 
         // The last round may end in `continue` (TRY_LATER) with `Connected` already queued.
-        if let Some(addr) = connected_now(&mut event_rx) {
+        if let Some((addr, socket)) = connected_now(&mut event_rx) {
             let by = "after_rounds";
             return Ok(fast_mode_result(
                 nw_result,
                 remote_payload,
                 local_stream_id,
                 addr,
-                via,
+                socket,
                 last_round,
                 by,
             ));
@@ -327,12 +327,18 @@ fn fast_mode_result(
     remote_payload: &NoisePayload,
     local_stream_id: u32,
     addr: SocketAddr,
-    via: Option<UdxSocket>,
+    socket: UdxSocket,
     round: u64,
     by: &'static str,
 ) -> ConnectResult {
     tracing::debug!(round, by, "connected during probe rounds (fast mode)");
-    punched_result(nw_result, remote_payload, local_stream_id, addr, via)
+    punched_result(
+        nw_result,
+        remote_payload,
+        local_stream_id,
+        addr,
+        Some(socket),
+    )
 }
 
 #[cfg(test)]

@@ -17,25 +17,30 @@
 
 use std::net::SocketAddr;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::AtomicBool;
 
+#[cfg(test)]
 use libudx::UdxSocket;
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use tokio::time::{Duration, sleep};
+#[cfg(test)]
+use tokio::time::Duration;
 
 use crate::hyperdht_messages::{FIREWALL_CONSISTENT, FIREWALL_RANDOM, FIREWALL_UNKNOWN};
 use crate::messages::Ipv4Peer;
 use crate::nat::Nat;
-use crate::socket_pool::{
-    HolepunchEvent as ProbeEvent, SocketPool, SocketRef, coerce_firewall, random_port,
-};
+use crate::socket_pool::{SocketPool, SocketRef, coerce_firewall};
 
 const BIRTHDAY_SOCKETS: usize = 256;
 
 #[non_exhaustive]
 pub enum HolepunchEvent {
-    Connected { addr: SocketAddr },
+    /// `socket`: clone of the puncher socket that received the probe; the
+    /// stream must run on it.
+    Connected {
+        addr: SocketAddr,
+        socket: libudx::UdxSocket,
+    },
     Aborted,
 }
 
@@ -78,7 +83,12 @@ pub struct Holepuncher {
 
 mod addresses;
 mod lifecycle;
+mod probes;
+mod recv_adapter;
 mod sampling;
+
+pub use addresses::match_address;
+use recv_adapter::spawn_recv_adapter_for_socket;
 
 impl Holepuncher {
     pub async fn new(
@@ -251,130 +261,6 @@ impl Holepuncher {
             })
     }
 
-    async fn consistent_probe(&mut self) {
-        if !self.is_initiator {
-            sleep(Duration::from_secs(1)).await;
-        }
-
-        for tries in 0..10 {
-            if !self.punching {
-                break;
-            }
-
-            for addr in &self.remote_addresses {
-                if !addr.verified && (tries & 3) != 0 {
-                    continue;
-                }
-                let target: SocketAddr = match format!("{}:{}", addr.host, addr.port).parse() {
-                    Ok(a) => a,
-                    Err(_) => continue,
-                };
-                if let Some(socket) = self.sockets.first() {
-                    let _ = socket.send_holepunch(target, false);
-                }
-            }
-
-            if self.punching {
-                sleep(Duration::from_secs(1)).await;
-            }
-        }
-
-        self.auto_destroy();
-    }
-
-    async fn random_probes(&mut self, remote_addr: &Ipv4Peer) {
-        for _ in 0..1750 {
-            if !self.punching {
-                break;
-            }
-
-            let port = random_port();
-            let target: SocketAddr = match format!("{}:{port}", remote_addr.host).parse() {
-                Ok(a) => a,
-                Err(_) => continue,
-            };
-            if let Some(socket) = self.sockets.first() {
-                let _ = socket.send_holepunch(target, false);
-            }
-
-            if self.punching {
-                sleep(Duration::from_millis(20)).await;
-            }
-        }
-
-        self.auto_destroy();
-    }
-
-    async fn open_birthday_sockets(
-        &mut self,
-        pool: &SocketPool,
-        runtime: &libudx::UdxRuntime,
-        remote_addr: &Ipv4Peer,
-    ) {
-        let target: SocketAddr = match format!("{}:{}", remote_addr.host, remote_addr.port).parse()
-        {
-            Ok(a) => a,
-            Err(_) => return,
-        };
-
-        while self.punching && self.sockets.len() < BIRTHDAY_SOCKETS {
-            match pool.acquire(runtime).await {
-                Ok(mut socket) => {
-                    let _ = socket.send_holepunch(target, true);
-                    // Cover this birthday socket's probe stream with its own
-                    // recv-adapter task so a probe landing on it (rather than
-                    // the primary socket) still fires `Connected`.
-                    if let Some(handle) = spawn_recv_adapter_for_socket(
-                        &mut socket,
-                        self.is_initiator,
-                        self.event_tx.clone(),
-                        Arc::clone(&self.connected_flag),
-                    ) {
-                        self.recv_tasks.push(handle);
-                    }
-                    self.sockets.push(socket);
-                }
-                Err(_) => break,
-            }
-        }
-    }
-
-    async fn keep_alive_random_nat(&mut self, remote_addr: &Ipv4Peer) {
-        let target: SocketAddr = match format!("{}:{}", remote_addr.host, remote_addr.port).parse()
-        {
-            Ok(a) => a,
-            Err(_) => return,
-        };
-
-        sleep(Duration::from_millis(100)).await;
-
-        let mut i = 0;
-        let mut low_ttl_rounds: u32 = 1;
-
-        for _ in 0..1750 {
-            if !self.punching {
-                break;
-            }
-
-            if i == self.sockets.len() {
-                i = 0;
-                low_ttl_rounds = low_ttl_rounds.saturating_sub(1);
-            }
-
-            if let Some(socket) = self.sockets.get(i) {
-                let _ = socket.send_holepunch(target, low_ttl_rounds > 0);
-            }
-            i += 1;
-
-            if self.punching {
-                sleep(Duration::from_millis(20)).await;
-            }
-        }
-
-        self.auto_destroy();
-    }
-
-    /// **Note:** This method is retained for API compatibility but is not
     /// called by the production recv path. The internal recv-adapter task
     /// (spawned in `Holepuncher::new`) implements equivalent semantics with
     /// interior mutability via `connected_flag: Arc<AtomicBool>`.
@@ -390,10 +276,16 @@ impl Holepuncher {
             return;
         }
 
+        let Some(socket) = self.sockets.get(socket_idx).map(|s| s.socket.clone()) else {
+            return;
+        };
+
         self.connected = true;
         self.punching = false;
 
-        let _ = self.event_tx.send(HolepunchEvent::Connected { addr });
+        let _ = self
+            .event_tx
+            .send(HolepunchEvent::Connected { addr, socket });
     }
 
     fn done(&self) -> bool {
@@ -405,112 +297,6 @@ impl Holepuncher {
             self.destroy();
         }
     }
-}
-
-/// Take ownership of `socket_ref`'s holepunch-probe receiver and spawn a
-/// [`run_recv_adapter`] task for it, sharing the same `connected_flag` and
-/// `event_tx` as every other socket belonging to the same [`Holepuncher`].
-/// Every socket that can receive a `PEER_HOLEPUNCH` probe — the primary
-/// socket acquired in `Holepuncher::new`, and each birthday-attack socket
-/// opened by `open_birthday_sockets` — must be covered this way, or a probe
-/// landing on an uncovered socket will silently never fire `Connected`.
-///
-/// Returns `None` (spawning nothing) if `socket_ref`'s `holepunch_rx` has
-/// already been taken; this should not happen for a freshly acquired
-/// `SocketRef` but is handled defensively rather than panicking.
-fn spawn_recv_adapter_for_socket(
-    socket_ref: &mut SocketRef,
-    is_initiator: bool,
-    event_tx: mpsc::UnboundedSender<HolepunchEvent>,
-    connected_flag: Arc<AtomicBool>,
-) -> Option<JoinHandle<()>> {
-    let hp_rx = socket_ref.take_holepunch_rx()?;
-    let socket_clone = socket_ref.socket.clone();
-    Some(tokio::spawn(run_recv_adapter(
-        hp_rx,
-        socket_clone,
-        is_initiator,
-        event_tx,
-        connected_flag,
-    )))
-}
-
-async fn run_recv_adapter(
-    mut hp_rx: mpsc::UnboundedReceiver<ProbeEvent>,
-    socket: UdxSocket,
-    is_initiator: bool,
-    event_tx: mpsc::UnboundedSender<HolepunchEvent>,
-    connected_flag: Arc<AtomicBool>,
-) {
-    while let Some(probe) = hp_rx.recv().await {
-        if is_initiator {
-            if connected_flag
-                .compare_exchange(false, true, Ordering::AcqRel, Ordering::Acquire)
-                .is_ok()
-            {
-                tracing::info!(
-                    target: "peeroxide::_events::holepunch::probe_received",
-                    addr = %probe.addr,
-                    "holepuncher(initiator): probe received, firing Connected"
-                );
-                let _ = event_tx.send(HolepunchEvent::Connected { addr: probe.addr });
-                return;
-            }
-        } else {
-            tracing::info!(
-                target: "peeroxide::_events::holepunch::passive_reflected",
-                addr = %probe.addr,
-                "holepuncher(passive): probe received, reflecting"
-            );
-            let _ = socket.send_to(&[0u8], probe.addr);
-        }
-    }
-}
-
-pub fn match_address(
-    local_addresses: &[Ipv4Peer],
-    remote_local_addresses: &[Ipv4Peer],
-) -> Option<Ipv4Peer> {
-    if remote_local_addresses.is_empty() {
-        return None;
-    }
-
-    let mut best_segment = 1u8;
-    let mut best_addr: Option<&Ipv4Peer> = None;
-
-    for local in local_addresses {
-        let a: Vec<&str> = local.host.split('.').collect();
-        if a.len() != 4 {
-            continue;
-        }
-
-        for remote in remote_local_addresses {
-            let b: Vec<&str> = remote.host.split('.').collect();
-            if b.len() != 4 {
-                continue;
-            }
-
-            if a[0] == b[0] {
-                if best_segment == 1 {
-                    best_segment = 2;
-                    best_addr = Some(remote);
-                }
-
-                if a[1] == b[1] {
-                    if best_segment == 2 {
-                        best_segment = 3;
-                        best_addr = Some(remote);
-                    }
-
-                    if a[2] == b[2] {
-                        return Some(remote.clone());
-                    }
-                }
-            }
-        }
-    }
-
-    best_addr.cloned()
 }
 
 #[cfg(test)]

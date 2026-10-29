@@ -34,7 +34,8 @@ pub struct ConnectResult {
     pub local_stream_id: u32,
     /// Remote UDX metadata advertised by the peer.
     pub remote_udx: Option<UdxInfo>,
-    /// Clone of the puncher's primary UDX socket when holepunching lands.
+    /// Clone of the puncher socket that received the peer's probe (the primary
+    /// one unless a birthday socket won); the stream runs on it.
     ///
     /// When set by `run_holepunch_rounds`' `Connected` arm, this is the
     /// socket whose punched 4-tuple is established.

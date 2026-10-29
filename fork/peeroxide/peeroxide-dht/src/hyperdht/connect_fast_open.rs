@@ -29,17 +29,18 @@ pub(super) fn open_session(puncher: &Holepuncher, server_address: &Ipv4Peer) {
     }
 }
 
-/// `Connected` already waiting in the event channel (JS `isDone(c)`), if any.
+/// `Connected` already waiting in the event channel (JS `isDone(c)`), if any: the address and the
+/// socket that received the probe.
 pub(super) fn connected_now(
     rx: &mut mpsc::UnboundedReceiver<HolepunchEvent>,
-) -> Option<SocketAddr> {
+) -> Option<(SocketAddr, UdxSocket)> {
     match rx.try_recv() {
-        Ok(HolepunchEvent::Connected { addr }) => Some(addr),
+        Ok(HolepunchEvent::Connected { addr, socket }) => Some((addr, socket)),
         _ => None,
     }
 }
 
-/// ConnectResult over the puzzle socket; logs "punch successful" (both the early and the final path).
+/// ConnectResult over `udx_socket`: the socket that received the peer's probe; logs "punch successful" (both the early and the final path).
 pub(super) fn punched_result(
     nw_result: &NoiseWrapResult,
     remote_payload: &NoisePayload,
@@ -169,9 +170,9 @@ pub(super) fn build_punch(
 /// Waits for the next event: `Connected` gives the address; `Aborted` or a closed channel is an error.
 pub(super) async fn next_connected(
     rx: &mut mpsc::UnboundedReceiver<HolepunchEvent>,
-) -> Result<SocketAddr, HyperDhtError> {
+) -> Result<(SocketAddr, UdxSocket), HyperDhtError> {
     match rx.recv().await {
-        Some(HolepunchEvent::Connected { addr }) => Ok(addr),
+        Some(HolepunchEvent::Connected { addr, socket }) => Ok((addr, socket)),
         _ => {
             tracing::info!(
                 target: "peeroxide::_events::holepunch::aborted",
@@ -185,7 +186,7 @@ pub(super) async fn next_connected(
 /// Outcome of a step racing the `Connected` event.
 pub(super) enum Raced<T> {
     Done(T),
-    Connected(SocketAddr),
+    Connected(SocketAddr, UdxSocket),
 }
 
 /// Runs `fut` (final-round request, `analyze`), but a `Connected` event ends it without waiting;
@@ -200,7 +201,10 @@ where
     // `biased`: when both are ready, `Connected` wins (the result no longer matters).
     tokio::select! {
         biased;
-        c = next_connected(rx) => Ok(Raced::Connected(c?)),
+        c = next_connected(rx) => {
+            let (addr, socket) = c?;
+            Ok(Raced::Connected(addr, socket))
+        }
         r = fut => Ok(Raced::Done(r)),
     }
 }
