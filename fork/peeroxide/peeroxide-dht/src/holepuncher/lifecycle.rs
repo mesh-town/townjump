@@ -28,7 +28,8 @@ impl Holepuncher {
 }
 
 /// An initiator that leaves scope (Connected, early `?`, cancelled future) must not leak its
-/// birthday sockets; the primary socket survives through the clone held by the connection.
+/// birthday sockets; the socket that received the probe survives through the clone carried by
+/// `Connected` into the connection, the others close here.
 impl Drop for Holepuncher {
     fn drop(&mut self) {
         if self.is_initiator && !self.destroyed {

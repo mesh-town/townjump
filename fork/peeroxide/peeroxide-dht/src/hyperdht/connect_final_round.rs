@@ -35,6 +35,8 @@ pub(super) struct FinalRound<'a> {
     pub sp: &'a SecurePayload,
     pub local_stream_id: u32,
     pub hp_id: u64,
+    /// Primary socket: carries the DHT requests only; the stream uses the
+    /// socket from `Connected`.
     pub via: Option<UdxSocket>,
     pub deadline: tokio::time::Instant,
     pub verified_addr: Ipv4Peer,
@@ -50,26 +52,27 @@ impl HyperDhtHandle {
         puncher: &mut Holepuncher,
         event_rx: &mut UnboundedReceiver<HolepunchEvent>,
     ) -> Result<ConnectResult, HyperDhtError> {
-        if let Some(addr) = self.send_final_request(&fr, puncher, event_rx).await? {
+        if let Some((addr, socket)) = self.send_final_request(&fr, puncher, event_rx).await? {
             return Ok(punched_result(
                 fr.nw_result,
                 fr.remote_payload,
                 fr.local_stream_id,
                 addr,
-                fr.via,
+                Some(socket),
             ));
         }
         race_punch(fr, puncher, event_rx).await
     }
 
     /// Sends the `punching=true` request and folds the reply into `puncher`.
-    /// `Some(addr)`: `Connected` arrived first (fast mode), no local punch needed.
+    /// `Some`: `Connected` arrived first (fast mode), no local punch needed; carries the address and
+    /// the socket that received the probe.
     async fn send_final_request(
         &self,
         fr: &FinalRound<'_>,
         puncher: &mut Holepuncher,
         event_rx: &mut UnboundedReceiver<HolepunchEvent>,
-    ) -> Result<Option<SocketAddr>, HyperDhtError> {
+    ) -> Result<Option<(SocketAddr, UdxSocket)>, HyperDhtError> {
         let final_outbound_token: [u8; 32] = rand::random();
         let punch_payload = build_punch(
             puncher.nat.firewall,
@@ -92,9 +95,9 @@ impl HyperDhtHandle {
             fr.via.clone(),
         );
         let punch_resp = match or_connected(request, event_rx).await? {
-            Raced::Connected(addr) => {
+            Raced::Connected(addr, socket) => {
                 tracing::debug!(round = fr.round, "connected before final request");
-                return Ok(Some(addr));
+                return Ok(Some((addr, socket)));
             }
             Raced::Done(resp) => resp?,
         };
@@ -152,20 +155,10 @@ async fn race_punch(
     puncher: &mut Holepuncher,
     event_rx: &mut UnboundedReceiver<HolepunchEvent>,
 ) -> Result<ConnectResult, HyperDhtError> {
-    // As in Node connect.js: the initiator's rawStream attaches to the
-    // SAME socket the puncher used — that is where the NAT mapping was
-    // opened by the probe exchange. Using the DHT server socket would send
-    // the UDX SYN through an unrelated NAT path and never reach the peer.
-    //
-    // The Arc-clone keeps the socket alive after the Holepuncher is
-    // dropped on the early-return; SocketPool::acquire's route_messages
-    // task continues running as long as one clone exists.
-    let puncher_udx: Option<UdxSocket> = fr.via;
-    debug_assert!(
-        puncher_udx.is_some(),
-        "primary socket missing before punch loop — logic error"
-    );
-
+    // As in Node connect.js `onsocket`: the stream runs on the socket that
+    // received the peer's probe — the peer's NAT opened its hole towards that
+    // socket's mapping. The clone in `Connected` keeps it alive after the
+    // puncher drops.
     let timed_out = {
         let punch_fut = puncher.punch(fr.pool, fr.runtime);
         tokio::pin!(punch_fut);
@@ -176,13 +169,13 @@ async fn race_punch(
         loop {
             tokio::select! {
                 res = next_connected(event_rx) => {
-                    return res.map(|addr| {
+                    return res.map(|(addr, socket)| {
                         punched_result(
                             fr.nw_result,
                             fr.remote_payload,
                             fr.local_stream_id,
                             addr,
-                            puncher_udx,
+                            Some(socket),
                         )
                     });
                 }
@@ -205,3 +198,7 @@ async fn race_punch(
 
     unreachable!("holepunch select loop exited without return or timeout");
 }
+
+#[cfg(test)]
+#[path = "connect_final_round_tests.rs"]
+mod tests;

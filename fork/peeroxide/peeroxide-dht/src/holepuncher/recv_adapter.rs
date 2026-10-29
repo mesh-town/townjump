@@ -1,5 +1,5 @@
 //! Receive adapter of a [`Holepuncher`]: turns holepunch probes arriving on a
-//! socket into `Connected` events (initiator) or reflections (passive side).
+//! socket into `Connected` events naming the receiving socket (initiator) or reflections (passive side).
 
 use super::HolepunchEvent;
 use crate::socket_pool::{HolepunchEvent as ProbeEvent, SocketRef};
@@ -55,7 +55,10 @@ async fn run_recv_adapter(
                     addr = %probe.addr,
                     "holepuncher(initiator): probe received, firing Connected"
                 );
-                let _ = event_tx.send(HolepunchEvent::Connected { addr: probe.addr });
+                let _ = event_tx.send(HolepunchEvent::Connected {
+                    addr: probe.addr,
+                    socket: socket.clone(),
+                });
                 return;
             }
         } else {
