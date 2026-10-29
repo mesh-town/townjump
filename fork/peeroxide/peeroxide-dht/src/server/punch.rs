@@ -241,3 +241,7 @@ mod tests;
 #[cfg(test)]
 #[path = "punch_filter_tests.rs"]
 mod filter_tests;
+
+#[cfg(all(test, unix))]
+#[path = "punch_life_tests.rs"]
+mod life_tests;
