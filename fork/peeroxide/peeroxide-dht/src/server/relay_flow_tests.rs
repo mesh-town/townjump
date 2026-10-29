@@ -5,13 +5,12 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use tokio::sync::oneshot;
-use tokio::task::JoinHandle;
 
 use crate::blind_relay::BlindRelayServer;
 use crate::crypto::hash;
 use crate::hyperdht::{ConnectOpts, HolepunchFilter, KeyPair, PeerConnection, RelayThrough};
 use crate::hyperdht_messages::{FIREWALL_OPEN, FIREWALL_UNKNOWN, RelayThroughInfo};
-use crate::relay_service::{RelayServiceConfig, run_relay_server};
+use crate::relay_service::{RelayServiceConfig, RelayServiceHandle, run_relay_server};
 use crate::server::ServerOpts;
 use crate::server::test_net::{
     Cluster, Node, Served, cluster, echo, hello_relay, key, lan_host, member_on, node,
@@ -23,7 +22,7 @@ pub(super) struct Relay {
     pub(super) pk: [u8; 32],
     pub(super) stats: BlindRelayServer,
     node: Node,
-    _task: JoinHandle<()>,
+    _service: RelayServiceHandle,
 }
 
 pub(super) async fn relay(cl: &Cluster) -> Relay {
@@ -31,7 +30,7 @@ pub(super) async fn relay(cl: &Cluster) -> Relay {
     let kp = KeyPair::generate();
     let events = std::mem::replace(&mut node.events, tokio::sync::mpsc::unbounded_channel().1);
     let (rt, handle) = (node.rt.handle(), node.handle.clone());
-    let (stats, task) = run_relay_server(
+    let (stats, service) = run_relay_server(
         rt,
         handle,
         kp.clone(),
@@ -51,7 +50,7 @@ pub(super) async fn relay(cl: &Cluster) -> Relay {
         pk: kp.public_key,
         stats,
         node,
-        _task: task,
+        _service: service,
     }
 }
 

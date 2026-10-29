@@ -21,6 +21,7 @@ async fn pair(
         &p.key_pair,
         &p.rt,
         n.relay_pk,
+        &[],
         token,
         initiator,
         id,

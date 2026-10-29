@@ -3,8 +3,11 @@
 use super::*;
 use crate::server::PeeroxideServer;
 use peeroxide_dht::crypto::hash;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-use townjump_dht::{ConnectOpts, Dht, DhtConnection, DhtFactory, DhtServer, Incoming, ServerOpts};
+use townjump_dht::{
+    ConnectOpts, Dht, DhtConnection, DhtFactory, DhtServer, Incoming, RelayThrough, ServerOpts,
+};
 use townjump_testkit::conformance::wait::{ACCEPT_WAIT, STREAM_WAIT, within};
 use townjump_testkit::key_pair;
 
@@ -112,7 +115,7 @@ async fn client_option_reaches_the_relay() {
     let (_srv_node, _server, incoming) = listening(&testnet, 0xd2, ServerOpts::default()).await;
     echo_first(incoming);
     let opts = ConnectOpts {
-        relay_through: Some(relay.public_key()),
+        relay_through: Some(RelayThrough::Key(relay.public_key())),
         ..Default::default()
     };
     let (_node, conn) = client_connect(&testnet, key_pair(0xd2).public_key, opts).await;
@@ -129,7 +132,7 @@ async fn server_option_reaches_the_relay() {
     let testnet = start_testnet();
     let relay = announced_relay(&testnet, 0xd1).await;
     let opts = ServerOpts {
-        relay_through: Some(relay.public_key()),
+        relay_through: Some(RelayThrough::Key(relay.public_key())),
         ..Default::default()
     };
     let (_srv_node, _server, incoming) = listening(&testnet, 0xd2, opts).await;
@@ -167,7 +170,7 @@ async fn unannounced_relay_key_still_connects() {
     let (_srv_node, _server, incoming) = listening(&testnet, 0xd2, ServerOpts::default()).await;
     echo_first(incoming);
     let opts = ConnectOpts {
-        relay_through: Some([0x86; 32]),
+        relay_through: Some(RelayThrough::Key([0x86; 32])),
         ..Default::default()
     };
     let (_node, conn) = client_connect(&testnet, key_pair(0xd2).public_key, opts).await;

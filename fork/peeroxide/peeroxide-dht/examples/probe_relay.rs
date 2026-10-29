@@ -65,7 +65,7 @@ async fn relay(argv: &[String]) -> Result<(), String> {
         .bootstrapped()
         .await
         .map_err(|e| format!("bootstrap: {e}"))?;
-    let (server, relay_task) = run_relay_server(
+    let (server, service) = run_relay_server(
         rt.handle(),
         handle.clone(),
         key_pair.clone(),
@@ -77,7 +77,7 @@ async fn relay(argv: &[String]) -> Result<(), String> {
     let mut tick = tokio::time::interval(Duration::from_millis(200));
     loop {
         tick.tick().await;
-        if relay_task.is_finished() {
+        if service.is_finished() {
             task.abort();
             return Err("relay task ended".to_string());
         }

@@ -63,7 +63,7 @@ async fn replay_live(
         .create_server(ServerOpts {
             firewall,
             reusable_socket: true,
-            relay_through: None,
+            ..Default::default()
         })
         .unwrap();
     server.listen(kp.clone()).await.unwrap();

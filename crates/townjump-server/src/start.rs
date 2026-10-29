@@ -45,7 +45,7 @@ impl<D: Dht> HolesailServer<D> {
         ServerOpts {
             firewall,
             reusable_socket: true,
-            relay_through: None,
+            ..Default::default()
         }
     }
 

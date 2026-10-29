@@ -66,7 +66,7 @@ pub use connection::{ConnectResult, PeerConnection};
 pub use handle::HyperDhtHandle;
 pub use keypair::KeyPair;
 pub use node::spawn;
-pub use relay::{HolepunchFilter, HolepunchInput, RelayPath, RelayThrough};
+pub use relay::{HolepunchFilter, HolepunchInput, RelayAddress, RelayPath, RelayThrough};
 pub use server_passive::{PassiveHolepunchReply, build_passive_holepunch_reply};
 pub use server_run::{ServerSession, run_server};
 pub use stream::{alloc_stream_id, establish_stream, establish_stream_with_socket};

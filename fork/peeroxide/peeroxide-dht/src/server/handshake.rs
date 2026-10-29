@@ -138,13 +138,14 @@ fn admit(st: &State, hello: &Hello) -> Option<Admitted> {
         return None;
     }
     let direct = hello.peer_address.is_none();
+    let relay_through = relay::own_relay(&st.opts, remote.relay_through.as_ref());
     Some(Admitted {
         nw,
         remote,
         client_address,
         direct,
         arrived_on: hello.route.arrived_on.clone(),
-        relay_through: relay::own_relay(&st.opts),
+        relay_through,
     })
 }
 

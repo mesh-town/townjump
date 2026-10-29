@@ -10,7 +10,7 @@ use super::connect_lan::LanRewrite;
 #[cfg(doc)]
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
-use super::relay::{HolepunchFilter, RelayAsk, RelayThrough};
+use super::relay::{HolepunchFilter, RelayAddress, RelayAsk, RelayThrough};
 
 /// Configuration used by the server-side handshake and holepunch handler.
 #[non_exhaustive]
@@ -60,6 +60,9 @@ pub struct ConnectOpts {
     pub reusable_socket: bool,
     /// Relay(s) to ask for a blind-relay pairing next to the direct attempt. JS `opts.relayThrough`.
     pub relay_through: Option<RelayThrough>,
+    /// Known addresses of the relays in `relay_through`; the relay handshake goes straight to them
+    /// instead of a DHT lookup. (Not JS `relayAddresses`, which names handshake nodes of the target.)
+    pub relay_through_addresses: Vec<RelayAddress>,
     /// Keep-alive of the connection to the relay; `Duration::ZERO` leaves it off.
     /// JS `opts.relayKeepAlive`, default 5000 ms (`connect.js:106`).
     pub relay_keep_alive: Duration,
@@ -68,6 +71,9 @@ pub struct ConnectOpts {
     /// Test lever: wait this long before the client starts holepunching (only with a relay).
     #[doc(hidden)]
     pub punch_delay: Option<Duration>,
+    /// Test lever: index in the `List` where relay selection starts.
+    #[cfg(test)]
+    pub(crate) relay_start: Option<usize>,
     /// Relay chosen by `connect_with_options` for this connect; internal.
     pub(crate) relay_ask: Option<RelayAsk>,
     /// Test lever: replaces the private candidates probed next to hole-punching.
@@ -81,10 +87,13 @@ impl Default for ConnectOpts {
             local_connection: true,
             reusable_socket: false,
             relay_through: None,
+            relay_through_addresses: Vec::new(),
             relay_keep_alive: Duration::from_millis(5000),
             holepunch: None,
             punch_delay: None,
             relay_ask: None,
+            #[cfg(test)]
+            relay_start: None,
             #[cfg(test)]
             lan_rewrite: None,
         }

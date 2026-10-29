@@ -13,10 +13,12 @@ pub const REFUSE_WAIT: Duration = Duration::from_secs(60);
 /// For this long `Incoming::accept` must yield nothing if the connection is rejected.
 pub const EMPTY_WAIT: Duration = Duration::from_millis(300);
 
-const REUSABLE: ConnectOpts = ConnectOpts {
-    reusable_socket: true,
-    relay_through: None,
-};
+fn reusable() -> ConnectOpts {
+    ConnectOpts {
+        reusable_socket: true,
+        ..Default::default()
+    }
+}
 
 /// Waits for `fut` no longer than `limit`; otherwise panics, naming what was being awaited.
 pub async fn within<T>(limit: Duration, what: &str, fut: impl Future<Output = T>) -> T {
@@ -26,13 +28,13 @@ pub async fn within<T>(limit: Duration, what: &str, fut: impl Future<Output = T>
 
 /// `connect` must succeed.
 pub async fn connect_ok<D: Dht>(dht: &D, remote: [u8; 32], what: &str) -> DhtConnection {
-    let done = within(ACCEPT_WAIT, what, dht.connect(remote, REUSABLE)).await;
+    let done = within(ACCEPT_WAIT, what, dht.connect(remote, reusable())).await;
     done.unwrap_or_else(|e| panic!("{what}: connect ended with an error: {e}"))
 }
 
 /// `connect` must end with an error, and no later than `REFUSE_WAIT`.
 pub async fn connect_refused<D: Dht>(dht: &D, remote: [u8; 32], what: &str) {
-    let done = within(REFUSE_WAIT, what, dht.connect(remote, REUSABLE)).await;
+    let done = within(REFUSE_WAIT, what, dht.connect(remote, reusable())).await;
     assert!(
         done.is_err(),
         "{what}: connect must have ended with an error"

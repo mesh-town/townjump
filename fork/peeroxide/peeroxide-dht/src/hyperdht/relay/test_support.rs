@@ -9,7 +9,7 @@ use tokio::task::JoinHandle;
 
 use crate::blind_relay::BlindRelayServer;
 use crate::hyperdht::{HyperDhtConfig, HyperDhtError, HyperDhtHandle, KeyPair, ServerEvent, spawn};
-use crate::relay_service::{RelayServiceConfig, run_relay_server};
+use crate::relay_service::{RelayServiceConfig, RelayServiceHandle, run_relay_server};
 use crate::rpc::DhtConfig;
 
 /// One DHT node on 127.0.0.1 with its own UDX runtime.
@@ -29,7 +29,7 @@ pub(super) struct TestNet {
     pub relay: BlindRelayServer,
     _boot: Vec<TestPeer>,
     _relay_node: TestPeer,
-    _relay_task: JoinHandle<()>,
+    _relay_service: RelayServiceHandle,
 }
 
 async fn node(bootstrap: Vec<String>, ephemeral: bool) -> TestPeer {
@@ -67,7 +67,7 @@ pub(super) async fn net() -> TestNet {
     }
     let mut relay_node = node(bootstrap.clone(), false).await;
     let events = relay_node.events.take().expect("events");
-    let (relay, relay_task) = run_relay_server(
+    let (relay, relay_service) = run_relay_server(
         relay_node.rt.handle(),
         relay_node.handle.clone(),
         relay_node.key_pair.clone(),
@@ -95,6 +95,6 @@ pub(super) async fn net() -> TestNet {
         relay,
         _boot: holders,
         _relay_node: relay_node,
-        _relay_task: relay_task,
+        _relay_service: relay_service,
     }
 }

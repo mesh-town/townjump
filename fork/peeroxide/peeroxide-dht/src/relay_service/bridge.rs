@@ -11,6 +11,8 @@ use tokio::sync::mpsc;
 use crate::blind_relay::{BlindRelayServer, MatchedPairing, SessionOutbound};
 use crate::hyperdht::{HyperDhtError, HyperDhtHandle, alloc_stream_id};
 
+use super::stop::TaskSet;
+
 /// Shared storage for bridged (active) pairings' raw stream pairs, keyed
 /// by relay token.
 pub(super) type ActiveStreamMap =
@@ -25,12 +27,14 @@ pub(super) type ActiveStreamMap =
 /// pairing, or `release_session` when either side's session closes —
 /// both registered via `BlindRelayServer::mark_active`). Dropping a
 /// `UdxStream` aborts its packet-forwarding task, so removing an entry here is enough to stop forwarding and
-/// free the resources.
+/// free the resources. Each pair's task belongs to the service's `tasks`, so
+/// stopping the service drops every bridged pair too.
 pub(super) async fn bridge_matched_pairings(
     runtime_handle: Arc<RuntimeHandle>,
     dht: HyperDhtHandle,
     relay: BlindRelayServer,
     mut matched_rx: mpsc::UnboundedReceiver<MatchedPairing>,
+    tasks: TaskSet,
 ) {
     let active: ActiveStreamMap = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
 
@@ -39,7 +43,7 @@ pub(super) async fn bridge_matched_pairings(
         let dht = dht.clone();
         let relay = relay.clone();
         let active = Arc::clone(&active);
-        tokio::spawn(async move {
+        tasks.spawn(async move {
             let token = matched.token;
             let session_ids = [matched.first.session_id, matched.second.session_id];
             match bridge_one_pairing(runtime_handle, &dht, &relay, matched).await {

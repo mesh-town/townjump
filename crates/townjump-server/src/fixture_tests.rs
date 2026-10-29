@@ -20,10 +20,12 @@ pub(super) const PRIVATE_KEY_Z32: &str = "zjhbpxhxy886wokbedxf5mtnrqaygapd1amzi8
 /// `z32(publicKey)` of the same vector: the public mode key, `public_key` in `info`.
 pub(super) const PUBLIC_KEY_Z32: &str = "bxxinyn6mjjf31p9ssxtobak64wkcyjty3jo7qrweikkmm1c8u7y";
 /// `dht.connect` options of a private and public mode client: `reusableSocket` (TCP).
-pub(super) const TUNNEL: ConnectOpts = ConnectOpts {
-    reusable_socket: true,
-    relay_through: None,
-};
+pub(super) fn tunnel_opts() -> ConnectOpts {
+    ConnectOpts {
+        reusable_socket: true,
+        ..Default::default()
+    }
+}
 /// Scenario wait limit.
 pub(super) const WAIT: Duration = Duration::from_secs(5);
 /// "Nothing arrived".
@@ -112,7 +114,9 @@ impl Fixture {
     /// One client connection with identity `identity` to the server with seed `SEED_HEX`.
     pub(super) async fn connect_as(&self, identity: KeyPair) -> Result<DhtConnection, DhtError> {
         let client = self.client(identity).await;
-        client.connect(server_pair().public_key, TUNNEL).await
+        client
+            .connect(server_pair().public_key, tunnel_opts())
+            .await
     }
 
     /// Log stdout lines as "level, text" pairs; a line with the wrong format panics.

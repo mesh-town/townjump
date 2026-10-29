@@ -41,8 +41,8 @@ fn choose_roles() {
         relay_through: Some(RelayThrough::List(vec![])),
         ..ServerOpts::default()
     };
-    assert_eq!(own_relay(&opts), None);
-    assert_eq!(own_relay(&ServerOpts::default()), None);
+    assert_eq!(own_relay(&opts, None), None);
+    assert_eq!(own_relay(&ServerOpts::default(), None), None);
 }
 
 #[test]

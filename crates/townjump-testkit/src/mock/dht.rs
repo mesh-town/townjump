@@ -9,8 +9,10 @@ use std::fmt;
 use std::net::SocketAddrV4;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
+use tokio::sync::watch;
 use townjump_dht::{
-    ConnectOpts, Dht, DhtConnection, DhtError, Incoming, KeyPair, MutableRecord, ServerOpts,
+    ConnectOpts, Dht, DhtConnection, DhtError, Incoming, KeyPair, MutableRecord, RelayPath,
+    ServerOpts,
 };
 
 /// `duplex` buffer per direction: writing 1 MiB without a reader does not block.
@@ -87,6 +89,13 @@ impl MockDht {
     }
 }
 
+/// A `Relayed` label that never changes; the sender stays alive until both ends drop their receivers.
+fn relayed_label() -> watch::Receiver<RelayPath> {
+    let (tx, rx) = watch::channel(RelayPath::Relayed);
+    tokio::spawn(async move { tx.closed().await });
+    rx
+}
+
 impl Dht for MockDht {
     type Server = MockServer;
 
@@ -95,7 +104,13 @@ impl Dht for MockDht {
         self.ensure_alive()?;
         let (tx, incoming) = Incoming::channel(INCOMING_CAPACITY);
         let node = self.node.clone();
-        let server = MockServer::new(self.shared.clone(), node, opts.firewall, tx);
+        let server = MockServer::new(
+            self.shared.clone(),
+            node,
+            opts.firewall,
+            opts.relay_through.is_some(),
+            tx,
+        );
         lock(&self.servers).push(server.clone());
         Ok((server, incoming))
     }
@@ -112,9 +127,15 @@ impl Dht for MockDht {
         };
         server.admit(&self.identity)?;
         let (near, far) = tokio::io::duplex(DUPLEX_BUFFER);
-        let incoming = DhtConnection::new(self.identity, Box::new(far));
+        let mut incoming = DhtConnection::new(self.identity, Box::new(far));
+        let mut outgoing = DhtConnection::new(remote, Box::new(near));
+        if opts.relay_through.is_some() || server.is_relayed() {
+            let rx = relayed_label();
+            incoming = incoming.with_relay_path(rx.clone());
+            outgoing = outgoing.with_relay_path(rx);
+        }
         server.deliver(incoming).await?;
-        Ok(DhtConnection::new(remote, Box::new(near)))
+        Ok(outgoing)
     }
 
     async fn mutable_put(

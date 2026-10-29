@@ -36,6 +36,8 @@ mod relay;
 #[cfg(test)]
 mod relay_flow_tests;
 #[cfg(test)]
+mod relay_retry_tests;
+#[cfg(test)]
 mod relay_upgrade_tests;
 mod reply;
 mod reply_build;
@@ -50,4 +52,5 @@ mod withdraw_relays_tests;
 mod withdraw_time_tests;
 
 pub use handle::Server;
+pub(crate) use opts::rejects_with;
 pub use opts::{Firewall, FirewallInput, ServerOpts};

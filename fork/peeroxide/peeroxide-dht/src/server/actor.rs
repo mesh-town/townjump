@@ -84,6 +84,10 @@ impl State {
         opts: ServerOpts,
         incoming: mpsc::Sender<PeerConnection>,
     ) -> Self {
+        let relay_key = opts
+            .relay_key_pair
+            .clone()
+            .unwrap_or_else(KeyPair::generate);
         Self {
             dht,
             rt,
@@ -92,7 +96,7 @@ impl State {
             table: Table::new(),
             listening: None,
             suspended: false,
-            relay_key: KeyPair::generate(),
+            relay_key,
             relayed: HashMap::new(),
         }
     }

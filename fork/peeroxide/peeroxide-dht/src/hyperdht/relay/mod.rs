@@ -13,6 +13,7 @@ use std::fmt;
 use tokio::task::JoinHandle;
 
 use crate::hyperdht_messages::RelayThroughInfo;
+use crate::messages::Ipv4Peer;
 
 pub(crate) use link::RelayLink;
 pub(crate) use pair::{RelayPaired, pair_via_relay};
@@ -28,6 +29,23 @@ pub enum RelayPath {
     Relayed,
     /// The connection moved to the direct path.
     Direct,
+}
+
+/// A relay identified by its public key together with a known network address.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelayAddress {
+    /// Public key of the relay.
+    pub public_key: [u8; 32],
+    /// Address the relay can be reached at.
+    pub addr: Ipv4Peer,
+}
+
+/// Addresses listed for `key`, in the original order; empty when there are none.
+pub(crate) fn addresses_for(list: &[RelayAddress], key: &[u8; 32]) -> Vec<Ipv4Peer> {
+    list.iter()
+        .filter(|a| &a.public_key == key)
+        .map(|a| a.addr.clone())
+        .collect()
 }
 
 /// A relay this client asked for, with the pairing token (kept secret).

@@ -2,8 +2,9 @@
 // See also: dht.rs (`create_server`), node.rs (node state), stream.rs (incoming wrapper).
 use crate::error::map_error;
 use crate::node::{Node, fork_pair};
-use peeroxide_dht::hyperdht::{PeerConnection, RelayThrough};
-use peeroxide_dht::server::{Firewall as ForkFirewall, Server, ServerOpts as ForkOpts};
+use crate::opts_map::fork_opts;
+use peeroxide_dht::hyperdht::PeerConnection;
+use peeroxide_dht::server::Server;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
@@ -35,8 +36,12 @@ impl PeeroxideServer {
     ) -> Result<(PeeroxideServer, Incoming), DhtError> {
         let events = node.take_events()?;
         let runtime = libudx::UdxRuntime::shared(node.runtime.handle());
-        let (server, from_fork) =
-            Server::new(node.handle.clone(), events, runtime, fork_opts(opts));
+        let (server, from_fork) = Server::new(
+            node.handle.clone(),
+            events,
+            runtime,
+            fork_opts(opts, node.identity.clone()),
+        );
         let (sender, incoming) = Incoming::channel(INCOMING_CAPACITY);
         let forward = tokio::spawn(forward(from_fork, sender, Arc::clone(&node)));
         let shared = Arc::new(Shared {
@@ -99,17 +104,6 @@ async fn forward(
             return;
         }
     }
-}
-
-/// holesail options → fork options; the callback sees only the client public key.
-pub(crate) fn fork_opts(opts: ServerOpts) -> ForkOpts {
-    let mut fork = ForkOpts::default();
-    fork.firewall = opts
-        .firewall
-        .map(|f| -> ForkFirewall { Arc::new(move |input| f(input.remote_public_key)) });
-    fork.reusable_socket = opts.reusable_socket;
-    fork.relay_through = opts.relay_through.map(RelayThrough::Key);
-    fork
 }
 
 #[cfg(test)]

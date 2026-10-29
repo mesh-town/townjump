@@ -1,20 +1,22 @@
 // JS: hyperdht/lib/connect.js:findAndConnect, connectThroughNodes
-//! The holder search of `connect_with_options`: the pre-connect chain and the FIND_PEER holders
-//! race in parallel, FIND_NODE candidates are the fallback. Neighbours: `connect.rs` (the
-//! entry point and one handshake: `handshake_through_node`), `connect_finish.rs`
-//! (`finish_connection`), `connect_race.rs` (parallelism), `connect_holders.rs` (the FIND_PEER
-//! feed of candidates), `connect_error.rs` (final error).
+//! The attempts of `connect_with_options` (one per relay key of a `RelayThrough::List`) and the
+//! holder search of one attempt: the pre-connect chain and the FIND_PEER holders race in
+//! parallel, FIND_NODE candidates are the fallback. Neighbours: `connect.rs` (the entry point and
+//! one handshake: `handshake_through_node`), `connect_finish.rs` (`finish_attempt`),
+//! `connect_race.rs` (parallelism), `connect_holders.rs` (the FIND_PEER feed of candidates),
+//! `connect_error.rs` (final error).
 
 use std::future::ready;
 
 use libudx::UdxRuntime;
 
 use super::connect_error::{connect_failure, is_terminal};
+use super::connect_finish::AttemptError;
 use super::connect_holders::{Candidate, HolderFeed, count_holders, unique};
 use super::connect_race::{Attempt, Raced, first_success, first_success_fed};
 use super::connect_route::Via;
 use super::connect_trace::trace;
-use super::relay::RelayAsk;
+use super::relay::{RelayAsk, RelayThrough, resolve};
 use super::{ConnectOpts, HyperDhtError, HyperDhtHandle, KeyPair, PeerConnection};
 use crate::crypto::hash;
 use crate::hyperdht_messages::NoisePayload;
@@ -24,7 +26,7 @@ use crate::query::QueryReply;
 use crate::router::HandshakeResult;
 use crate::rpc::Session;
 
-/// A PEER_HANDSHAKE reply that passed Noise: what `finish_connection` continues from.
+/// A PEER_HANDSHAKE reply that passed Noise: what `finish_attempt` continues from.
 pub(super) struct Handshaken {
     pub(super) relay: Ipv4Peer,
     pub(super) nw_result: NoiseWrapResult,
@@ -37,7 +39,80 @@ pub(super) struct Handshaken {
     pub(super) via: Option<Via>,
 }
 
+/// Index in a `RelayThrough::List` where this connect starts: random, fixed by tests.
+#[cfg(test)]
+fn relay_start(opts: &ConnectOpts) -> usize {
+    opts.relay_start
+        .unwrap_or_else(|| rand::random::<u32>() as usize)
+}
+
+#[cfg(not(test))]
+fn relay_start(_opts: &ConnectOpts) -> usize {
+    rand::random::<u32>() as usize
+}
+
 impl HyperDhtHandle {
+    /// JS `connect.js:498-536`: the relay and token are chosen once per attempt. With several relay
+    /// keys (`RelayThrough::List`) the next key gets a whole new attempt (handshake, token, pairing)
+    /// only after our own relay aborted; any other failure, and the abort of the server's relay,
+    /// end the connect.
+    pub(super) async fn connect_candidates(
+        &self,
+        key_pair: &KeyPair,
+        remote_public_key: [u8; 32],
+        relay_addresses: &[Ipv4Peer],
+        runtime: &UdxRuntime,
+        opts: ConnectOpts,
+    ) -> Result<PeerConnection, HyperDhtError> {
+        // No keys — one attempt without a relay.
+        let mut keys: Vec<Option<[u8; 32]>> = opts
+            .relay_through
+            .as_ref()
+            .map(|rt| rt.candidates(relay_start(&opts)))
+            .unwrap_or_default()
+            .into_iter()
+            .map(Some)
+            .collect();
+        if keys.is_empty() {
+            keys.push(None);
+        }
+        let n = keys.len();
+        for (i, key) in keys.into_iter().enumerate() {
+            if i > 0 {
+                // The node closed in the middle of the walk: `Destroyed`, not one more attempt.
+                self.ensure_running()?;
+            }
+            let opts = ConnectOpts {
+                relay_ask: key.and_then(|k| resolve(Some(&RelayThrough::Key(k)))),
+                ..opts.clone()
+            };
+            let pk = remote_public_key;
+            let attempt =
+                self.connect_attempt(key_pair, pk, relay_addresses, runtime, &opts, i == 0);
+            match attempt.await {
+                Ok(conn) => return Ok(conn),
+                Err(AttemptError::OwnRelayAborted) if i + 1 < n => {
+                    let relay = key
+                        .map(|k| {
+                            k[..8]
+                                .iter()
+                                .map(|b| format!("{b:02x}"))
+                                .collect::<String>()
+                        })
+                        .unwrap_or_default();
+                    tracing::debug!(
+                        attempt = i + 1,
+                        of = n,
+                        relay,
+                        "connect: own relay aborted, next key"
+                    );
+                }
+                Err(e) => return Err(e.into()),
+            }
+        }
+        Err(HyperDhtError::RelayAborted)
+    }
+
     /// Copy of the handle whose DHT calls run in `session` (it cancels them when it ends).
     pub(super) fn in_session(&self, session: &Session) -> HyperDhtHandle {
         HyperDhtHandle {
@@ -58,7 +133,7 @@ impl HyperDhtHandle {
         pre: &[Ipv4Peer],
         runtime: &UdxRuntime,
         opts: &ConnectOpts,
-    ) -> Result<PeerConnection, HyperDhtError> {
+    ) -> Result<PeerConnection, AttemptError> {
         let session = self.dht.session();
         self.in_session(&session)
             .find_and_connect_in(&session, key_pair, remote_public_key, pre, runtime, opts)
@@ -73,7 +148,7 @@ impl HyperDhtHandle {
         pre: &[Ipv4Peer],
         runtime: &UdxRuntime,
         opts: &ConnectOpts,
-    ) -> Result<PeerConnection, HyperDhtError> {
+    ) -> Result<PeerConnection, AttemptError> {
         let target = hash(&remote_public_key);
         let chain = if pre.is_empty() {
             Vec::new()
@@ -131,7 +206,7 @@ impl HyperDhtHandle {
         remote_public_key: &[u8; 32],
         runtime: &UdxRuntime,
         opts: &ConnectOpts,
-    ) -> Result<PeerConnection, HyperDhtError> {
+    ) -> Result<PeerConnection, AttemptError> {
         match raced {
             Raced::Won(h) => {
                 // The losing handshakes stop with the session of the connect (it stays usable
@@ -139,11 +214,11 @@ impl HyperDhtHandle {
                 // for the routing table, unlike JS `connect.js:547`, which stops the query.
                 session.destroy();
                 self.cache_relays(remote_public_key, &h.remote_payload, tried);
-                self.finish_connection(h, key_pair, remote_public_key, runtime, opts)
+                self.finish_attempt(h, key_pair, remote_public_key, runtime, opts)
                     .await
             }
-            Raced::Stopped(e) => Err(e),
-            Raced::Exhausted(e) => Err(connect_failure(holders, e)),
+            Raced::Stopped(e) => Err(e.into()),
+            Raced::Exhausted(e) => Err(connect_failure(holders, e).into()),
         }
     }
 

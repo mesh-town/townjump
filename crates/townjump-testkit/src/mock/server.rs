@@ -23,6 +23,7 @@ pub(crate) struct ServerInner {
     shared: Arc<Shared>,
     node: Arc<NodeState>,
     firewall: Option<Firewall>,
+    relayed: bool,
     tx: Mutex<Option<Sender<DhtConnection>>>,
     listening: Mutex<Option<[u8; 32]>>,
 }
@@ -36,6 +37,11 @@ impl ServerInner {
             return Err(refused());
         }
         Ok(())
+    }
+
+    /// Whether the server was created with `relay_through` (its incoming connections carry the relayed label).
+    pub(crate) fn is_relayed(&self) -> bool {
+        self.relayed
     }
 
     /// Puts a connection into the incoming queue; a closed server or a dropped receiver is a rejection.
@@ -92,12 +98,14 @@ impl MockServer {
         shared: Arc<Shared>,
         node: Arc<NodeState>,
         firewall: Option<Firewall>,
+        relayed: bool,
         tx: Sender<DhtConnection>,
     ) -> Self {
         MockServer(Arc::new(ServerInner {
             shared,
             node,
             firewall,
+            relayed,
             tx: Mutex::new(Some(tx)),
             listening: Mutex::new(None),
         }))
