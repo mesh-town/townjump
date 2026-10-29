@@ -51,7 +51,7 @@ impl LanProber {
             tokio::select! {
                 _ = tick.tick() => self.send(peer)?,
                 event = self.events.recv() => return match event {
-                    Some(HolepunchEvent::Connected { addr }) => Some(addr),
+                    Some(HolepunchEvent::Connected { addr, .. }) => Some(addr),
                     _ => None,
                 },
             }

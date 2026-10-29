@@ -17,6 +17,7 @@ async fn recv_adapter_initiator_emits_connected_on_first_probe() {
         .expect("puncher");
 
     let primary = puncher.primary_socket().expect("primary socket");
+    let primary_sock = primary.socket.clone();
     let target_addr = primary.socket.local_addr().await.expect("local_addr");
 
     let probe_socket = pool
@@ -35,8 +36,12 @@ async fn recv_adapter_initiator_emits_connected_on_first_probe() {
         .expect("Connected within 2s")
         .expect("event_rx open");
     match evt {
-        HolepunchEvent::Connected { addr } => {
+        HolepunchEvent::Connected { addr, socket } => {
             assert_eq!(addr, probe_local, "Connected.addr matches probe source");
+            assert!(
+                socket.ptr_eq(&primary_sock),
+                "Connected names the socket that received the probe"
+            );
         }
         _ => panic!("expected Connected, got something else"),
     }
@@ -69,6 +74,7 @@ async fn recv_adapter_covers_birthday_sockets() {
     // `open_birthday_sockets` would, without running the full punch loop.
     let mut extra = pool.acquire(&runtime).await.expect("acquire extra socket");
     let extra_addr = extra.socket.local_addr().await.expect("extra local_addr");
+    let extra_sock = extra.socket.clone();
     if let Some(handle) = spawn_recv_adapter_for_socket(
         &mut extra,
         puncher.is_initiator,
@@ -97,10 +103,14 @@ async fn recv_adapter_covers_birthday_sockets() {
         .expect("Connected within 2s")
         .expect("event_rx open");
     match evt {
-        HolepunchEvent::Connected { addr } => {
+        HolepunchEvent::Connected { addr, socket } => {
             assert_eq!(
                 addr, probe_local,
                 "Connected fires from a probe landing on the birthday socket"
+            );
+            assert!(
+                socket.ptr_eq(&extra_sock),
+                "Connected names the birthday socket, not the primary one"
             );
         }
         _ => panic!("expected Connected, got something else"),
@@ -138,4 +148,27 @@ async fn recv_adapter_passive_reflects_probe() {
         reflection.addr, puncher_addr,
         "reflection comes from puncher's address"
     );
+}
+
+#[tokio::test]
+async fn on_holepunch_message_names_the_socket_and_skips_unknown_index() {
+    let runtime = UdxRuntime::new().expect("runtime");
+    let pool = SocketPool::new("127.0.0.1".to_string());
+    let (event_tx, mut event_rx) = mpsc::unbounded_channel();
+
+    let mut p = Holepuncher::new(&pool, &runtime, true, true, FIREWALL_CONSISTENT, event_tx)
+        .await
+        .expect("puncher");
+    let primary = p.primary_socket().expect("primary socket").socket.clone();
+    let addr: SocketAddr = "203.0.113.7:7000".parse().unwrap();
+
+    p.on_holepunch_message(addr, 99);
+    assert!(event_rx.try_recv().is_err(), "unknown index emits nothing");
+    assert!(!p.connected, "unknown index leaves the state alone");
+
+    p.on_holepunch_message(addr, 0);
+    match event_rx.try_recv() {
+        Ok(HolepunchEvent::Connected { socket, .. }) => assert!(socket.ptr_eq(&primary)),
+        _ => panic!("expected Connected"),
+    }
 }
