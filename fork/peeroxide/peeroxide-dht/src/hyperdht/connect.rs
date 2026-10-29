@@ -13,6 +13,7 @@ use crate::rpc::Session;
 use crate::rpc::UserRequestParams;
 
 use super::config::ConnectOpts;
+use super::connect_finish::AttemptError;
 use super::connect_flow::Handshaken;
 use super::connect_payload::client_payload;
 use super::connect_route::Via;
@@ -20,7 +21,7 @@ use super::connect_trace::trace;
 use super::connection::PeerConnection;
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
-use super::relay::{RelayAsk, resolve};
+use super::relay::RelayAsk;
 use super::stream::next_stream_id;
 use super::types::HyperDhtError;
 
@@ -59,7 +60,8 @@ impl HyperDhtHandle {
     /// the record was tried → [`HyperDhtError::PeerNotFound`]; holders were tried
     /// → [`HyperDhtError::NoRelayNodes`] (`PEER_CONNECTION_FAILED`); a failure JS
     /// does not swallow (`FirewallRejected`, holepunch) is returned as is and
-    /// ends the search (`connect_error.rs`).
+    /// ends the search (`connect_error.rs`). With a `RelayThrough::List` whose every relay
+    /// aborted the pairing on our side the error is [`HyperDhtError::RelayAborted`].
     pub async fn connect_with_nodes(
         &self,
         key_pair: &KeyPair,
@@ -90,13 +92,26 @@ impl HyperDhtHandle {
         opts: ConnectOpts,
     ) -> Result<PeerConnection, HyperDhtError> {
         self.ensure_running()?;
-        // JS `connect.js:498-536`: the relay and token are chosen once per connect.
-        let mut opts = opts;
-        opts.relay_ask = resolve(opts.relay_through.as_ref());
+        self.connect_candidates(key_pair, remote_public_key, relay_addresses, runtime, opts)
+            .await
+    }
+
+    /// One attempt: the route of an earlier connection (only in the first attempt), then the
+    /// explicit addresses or the cached ones of the target, then the holder search.
+    pub(super) async fn connect_attempt(
+        &self,
+        key_pair: &KeyPair,
+        remote_public_key: [u8; 32],
+        relay_addresses: &[Ipv4Peer],
+        runtime: &UdxRuntime,
+        opts: &ConnectOpts,
+        first: bool,
+    ) -> Result<PeerConnection, AttemptError> {
         // JS `connect.js:171-190`: the route of an earlier connection first, FIND_PEER on failure.
-        if opts.reusable_socket
+        if first
+            && opts.reusable_socket
             && let Some(conn) = self
-                .retry_route(key_pair, &remote_public_key, runtime, &opts)
+                .retry_route(key_pair, &remote_public_key, runtime, opts)
                 .await
         {
             return Ok(conn);
@@ -115,7 +130,7 @@ impl HyperDhtHandle {
         } else {
             relay_addresses
         };
-        self.find_and_connect(key_pair, remote_public_key, pre, runtime, &opts)
+        self.find_and_connect(key_pair, remote_public_key, pre, runtime, opts)
             .await
     }
 

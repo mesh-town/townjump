@@ -8,10 +8,12 @@ use tokio::task::JoinSet;
 use townjump_dht::{ConnectOpts, Dht, ServerOpts};
 
 const TAG: u8 = 0x91;
-const OPTS: ConnectOpts = ConnectOpts {
-    reusable_socket: false,
-    relay_through: None,
-};
+fn connect_opts() -> ConnectOpts {
+    ConnectOpts {
+        reusable_socket: false,
+        ..Default::default()
+    }
+}
 
 fn target() -> [u8; 32] {
     key_pair(TAG).public_key
@@ -22,7 +24,7 @@ async fn connect_pairs_streams_with_identities() {
     let factory = MockFactory::new();
     let (owner, client) = (node(&factory, 1).await, node(&factory, 2).await);
     let (_server, mut incoming) = serve(&owner, TAG).await;
-    let mut near = client.connect(target(), OPTS).await.unwrap();
+    let mut near = client.connect(target(), connect_opts()).await.unwrap();
     let mut far = incoming.accept().await.unwrap();
     assert_eq!(near.remote_public_key, target());
     assert_eq!(far.remote_public_key, key_pair(2).public_key);
@@ -37,7 +39,7 @@ async fn connect_pairs_streams_with_identities() {
 #[tokio::test]
 async fn unregistered_strict_peer_not_found() {
     let client = node(&MockFactory::new(), 2).await;
-    let refused = client.connect([6; 32], OPTS).await;
+    let refused = client.connect([6; 32], connect_opts()).await;
     assert!(matches!(refused.unwrap_err(), DhtError::PeerNotFound));
 }
 
@@ -45,7 +47,7 @@ async fn unregistered_strict_peer_not_found() {
 async fn lenient_returns_stub() {
     let factory = MockFactory::with_config(MockConfig::default().lenient_connect(true));
     let client = node(&factory, 2).await;
-    let mut conn = client.connect([6; 32], OPTS).await.unwrap();
+    let mut conn = client.connect([6; 32], connect_opts()).await.unwrap();
     assert_eq!(conn.remote_public_key, [6; 32]);
     conn.stream.write_all(b"into the void").await.unwrap();
     let mut byte = [0u8; 1];
@@ -60,10 +62,10 @@ async fn firewall_refuses() {
     let opts = ServerOpts {
         firewall: Some(Arc::new(|_| true)),
         reusable_socket: true,
-        relay_through: None,
+        ..Default::default()
     };
     let (_server, mut incoming) = serve_with(&owner, TAG, opts).await;
-    let refused = client.connect(target(), OPTS).await.unwrap_err();
+    let refused = client.connect(target(), connect_opts()).await.unwrap_err();
     let text = refused.to_string();
     assert_eq!(text, "PEER_CONNECTION_FAILED: Could not connect to peer");
     assert!(nothing_arrives(&mut incoming).await);
@@ -82,10 +84,10 @@ async fn firewall_receives_client_identity() {
     let opts = ServerOpts {
         firewall: Some(Arc::new(watch)),
         reusable_socket: true,
-        relay_through: None,
+        ..Default::default()
     };
     let (_server, mut incoming) = serve_with(&owner, TAG, opts).await;
-    client.connect(target(), OPTS).await.unwrap();
+    client.connect(target(), connect_opts()).await.unwrap();
     assert!(incoming.accept().await.is_some());
     let last = *seen.lock().unwrap().last().unwrap();
     assert_eq!(last, key_pair(2).public_key);
@@ -100,7 +102,7 @@ async fn many_connects_one_identity() {
     let mut pending = JoinSet::new();
     for _ in 0..8 {
         let client = client.clone();
-        pending.spawn(async move { client.connect(target(), OPTS).await });
+        pending.spawn(async move { client.connect(target(), connect_opts()).await });
     }
     while let Some(done) = pending.join_next().await {
         done.unwrap().unwrap();
@@ -121,7 +123,7 @@ async fn connect_event_even_on_error() {
             [6; 32],
             ConnectOpts {
                 reusable_socket: true,
-                relay_through: None,
+                ..Default::default()
             },
         )
         .await;
@@ -139,7 +141,7 @@ async fn dropped_incoming_refuses() {
     let (owner, client) = (node(&factory, 1).await, node(&factory, 2).await);
     let (_server, incoming) = serve(&owner, TAG).await;
     drop(incoming);
-    let refused = client.connect(target(), OPTS).await.unwrap_err();
+    let refused = client.connect(target(), connect_opts()).await.unwrap_err();
     assert!(matches!(refused, DhtError::ConnectionFailed(_)));
 }
 
@@ -148,7 +150,7 @@ async fn duplex_holds_one_mib() {
     let factory = MockFactory::new();
     let (owner, client) = (node(&factory, 1).await, node(&factory, 2).await);
     let (_server, mut incoming) = serve(&owner, TAG).await;
-    let mut conn = client.connect(target(), OPTS).await.unwrap();
+    let mut conn = client.connect(target(), connect_opts()).await.unwrap();
     let _held = incoming.accept().await.unwrap();
     let block = vec![0x5a; 1 << 20];
     let write = tokio::time::timeout(Duration::from_secs(1), conn.stream.write_all(&block)).await;

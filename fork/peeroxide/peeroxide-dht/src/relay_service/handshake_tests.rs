@@ -34,7 +34,16 @@ fn client_message(server: &KeyPair) -> HandshakeMessage {
 }
 
 fn run(dedup: &mut Dedup, server: &KeyPair, msg: &HandshakeMessage, now: Instant) -> Response {
-    respond(dedup, server, 0, msg, None, vec![], now)
+    let gate = Gate {
+        key_pair: server,
+        firewall: 0,
+        peer_firewall: None,
+    };
+    let from = Ipv4Peer {
+        host: "127.0.0.1".into(),
+        port: 49737,
+    };
+    respond(dedup, &gate, msg, &from, None, vec![], now)
 }
 
 #[test]

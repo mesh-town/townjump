@@ -1,14 +1,13 @@
-//! Per-handshake path of the relay service: answer one `PEER_HANDSHAKE`
-//! and finalize the encrypted control connection. Siblings: `session`, `bridge`.
+//! Per-handshake path of the relay service: admit or silently refuse one
+//! `PEER_HANDSHAKE`, answer it and finalize the encrypted control connection.
+//! Siblings: `session`, `bridge`, `stop`.
 // JS: blind-relay/index.js
 
 use std::sync::Arc;
 use std::time::Instant;
 
 use libudx::{RuntimeHandle, UdxRuntime};
-use tokio::sync::mpsc;
 
-use crate::blind_relay::{BlindRelayServer, MatchedPairing};
 use crate::hyperdht::{HyperDhtError, HyperDhtHandle, KeyPair, alloc_stream_id};
 use crate::hyperdht_messages::{
     HandshakeMessage, MODE_FROM_RELAY, MODE_FROM_SECOND_RELAY, MODE_FROM_SERVER, MODE_REPLY,
@@ -19,9 +18,20 @@ use crate::noise::Keypair as NoiseKeypair;
 use crate::noise_wrap::{NoiseWrap, NoiseWrapResult};
 use crate::protomux::Mux;
 use crate::secret_stream::SecretStream;
+use crate::server::{Firewall, FirewallInput, rejects_with};
 
+use super::Service;
 use super::dedup::Dedup;
 use super::session::run_relay_session;
+use super::stop::TaskSet;
+
+/// What decides the answer to a handshake: our identity, the advertised NAT
+/// state and the admission callback (`None` admits all).
+pub(super) struct Gate<'a> {
+    pub(super) key_pair: &'a KeyPair,
+    pub(super) firewall: u64,
+    pub(super) peer_firewall: Option<&'a Firewall>,
+}
 
 /// A control connection to finalize after the reply went out.
 pub(super) struct NewSession {
@@ -38,12 +48,12 @@ pub(super) struct Response {
 }
 
 /// Decide the answer to one handshake; a repeated Noise message gets the
-/// stored reply and no second session.
+/// stored reply (silence for a refused peer) and no second session.
 pub(super) fn respond(
     dedup: &mut Dedup,
-    key_pair: &KeyPair,
-    firewall: u64,
+    gate: &Gate<'_>,
     msg: &HandshakeMessage,
+    from: &Ipv4Peer,
     peer_address: Option<Ipv4Peer>,
     addresses4: Vec<Ipv4Peer>,
     now: Instant,
@@ -54,7 +64,7 @@ pub(super) fn respond(
             session: None,
         };
     }
-    let response = answer(key_pair, firewall, msg, peer_address, addresses4).unwrap_or(Response {
+    let response = answer(gate, msg, from, peer_address, addresses4).unwrap_or(Response {
         reply: None,
         session: None,
     });
@@ -63,21 +73,27 @@ pub(super) fn respond(
 }
 
 fn answer(
-    key_pair: &KeyPair,
-    firewall: u64,
+    gate: &Gate<'_>,
     msg: &HandshakeMessage,
+    from: &Ipv4Peer,
     peer_address: Option<Ipv4Peer>,
     addresses4: Vec<Ipv4Peer>,
 ) -> Option<Response> {
     let noise_kp = NoiseKeypair {
-        public_key: key_pair.public_key,
-        secret_key: key_pair.secret_key,
+        public_key: gate.key_pair.public_key,
+        secret_key: gate.key_pair.secret_key,
     };
     let mut nw = NoiseWrap::new_responder(noise_kp);
     let remote_payload = nw
         .recv(&msg.noise)
         .inspect_err(|e| tracing::debug!(err = %e, "relay handshake: noise recv failed"))
         .ok()?;
+    let remote_public_key = nw.remote_public_key()?;
+    let client_address = peer_address.as_ref().unwrap_or(from);
+    if refused(gate, &remote_public_key, &remote_payload, client_address) {
+        tracing::debug!(client = %client_address.host, "relay: firewall refused the peer");
+        return None;
+    }
     if remote_payload.error != 0 {
         tracing::debug!(
             error = remote_payload.error,
@@ -88,7 +104,7 @@ fn answer(
 
     let local_stream_id = alloc_stream_id();
     let noise_reply = nw
-        .send(&reply_payload(firewall, addresses4, local_stream_id))
+        .send(&reply_payload(gate.firewall, addresses4, local_stream_id))
         .inspect_err(|e| tracing::debug!(err = %e, "relay handshake: noise send failed"))
         .ok()?;
     let noise = nw
@@ -118,6 +134,21 @@ fn answer(
     Some(Response { reply, session })
 }
 
+/// The admission callback refuses this peer (a panic refuses too).
+fn refused(
+    gate: &Gate<'_>,
+    remote_public_key: &[u8; 32],
+    remote_payload: &NoisePayload,
+    client_address: &Ipv4Peer,
+) -> bool {
+    let input = FirewallInput {
+        remote_public_key,
+        remote_payload,
+        client_address,
+    };
+    rejects_with(gate.peer_firewall, &input)
+}
+
 fn reply_payload(firewall: u64, addresses4: Vec<Ipv4Peer>, local_stream_id: u32) -> NoisePayload {
     NoisePayload {
         version: 1,
@@ -138,16 +169,11 @@ fn reply_payload(firewall: u64, addresses4: Vec<Ipv4Peer>, local_stream_id: u32)
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn handle_handshake(
-    runtime_handle: &Arc<RuntimeHandle>,
-    dht: &HyperDhtHandle,
-    key_pair: &KeyPair,
-    firewall: u64,
-    relay: &BlindRelayServer,
-    matched_tx: &mpsc::UnboundedSender<MatchedPairing>,
+    svc: &Service,
     dedup: &mut Dedup,
     msg: HandshakeMessage,
+    from: Ipv4Peer,
     peer_address: Option<Ipv4Peer>,
     reply_tx: tokio::sync::oneshot::Sender<Option<Vec<u8>>>,
 ) {
@@ -156,46 +182,50 @@ pub(super) async fn handle_handshake(
         noise_len = msg.noise.len(),
         "relay: received handshake request"
     );
-    let addresses4 = dht
-        .noise_addresses4(dht.local_port().await.unwrap_or(0))
+    let addresses4 = svc
+        .dht
+        .noise_addresses4(svc.dht.local_port().await.unwrap_or(0))
         .await;
+    let gate = Gate {
+        key_pair: &svc.key_pair,
+        firewall: svc.firewall,
+        peer_firewall: svc.peer_firewall.as_ref(),
+    };
     let response = respond(
         dedup,
-        key_pair,
-        firewall,
+        &gate,
         &msg,
+        &from,
         peer_address,
         addresses4,
         Instant::now(),
     );
     let _ = reply_tx.send(response.reply);
-    let Some(session) = response.session else {
-        return;
-    };
+    if let Some(session) = response.session {
+        svc.tasks.spawn(run_session(svc.clone(), session));
+    }
+}
 
-    let runtime_handle = Arc::clone(runtime_handle);
-    let dht = dht.clone();
-    let relay = relay.clone();
-    let matched_tx = matched_tx.clone();
-    tokio::spawn(async move {
-        match finalize_relay_connection(
-            runtime_handle,
-            &dht,
-            session.local_stream_id,
-            &session.remote_udx,
-            &session.noise,
-        )
-        .await
-        {
-            Ok(mux) => {
-                let remote_pk = session.noise.remote_public_key;
-                run_relay_session(relay, mux, remote_pk, matched_tx).await;
-            }
-            Err(e) => {
-                tracing::debug!(err = %e, "relay: connection finalize failed");
-            }
+/// Finalize one admitted control connection and drive its relay session.
+async fn run_session(svc: Service, session: NewSession) {
+    let finalized = finalize_relay_connection(
+        svc.runtime_handle,
+        &svc.dht,
+        &svc.tasks,
+        session.local_stream_id,
+        &session.remote_udx,
+        &session.noise,
+    )
+    .await;
+    match finalized {
+        Ok(mux) => {
+            let remote_pk = session.noise.remote_public_key;
+            run_relay_session(svc.relay, mux, remote_pk, svc.matched_tx).await;
         }
-    });
+        Err(e) => {
+            tracing::debug!(err = %e, "relay: connection finalize failed");
+        }
+    }
 }
 
 /// Finalize the accepted control connection: bind the raw UDX stream the
@@ -207,6 +237,7 @@ pub(super) async fn handle_handshake(
 pub(super) async fn finalize_relay_connection(
     runtime_handle: Arc<RuntimeHandle>,
     dht: &HyperDhtHandle,
+    tasks: &TaskSet,
     local_stream_id: u32,
     remote_udx: &UdxInfo,
     noise_result: &crate::noise_wrap::NoiseWrapResult,
@@ -236,10 +267,14 @@ pub(super) async fn finalize_relay_connection(
     .map_err(HyperDhtError::SecretStream)?;
 
     let (mux, run) = Mux::new(ss);
-    tokio::spawn(run);
+    tasks.spawn(run);
     Ok(mux)
 }
 
 #[cfg(test)]
 #[path = "handshake_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "admit_tests.rs"]
+mod admit_tests;

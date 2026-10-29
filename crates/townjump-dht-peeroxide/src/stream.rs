@@ -1,5 +1,6 @@
 // JS: encrypted stream `c` of a hyperdht connection. Here the fork `PeerConnection` → `Box<dyn Duplex>` without pump tasks.
 // See also: slot.rs (connection owner), tunnels.rs (registry); dht.rs and server.rs hand out streams via `Node::adopt`.
+use crate::path::bridge_path;
 use crate::slot::{Side, Slot};
 use peeroxide_dht::hyperdht::PeerConnection;
 use std::io;
@@ -56,7 +57,12 @@ impl AsyncWrite for PeerStream {
 ///
 /// `DhtConnection::new`, not `silent_close`: a real stream sends `close` on `destroy()`.
 pub fn wrap_connection(conn: PeerConnection) -> DhtConnection {
-    wrap_slot(Arc::new(Slot::new(conn)))
+    let path = conn.relay_path();
+    let wrapped = wrap_slot(Arc::new(Slot::new(conn)));
+    match path {
+        Some(rx) => wrapped.with_relay_path(bridge_path(rx)),
+        None => wrapped,
+    }
 }
 
 pub(crate) fn wrap_slot(slot: Arc<Slot>) -> DhtConnection {

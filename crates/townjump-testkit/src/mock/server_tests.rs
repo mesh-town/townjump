@@ -32,7 +32,7 @@ async fn listen_events_and_probe_args() {
     let opts = ServerOpts {
         firewall: Some(firewall),
         reusable_socket: true,
-        relay_through: None,
+        ..Default::default()
     };
     let _served = serve_with(&dht, TAG, opts).await;
     let events = factory.trace().events();
@@ -137,7 +137,7 @@ async fn fake_conn_after_probe() {
     let opts = ServerOpts {
         firewall: Some(firewall),
         reusable_socket: true,
-        relay_through: None,
+        ..Default::default()
     };
     let (_server, mut incoming) = serve_with(&dht, TAG, opts).await;
     let conn = incoming.accept().await.unwrap();

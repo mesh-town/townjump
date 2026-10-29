@@ -1,5 +1,5 @@
-//! Direct-or-holepunch decision and `HyperDhtHandle::finish_connection`.
-//! Neighbours: `connect_flow` calls `finish_connection`; `connect_holepunch` and `connect_relayed` do the two branches.
+//! Direct-or-holepunch decision and `HyperDhtHandle::finish_connection` / `finish_attempt`.
+//! Neighbours: `connect_flow` calls `finish_attempt`; `connect_holepunch` and `connect_relayed` do the two branches.
 
 use libudx::UdxRuntime;
 
@@ -57,6 +57,29 @@ pub(crate) fn client_same_host(
     local_connection && ours.is_some_and(|o| o.host == server_host)
 }
 
+/// Outcome of one connect attempt that failed: our own relay aborted the pairing (the next key
+/// of a `RelayThrough::List` may help), or any other failure (final).
+#[derive(Debug)]
+pub(super) enum AttemptError {
+    OwnRelayAborted,
+    Failed(HyperDhtError),
+}
+
+impl From<HyperDhtError> for AttemptError {
+    fn from(e: HyperDhtError) -> Self {
+        Self::Failed(e)
+    }
+}
+
+impl From<AttemptError> for HyperDhtError {
+    fn from(e: AttemptError) -> Self {
+        match e {
+            AttemptError::OwnRelayAborted => HyperDhtError::RelayAborted,
+            AttemptError::Failed(e) => e,
+        }
+    }
+}
+
 impl HyperDhtHandle {
     /// JS `connect.js:346,404,508`: the relay addresses of the payload, else everything the
     /// candidates handed out, are kept for the next connect to the same target. Relay-through
@@ -87,17 +110,32 @@ impl HyperDhtHandle {
     /// over the handshake that won. Its failures are final (no other holder is tried).
     pub(super) async fn finish_connection(
         &self,
-        mut handshaken: Handshaken,
+        handshaken: Handshaken,
         key_pair: &KeyPair,
         remote_public_key: &[u8; 32],
         runtime: &UdxRuntime,
         opts: &ConnectOpts,
     ) -> Result<PeerConnection, HyperDhtError> {
+        self.finish_attempt(handshaken, key_pair, remote_public_key, runtime, opts)
+            .await
+            .map_err(HyperDhtError::from)
+    }
+
+    /// [`Self::finish_connection`] that tells an abort of our own relay apart
+    /// ([`AttemptError::OwnRelayAborted`]): the caller may retry with the next relay key.
+    pub(super) async fn finish_attempt(
+        &self,
+        mut handshaken: Handshaken,
+        key_pair: &KeyPair,
+        remote_public_key: &[u8; 32],
+        runtime: &UdxRuntime,
+        opts: &ConnectOpts,
+    ) -> Result<PeerConnection, AttemptError> {
         // A retry by route: the server answered over the socket of an earlier connection.
         if handshaken.remote_payload.relay_through.is_none()
             && let Some(via) = handshaken.via.take()
         {
-            return self.finish_via(handshaken, via).await;
+            return Ok(self.finish_via(handshaken, via).await?);
         }
         // Relay-through ends the route retry: free the stream registered on the route socket now.
         drop(handshaken.via.take());
@@ -246,17 +284,25 @@ impl HyperDhtHandle {
             let hp_result = self
                 .punch_or_lan(&ctx, runtime, opts.holepunch.as_ref())
                 .await?;
-            return self
+            return Ok(self
                 .punched_connection(&hp_result, None, runtime, reusable, remote_public_key)
-                .await;
+                .await?);
         };
         // Boxed: the pairing connects to the relay, which is a connect of its own.
-        match Box::pin(self.connect_relayed(key_pair, ctx, role, runtime, opts)).await? {
-            Relayed::Over(conn) => Ok(conn),
-            Relayed::Punched { result, stream } => {
-                self.punched_connection(&result, Some(stream), runtime, reusable, remote_public_key)
-                    .await
+        let own_relay = role.is_initiator;
+        let relayed = match Box::pin(self.connect_relayed(key_pair, ctx, role, runtime, opts)).await
+        {
+            Ok(r) => r,
+            Err(HyperDhtError::RelayAborted) if own_relay => {
+                return Err(AttemptError::OwnRelayAborted);
             }
+            Err(e) => return Err(AttemptError::Failed(e)),
+        };
+        match relayed {
+            Relayed::Over(conn) => Ok(conn),
+            Relayed::Punched { result, stream } => Ok(self
+                .punched_connection(&result, Some(stream), runtime, reusable, remote_public_key)
+                .await?),
         }
     }
 }

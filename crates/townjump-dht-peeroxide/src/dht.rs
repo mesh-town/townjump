@@ -2,8 +2,8 @@
 // See also: factory.rs creates the node, node.rs holds its state, server.rs — the node server, stream.rs — the connection stream.
 use crate::error::map_error;
 use crate::node::{Node, fork_pair};
+use crate::opts_map::fork_connect_opts;
 use crate::server::PeeroxideServer;
-use peeroxide_dht::hyperdht::{ConnectOpts as ForkConnectOpts, RelayThrough};
 use std::fmt;
 use std::net::{SocketAddr, SocketAddrV4};
 use std::sync::Arc;
@@ -11,14 +11,6 @@ use townjump_dht::{
     ConnectOpts, Dht, DhtConnection, DhtError, Incoming, MutableRecord, NodeMode, ServerOpts,
 };
 use townjump_keys::KeyPair;
-
-/// holesail connect options → fork options; `local_connection` stays the fork default.
-pub(crate) fn fork_connect_opts(opts: ConnectOpts) -> ForkConnectOpts {
-    let mut fork = ForkConnectOpts::default();
-    fork.reusable_socket = opts.reusable_socket;
-    fork.relay_through = opts.relay_through.map(RelayThrough::Key);
-    fork
-}
 
 /// DHT node; one `UdxRuntime` per node (in `Node`).
 pub struct PeeroxideDht {

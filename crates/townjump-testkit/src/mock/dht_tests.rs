@@ -169,14 +169,16 @@ async fn suspend_resume_events_and_scope() {
     let (_second, mut serving) = serve(&awake, 0x73).await;
     sleeper.suspend().await.unwrap();
     let opts = ConnectOpts::default();
-    let refused = client.connect(key_pair(0x72).public_key, opts).await;
+    let refused = client
+        .connect(key_pair(0x72).public_key, opts.clone())
+        .await;
     assert!(matches!(
         refused.unwrap_err(),
         DhtError::ConnectionFailed(_)
     ));
     assert!(nothing_arrives(&mut sleeping).await);
     client
-        .connect(key_pair(0x73).public_key, opts)
+        .connect(key_pair(0x73).public_key, opts.clone())
         .await
         .unwrap();
     assert!(serving.accept().await.is_some());

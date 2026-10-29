@@ -15,7 +15,9 @@ use super::config::ConnectOpts;
 use super::connection::{ConnectResult, PeerConnection};
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
-use super::relay::{AbortOnDrop, RelayLink, RelayPaired, RelayRole, Upgrade, pair_via_relay};
+use super::relay::{
+    AbortOnDrop, RelayLink, RelayPaired, RelayRole, Upgrade, addresses_for, pair_via_relay,
+};
 use super::stream::{establish_on_stream, establish_stream_with_socket};
 use super::types::HyperDhtError;
 
@@ -103,11 +105,13 @@ impl HyperDhtHandle {
     ) -> Result<Relayed, HyperDhtError> {
         let stream = runtime.create_stream(ctx.local_stream_id).await?;
         let mut punch = self.spawn_punch(&ctx, runtime, opts);
+        let addresses = addresses_for(&opts.relay_through_addresses, &role.public_key);
         let pair = pair_via_relay(
             self,
             key_pair,
             runtime,
             role.public_key,
+            &addresses,
             role.token,
             role.is_initiator,
             ctx.local_stream_id,
@@ -180,6 +184,7 @@ impl HyperDhtHandle {
                 &key_pair,
                 &runtime,
                 role.public_key,
+                &[],
                 role.token,
                 role.is_initiator,
                 local_stream_id,

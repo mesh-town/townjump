@@ -4,6 +4,7 @@ pub mod duplex;
 pub mod error;
 pub mod incoming;
 pub mod mode;
+pub mod relay;
 pub mod traits;
 pub mod types;
 
@@ -11,6 +12,7 @@ pub use duplex::Duplex;
 pub use error::DhtError;
 pub use incoming::Incoming;
 pub use mode::NodeMode;
+pub use relay::{HolepunchFilter, HolepunchInfo, RelayAddress, RelayPath, RelayThrough};
 pub use townjump_keys::KeyPair;
 pub use traits::{Dht, DhtFactory, DhtServer};
 pub use types::{ConnectOpts, DhtConnection, Firewall, MutableRecord, RttProbe, ServerOpts};

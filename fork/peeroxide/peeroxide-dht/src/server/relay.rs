@@ -13,9 +13,11 @@ use super::opts::ServerOpts;
 use super::plan::Plan;
 use super::punch::PunchState;
 use crate::hyperdht::{
-    AbortOnDrop, DirectSource, PeerConnection, RelayPaired, RelayPath, Upgrade, pair_via_relay,
+    AbortOnDrop, DirectSource, PeerConnection, RelayAddress, RelayPaired, RelayPath, RelayThrough,
+    Upgrade, pair_via_relay,
 };
 use crate::hyperdht_messages::RelayThroughInfo;
+use crate::messages::Ipv4Peer;
 
 /// How long a slot waits for the relay pair: the DHT lookup plus the 15 s pairing.
 pub(super) const RELAY_HOLD: Duration = Duration::from_secs(30);
@@ -29,8 +31,18 @@ pub(super) struct RelayPlan {
 }
 
 /// The relay this handshake announces, with a fresh token; `None` when the options name none.
-pub(super) fn own_relay(opts: &ServerOpts) -> Option<RelayThroughInfo> {
-    let public_key = opts.relay_through.as_ref()?.select()?;
+/// A client that already named a relay from our own `List` keeps it: no own relay then.
+pub(super) fn own_relay(
+    opts: &ServerOpts,
+    remote: Option<&RelayThroughInfo>,
+) -> Option<RelayThroughInfo> {
+    let through = opts.relay_through.as_ref()?;
+    if let (RelayThrough::List(keys), Some(r)) = (through, remote) {
+        if keys.contains(&r.public_key) {
+            return None;
+        }
+    }
+    let public_key = through.select()?;
     Some(RelayThroughInfo {
         version: 1,
         public_key,
@@ -39,6 +51,8 @@ pub(super) fn own_relay(opts: &ServerOpts) -> Option<RelayThroughInfo> {
 }
 
 /// The relay to use: our own (we initiate), else the client's (we do not), else none.
+/// Exception to the JS rule: `own_relay` yields nothing when the client already named a relay
+/// from our own `List`, so that choice stands.
 pub(super) fn choose(
     own: Option<&RelayThroughInfo>,
     remote: Option<&RelayThroughInfo>,
@@ -101,6 +115,7 @@ pub(super) fn start(
     let key = st.relay_key.clone();
     let rt = UdxRuntime::shared(st.rt.handle());
     let (plan, keep_alive) = (attempt.plan.clone(), st.opts.relay_keep_alive);
+    let addrs = relay_addresses(&st.opts.relay_through_addresses, &plan.relay_pk);
     let tx = internal.clone();
     let task = tokio::spawn(async move {
         let paired = pair_via_relay(
@@ -108,6 +123,7 @@ pub(super) fn start(
             &key,
             &rt,
             plan.relay_pk,
+            &addrs,
             plan.token,
             plan.is_initiator,
             local_id,
@@ -117,6 +133,12 @@ pub(super) fn start(
         let _ = tx.send(Internal::RelayPaired { id, paired });
     });
     attempt.task = Some(AbortOnDrop(task));
+}
+
+/// Configured addresses of the relay `key`, in order (same rule as `addresses_for`).
+fn relay_addresses(list: &[RelayAddress], key: &[u8; 32]) -> Vec<Ipv4Peer> {
+    let same = list.iter().filter(|a| &a.public_key == key);
+    same.map(|a| a.addr.clone()).collect()
 }
 
 /// A pending connection whose pair is made: its puzzle stays alive while the relay carries the data.
@@ -191,3 +213,7 @@ async fn serve_relayed(
 #[cfg(test)]
 #[path = "relay_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "relay_choose_tests.rs"]
+mod relay_choose_tests;

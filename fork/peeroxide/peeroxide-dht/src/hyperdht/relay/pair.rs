@@ -6,13 +6,14 @@ use std::net::SocketAddr;
 use std::time::Duration;
 
 use libudx::{UdxRuntime, UdxSocket};
-use tokio::task::JoinHandle;
 
 use super::super::handle::HyperDhtHandle;
 use super::super::keypair::KeyPair;
 use super::super::reuse::Lease;
 use super::super::types::HyperDhtError;
+use super::AbortOnDrop;
 use crate::blind_relay::BlindRelayClient;
+use crate::messages::Ipv4Peer;
 use crate::protomux::Mux;
 
 const PAIR_TIMEOUT: Duration = Duration::from_secs(15);
@@ -38,7 +39,7 @@ struct Live {
     client: BlindRelayClient,
     token: [u8; 32],
     mux: Mux,
-    task: JoinHandle<()>,
+    task: AbortOnDrop<()>,
     _socket: UdxSocket,
     _lease: Option<Lease>,
 }
@@ -50,12 +51,8 @@ impl RelaySession {
             return;
         };
         let mut task = live.stop();
-        if tokio::time::timeout(MUX_STOP_WAIT, &mut task)
-            .await
-            .is_err()
-        {
-            task.abort();
-        }
+        // On timeout the guard aborts the task when it is dropped.
+        let _ = tokio::time::timeout(MUX_STOP_WAIT, &mut task.0).await;
     }
 
     fn wrap(live: Live) -> Self {
@@ -79,7 +76,7 @@ impl RelaySession {
 
 impl Live {
     /// Best-effort shutdown; returns the mux task so the caller may wait for it.
-    fn stop(mut self) -> JoinHandle<()> {
+    fn stop(mut self) -> AbortOnDrop<()> {
         if let Err(e) = self.client.unpair(&self.token) {
             tracing::debug!(err = %e, "relay: unpair failed");
         }
@@ -96,7 +93,7 @@ impl Drop for RelaySession {
             let _ = tx.send(());
         }
         if let Some(live) = self.live.take() {
-            live.stop().abort();
+            drop(live.stop());
         }
     }
 }
@@ -108,6 +105,7 @@ pub(crate) async fn pair_via_relay(
     key_pair: &KeyPair,
     runtime: &UdxRuntime,
     relay_pk: [u8; 32],
+    addresses: &[Ipv4Peer],
     token: [u8; 32],
     is_initiator: bool,
     local_stream_id: u32,
@@ -118,6 +116,7 @@ pub(crate) async fn pair_via_relay(
         key_pair,
         runtime,
         relay_pk,
+        addresses,
         token,
         is_initiator,
         local_stream_id,
@@ -142,13 +141,14 @@ async fn pair_chain(
     key_pair: &KeyPair,
     runtime: &UdxRuntime,
     relay_pk: [u8; 32],
+    addresses: &[Ipv4Peer],
     token: [u8; 32],
     is_initiator: bool,
     local_stream_id: u32,
     keep_alive: Duration,
 ) -> Result<RelayPaired, HyperDhtError> {
     let mut conn = dht
-        .connect_with_nodes(key_pair, relay_pk, &[], runtime)
+        .connect_with_nodes(key_pair, relay_pk, addresses, runtime)
         .await?;
     let relay_addr = conn.remote_addr.ok_or_else(|| {
         HyperDhtError::StreamEstablishment("relay connection has no remote_addr".into())
@@ -158,7 +158,7 @@ async fn pair_chain(
     }
     let (socket, lease) = (conn.socket.clone(), conn.lease.take());
     let (mux, run) = Mux::new(conn.stream);
-    let task = tokio::spawn(run);
+    let task = spawn_mux(run, local_stream_id);
     let mut client = BlindRelayClient::open(&mux, Some(key_pair.public_key.to_vec())).await?;
     // From here the session owns the shutdown, so an early error still unpairs and closes.
     let live = |client| Live {
@@ -187,6 +187,59 @@ async fn pair_chain(
         session,
     })
 }
+
+/// Runs the mux task under an abort-on-drop guard; tests track it in a registry by stream id.
+fn spawn_mux(
+    run: impl std::future::Future<Output = ()> + Send + 'static,
+    local_stream_id: u32,
+) -> AbortOnDrop<()> {
+    #[cfg(test)]
+    let guard = registry::enter(local_stream_id);
+    #[cfg(not(test))]
+    let _ = local_stream_id;
+    #[cfg(test)]
+    let task = tokio::spawn(async move {
+        let _guard = guard;
+        run.await
+    });
+    #[cfg(not(test))]
+    let task = tokio::spawn(run);
+    AbortOnDrop(task)
+}
+
+/// Test-only registry of live mux tasks, keyed by `local_stream_id`.
+#[cfg(test)]
+pub(crate) mod registry {
+    use std::sync::Mutex;
+
+    static LIVE: Mutex<Vec<u32>> = Mutex::new(Vec::new());
+
+    /// Removes its id from the registry when the owning future ends or is dropped.
+    pub(crate) struct Guard(u32);
+
+    pub(crate) fn enter(id: u32) -> Guard {
+        LIVE.lock().unwrap().push(id);
+        Guard(id)
+    }
+
+    /// Whether a mux task registered under `id` is still alive.
+    pub(crate) fn is_live(id: u32) -> bool {
+        LIVE.lock().unwrap().contains(&id)
+    }
+
+    impl Drop for Guard {
+        fn drop(&mut self) {
+            let mut live = LIVE.lock().unwrap();
+            if let Some(i) = live.iter().position(|v| *v == self.0) {
+                live.swap_remove(i);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+#[path = "pair_cancel_tests.rs"]
+mod pair_cancel_tests;
 
 #[cfg(test)]
 #[path = "pair_tests.rs"]

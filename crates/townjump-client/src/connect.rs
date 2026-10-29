@@ -103,7 +103,7 @@ impl<D: Dht> HolesailClient<D> {
         };
         let connect = self.connector(ConnectOpts {
             reusable_socket: true,
-            relay_through: None,
+            ..Default::default()
         });
         let proxy = create_tcp_proxy(
             listen.clone(),
@@ -125,7 +125,7 @@ impl<D: Dht> HolesailClient<D> {
     fn connector(&self, opts: ConnectOpts) -> impl Fn() -> Link + Send + Sync + 'static {
         let (dht, key) = (self.dht.clone(), self.public_key);
         move || {
-            let dht = dht.clone();
+            let (dht, opts) = (dht.clone(), opts.clone());
             Box::pin(async move {
                 let conn = dht.connect(key, opts).await.map_err(io::Error::other)?;
                 Ok(conn.stream)

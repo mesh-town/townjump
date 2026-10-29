@@ -172,3 +172,113 @@ mod gate {
         assert!(!p.destroyed);
     }
 }
+
+/// `candidates(start)`: the keys a connect tries, in order (the `List` retry order).
+mod candidates {
+    use super::*;
+
+    fn list(keys: &[u8]) -> RelayThrough {
+        RelayThrough::List(keys.iter().map(|&n| key(n)).collect())
+    }
+
+    fn keys(ns: &[u8]) -> Vec<[u8; 32]> {
+        ns.iter().map(|&n| key(n)).collect()
+    }
+
+    mod list {
+        use super::*;
+
+        #[test]
+        fn rotates_from_start() {
+            // given: three relays
+            let rt = list(&[1, 2, 3]);
+            // when: starting at the second one
+            let from_one = rt.candidates(1);
+            // then: the order wraps around
+            assert_eq!(from_one, keys(&[2, 3, 1]));
+        }
+
+        #[test]
+        fn start_past_the_end_wraps_by_length() {
+            // given: three relays
+            let rt = list(&[1, 2, 3]);
+            // when: start is 4 (= 1 mod 3)
+            let wrapped = rt.candidates(4);
+            // then: same as start 1
+            assert_eq!(wrapped, keys(&[2, 3, 1]));
+        }
+
+        #[test]
+        fn start_zero_keeps_the_given_order() {
+            assert_eq!(list(&[1, 2, 3]).candidates(0), keys(&[1, 2, 3]));
+        }
+
+        #[test]
+        fn drops_repeated_keys_keeping_the_first_after_rotation() {
+            // given: key 1 listed twice
+            let rt = list(&[1, 2, 1]);
+            // when: rotating to start at the last entry (order 1, 1, 2)
+            let got = rt.candidates(2);
+            // then: every key appears once
+            assert_eq!(got, keys(&[1, 2]));
+        }
+
+        #[test]
+        fn empty_list_gives_no_candidates_for_any_start() {
+            // given: no relays; when: any start, including one that would divide by zero
+            let rt = RelayThrough::List(vec![]);
+            // then: nothing, and no panic
+            assert!(rt.candidates(0).is_empty());
+            assert!(rt.candidates(5).is_empty());
+        }
+    }
+
+    #[test]
+    fn key_is_the_single_candidate_whatever_the_start() {
+        assert_eq!(RelayThrough::Key(key(5)).candidates(7), keys(&[5]));
+    }
+
+    mod select {
+        use super::*;
+
+        fn counting(answer: Option<[u8; 32]>) -> (RelayThrough, Arc<AtomicUsize>) {
+            let calls = Arc::new(AtomicUsize::new(0));
+            let c = Arc::clone(&calls);
+            let rt = RelayThrough::Select(Arc::new(move || {
+                c.fetch_add(1, Ordering::SeqCst);
+                answer
+            }));
+            (rt, calls)
+        }
+
+        #[test]
+        fn some_key_is_the_single_candidate_and_the_function_runs_once() {
+            // given: a function answering key 4
+            let (rt, calls) = counting(Some(key(4)));
+            // when: asking for candidates
+            let got = rt.candidates(3);
+            // then: that key alone, one call
+            assert_eq!(got, keys(&[4]));
+            assert_eq!(
+                calls.load(Ordering::SeqCst),
+                1,
+                "Select must run exactly once"
+            );
+        }
+
+        #[test]
+        fn none_gives_no_candidates_after_one_call() {
+            // given: a function answering None
+            let (rt, calls) = counting(None);
+            // when: asking for candidates
+            let got = rt.candidates(0);
+            // then: nothing, one call
+            assert!(got.is_empty());
+            assert_eq!(
+                calls.load(Ordering::SeqCst),
+                1,
+                "Select must run exactly once"
+            );
+        }
+    }
+}

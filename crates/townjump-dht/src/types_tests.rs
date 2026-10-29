@@ -56,7 +56,7 @@ mod server_opts {
                 false
             })),
             reusable_socket: true,
-            relay_through: None,
+            ..Default::default()
         };
 
         let copy = original.clone();
@@ -87,22 +87,35 @@ mod connect_opts {
     }
 
     #[test]
-    fn connect_opts_stay_copy_eq() {
-        fn is_copy_eq<X: Copy + Eq>() {}
-        is_copy_eq::<ConnectOpts>();
+    fn default_matches_js_for_the_new_fields() {
+        let opts = ConnectOpts::default();
+
+        assert!(opts.local_connection, "JS default is true");
+        assert_eq!(opts.relay_through, None);
+        assert!(opts.relay_addresses.is_empty());
+        assert!(opts.holepunch.is_none());
+        assert_eq!(opts.punch_delay, None);
+        assert_eq!(opts.relay_keep_alive, None);
     }
 
     #[test]
-    fn tcp_form_differs_from_default_and_copies_by_value() {
+    fn tcp_form_differs_from_default_and_clones_by_value() {
         let tcp = ConnectOpts {
             reusable_socket: true,
-            relay_through: None,
+            ..Default::default()
         };
 
-        let copy = tcp;
+        let copy = tcp.clone();
 
-        assert_eq!(tcp, copy);
-        assert_ne!(tcp, ConnectOpts::default());
+        assert_eq!(copy.reusable_socket, tcp.reusable_socket);
+        assert_ne!(tcp.reusable_socket, ConnectOpts::default().reusable_socket);
+    }
+
+    #[test]
+    fn relay_through_from_a_key_is_the_key_variant() {
+        let through: RelayThrough = [7u8; 32].into();
+
+        assert_eq!(through, RelayThrough::Key([7; 32]));
     }
 }
 

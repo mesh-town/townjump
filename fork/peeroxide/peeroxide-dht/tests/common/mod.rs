@@ -9,7 +9,7 @@ use peeroxide_dht::blind_relay::BlindRelayServer;
 use peeroxide_dht::hyperdht::{
     HyperDhtConfig, HyperDhtError, HyperDhtHandle, KeyPair, ServerEvent, spawn,
 };
-use peeroxide_dht::relay_service::{RelayServiceConfig, run_relay_server};
+use peeroxide_dht::relay_service::{RelayServiceConfig, RelayServiceHandle, run_relay_server};
 use peeroxide_dht::rpc::DhtConfig;
 use peeroxide_dht::server::{Firewall, Server, ServerOpts};
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -152,14 +152,14 @@ pub struct Relay {
     pub node: Node,
     pub server: BlindRelayServer,
     pub public_key: [u8; 32],
-    pub task: JoinHandle<()>,
+    pub service: RelayServiceHandle,
 }
 
 pub async fn spawn_relay(bootstrap: &[String]) -> Relay {
     let mut node = spawn_node_on(bootstrap.to_vec(), &lan_host(), false, false).await;
     let key_pair = KeyPair::from_seed(rand::random::<[u8; 32]>());
     let events = std::mem::replace(&mut node.events, tokio::sync::mpsc::unbounded_channel().1);
-    let (server, task) = run_relay_server(
+    let (server, service) = run_relay_server(
         node.rt.handle(),
         node.handle.clone(),
         key_pair.clone(),
@@ -170,6 +170,6 @@ pub async fn spawn_relay(bootstrap: &[String]) -> Relay {
         node,
         server,
         public_key: key_pair.public_key,
-        task,
+        service,
     }
 }

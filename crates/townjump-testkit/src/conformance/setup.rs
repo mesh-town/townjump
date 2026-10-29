@@ -35,7 +35,7 @@ pub async fn listen_on<F: DhtFactory>(
     let opts = ServerOpts {
         firewall,
         reusable_socket: true,
-        relay_through: None,
+        ..Default::default()
     };
     let (server, incoming) = dht.create_server(opts).expect("create_server");
     server.listen(kp.clone()).await.expect("listen");

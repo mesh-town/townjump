@@ -9,7 +9,7 @@ fn server_opts(firewall: bool, reusable_socket: bool) -> ServerOpts {
     ServerOpts {
         firewall,
         reusable_socket,
-        relay_through: None,
+        ..Default::default()
     }
 }
 
@@ -89,7 +89,7 @@ fn connect_event() {
         &pk,
         &ConnectOpts {
             reusable_socket: true,
-            relay_through: None,
+            ..Default::default()
         },
     );
     let expected = json!({

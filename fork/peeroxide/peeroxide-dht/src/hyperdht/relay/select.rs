@@ -16,7 +16,8 @@ type SelectFn = Arc<dyn Fn() -> Option<[u8; 32]> + Send + Sync>;
 pub enum RelayThrough {
     /// One fixed relay.
     Key([u8; 32]),
-    /// Pick one of the keys uniformly at random.
+    /// Keys tried in turn from a random start: the next key only after our own relay
+    /// aborted the pairing (an extension over JS, which picks one key per connect).
     List(Vec<[u8; 32]>),
     /// Ask a function on every connect; `None` means no relay.
     Select(SelectFn),
@@ -30,6 +31,26 @@ impl RelayThrough {
             Self::List(l) if l.is_empty() => None,
             Self::List(l) => Some(l[rand::random_range(0..l.len())]),
             Self::Select(f) => f(),
+        }
+    }
+
+    /// The relay keys of one connect in the order they are tried: `Key` — itself; `List` — every
+    /// distinct key once, round from `start % len`; `Select` — one call of the function.
+    pub(crate) fn candidates(&self, start: usize) -> Vec<[u8; 32]> {
+        match self {
+            Self::Key(k) => vec![*k],
+            Self::List(l) if l.is_empty() => Vec::new(),
+            Self::List(l) => {
+                let mut out: Vec<[u8; 32]> = Vec::with_capacity(l.len());
+                let first = start % l.len();
+                for k in l[first..].iter().chain(&l[..first]) {
+                    if !out.contains(k) {
+                        out.push(*k);
+                    }
+                }
+                out
+            }
+            Self::Select(f) => f().into_iter().collect(),
         }
     }
 }

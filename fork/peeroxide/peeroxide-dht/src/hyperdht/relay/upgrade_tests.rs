@@ -33,6 +33,7 @@ async fn pair(n: &TestNet, p: &TestPeer, token: [u8; 32], init: bool, id: u32) -
         &p.key_pair,
         &p.rt,
         relay,
+        &[],
         token,
         init,
         id,
