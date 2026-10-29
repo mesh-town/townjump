@@ -270,3 +270,7 @@ mod filter_tests;
 #[cfg(all(test, unix))]
 #[path = "punch_life_tests.rs"]
 mod life_tests;
+
+#[cfg(all(test, unix))]
+#[path = "punch_rebind_tests.rs"]
+mod rebind_tests;
