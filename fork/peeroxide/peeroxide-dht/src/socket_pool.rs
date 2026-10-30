@@ -15,7 +15,15 @@
 use std::net::SocketAddr;
 
 use libudx::{Datagram, UdxRuntime, UdxSocket};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, oneshot};
+
+use crate::messages::{Command, Message};
+use crate::rpc::DhtHandle;
+
+#[path = "socket_pool_requests.rs"]
+mod requests;
+use requests::spawn_request_forwarder;
+pub(crate) use requests::{DHT_REQUEST_QUEUE, DhtRequestSeen};
 
 const HOLEPUNCH_MSG: &[u8] = &[0];
 const HOLEPUNCH_TTL: u32 = 5;
@@ -38,6 +46,7 @@ pub(crate) struct UdxFrameSeen {
 }
 
 type FrameSink = (UdxSocket, mpsc::UnboundedSender<UdxFrameSeen>);
+type RequestLane = (UdxSocket, mpsc::Sender<DhtRequestSeen>);
 
 pub struct SocketPool {
     host: String,
@@ -72,12 +81,19 @@ impl SocketPool {
             .udx_frames
             .as_ref()
             .map(|tx| (socket.clone(), tx.clone()));
-        let recv_task = tokio::spawn(route_messages(recv_rx, hp_tx, dht_tx, frames));
+        let (req_tx, req_rx) = mpsc::channel(DHT_REQUEST_QUEUE);
+        let (owner_tx, owner_rx) = oneshot::channel();
+        let lane = Some((socket.clone(), req_tx));
+        let recv_task = tokio::spawn(route_messages(
+            recv_rx, hp_tx, dht_tx, frames, lane, owner_rx,
+        ));
 
         Ok(SocketRef {
             socket,
             holepunch_rx: Some(hp_rx),
             dht_reply_rx: Some(dht_rx),
+            dht_request_rx: Some(req_rx),
+            _owner: owner_tx,
             _recv_task: Some(recv_task),
         })
     }
@@ -91,11 +107,21 @@ async fn sink_closed(frames: &Option<FrameSink>) {
     }
 }
 
+/// Resolves when the owning `SocketRef` is gone; never without a lane.
+async fn owner_gone(lane: &Option<RequestLane>, owner: &mut oneshot::Receiver<()>) {
+    if lane.is_none() {
+        return std::future::pending().await;
+    }
+    let _ = owner.await;
+}
+
 async fn route_messages(
     mut recv_rx: mpsc::UnboundedReceiver<Datagram>,
     hp_tx: mpsc::UnboundedSender<HolepunchEvent>,
     dht_tx: mpsc::UnboundedSender<Datagram>,
     mut frames: Option<FrameSink>,
+    mut lane: Option<RequestLane>,
+    mut owner: oneshot::Receiver<()>,
 ) {
     loop {
         let dgram = tokio::select! {
@@ -107,6 +133,11 @@ async fn route_messages(
             // socket can close.
             _ = sink_closed(&frames) => {
                 frames = None;
+                continue;
+            }
+            // The lane holds a clone of the socket too; release it with the owner.
+            _ = owner_gone(&lane, &mut owner) => {
+                lane = None;
                 continue;
             }
         };
@@ -132,8 +163,29 @@ async fn route_messages(
                     }
                 }
             }
+            InboundClass::DhtRequest => match &lane {
+                Some((socket, tx)) => {
+                    let seen = DhtRequestSeen {
+                        addr: dgram.addr,
+                        data: dgram.data,
+                        via: socket.clone(),
+                    };
+                    let addr = seen.addr;
+                    match tx.try_send(seen) {
+                        Ok(()) => {
+                            tracing::debug!(%addr, "socket_pool: DHT ping queued for the DHT actor")
+                        }
+                        Err(_) => {
+                            tracing::trace!(%addr, "socket_pool: DHT ping dropped, queue full or closed")
+                        }
+                    }
+                }
+                None => {
+                    tracing::trace!(addr = %dgram.addr, "socket_pool: DHT ping dropped, no owner")
+                }
+            },
             InboundClass::Drop => {
-                // DHT requests are not expected on a holepunch socket; dropped.
+                tracing::trace!(addr = %dgram.addr, len = dgram.data.len(), "socket_pool: non-ping datagram dropped");
             }
         }
     }
@@ -149,6 +201,9 @@ pub struct SocketRef {
     pub socket: UdxSocket,
     pub holepunch_rx: Option<mpsc::UnboundedReceiver<HolepunchEvent>>,
     pub dht_reply_rx: Option<mpsc::UnboundedReceiver<Datagram>>,
+    /// Internal PING requests queued until [`Self::serve_dht_requests`] attaches the actor.
+    pub(crate) dht_request_rx: Option<mpsc::Receiver<DhtRequestSeen>>,
+    _owner: oneshot::Sender<()>,
     _recv_task: Option<tokio::task::JoinHandle<()>>,
 }
 
@@ -166,6 +221,14 @@ impl SocketRef {
     /// replies through the puncher socket's own NAT mapping.
     pub fn take_dht_reply_rx(&mut self) -> Option<mpsc::UnboundedReceiver<Datagram>> {
         self.dht_reply_rx.take()
+    }
+
+    /// Starts answering internal PING requests that reach this socket through `dht`. A second
+    /// call does nothing.
+    pub(crate) fn serve_dht_requests(&mut self, dht: &DhtHandle) {
+        if let Some(rx) = self.dht_request_rx.take() {
+            spawn_request_forwarder(dht.clone(), rx);
+        }
     }
 
     pub fn send_holepunch(&self, addr: SocketAddr, low_ttl: bool) -> Result<()> {
@@ -192,13 +255,15 @@ pub(crate) enum InboundClass {
     Holepunch,
     UdxFrame,
     DhtResponse,
+    DhtRequest,
     Drop,
 }
 
 /// Classify an inbound datagram on a holepunch socket. UDX frames are
 /// libudx's responsibility (demuxed before they reach this lane) so they
-/// are dropped defensively; `decode_message` parses the rest, forwarding
-/// only well-formed `Message::Response` datagrams.
+/// are dropped defensively; `decode_message` parses the rest. Responses go
+/// to the reply lane, internal PING requests to the request lane, and
+/// everything else is dropped.
 pub(crate) fn classify_inbound(buf: &[u8]) -> InboundClass {
     if buf.len() <= 1 {
         return InboundClass::Holepunch;
@@ -207,7 +272,10 @@ pub(crate) fn classify_inbound(buf: &[u8]) -> InboundClass {
         return InboundClass::UdxFrame;
     }
     match crate::messages::decode_message(buf) {
-        Ok(crate::messages::Message::Response(_)) => InboundClass::DhtResponse,
+        Ok(Message::Response(_)) => InboundClass::DhtResponse,
+        Ok(Message::Request(r)) if r.internal && r.command == Command::Ping as u64 => {
+            InboundClass::DhtRequest
+        }
         _ => InboundClass::Drop,
     }
 }
@@ -232,3 +300,7 @@ pub fn coerce_firewall(fw: u64) -> u64 {
 #[cfg(test)]
 #[path = "socket_pool_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "socket_pool_request_tests.rs"]
+mod request_tests;

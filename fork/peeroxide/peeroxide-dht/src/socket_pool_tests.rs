@@ -223,7 +223,7 @@ fn sink_pool() -> (SocketPool, mpsc::UnboundedReceiver<UdxFrameSeen>) {
     )
 }
 
-async fn bound(rt: &libudx::UdxRuntime) -> libudx::UdxSocket {
+pub(super) async fn bound(rt: &libudx::UdxRuntime) -> libudx::UdxSocket {
     let socket = rt.create_socket().await.expect("socket");
     socket
         .bind("127.0.0.1:0".parse().expect("addr"))
@@ -253,7 +253,7 @@ async fn recv_within<T>(rx: &mut mpsc::UnboundedReceiver<T>) -> Option<T> {
 }
 
 /// Binding the port succeeds within 2 s (retried every 100 ms).
-async fn port_frees_up(port: u16) -> bool {
+pub(super) async fn port_frees_up(port: u16) -> bool {
     for _ in 0..20 {
         if tokio::net::UdpSocket::bind(("127.0.0.1", port))
             .await
