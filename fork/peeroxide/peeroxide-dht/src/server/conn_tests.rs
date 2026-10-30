@@ -226,3 +226,21 @@ async fn port_of(socket: &UdxSocket) -> u16 {
 fn addr(text: &str) -> SocketAddr {
     text.parse().expect("socket address")
 }
+
+#[test]
+fn probing_is_false_without_a_sender() {
+    assert!(!probing(None));
+}
+
+#[test]
+fn probing_is_true_while_the_receiver_lives() {
+    let (tx, _rx) = tokio::sync::oneshot::channel::<()>();
+    assert!(probing(Some(&tx)));
+}
+
+#[test]
+fn probing_is_false_once_the_receiver_is_gone() {
+    let (tx, rx) = tokio::sync::oneshot::channel::<()>();
+    drop(rx);
+    assert!(!probing(Some(&tx)));
+}

@@ -8,6 +8,7 @@ use std::time::Duration;
 
 use libudx::{UdxAsyncStream, UdxSocket, UdxStream};
 use tokio::sync::mpsc::{self, UnboundedSender};
+use tokio::sync::oneshot;
 use tokio::time::timeout;
 
 use super::actor::Internal;
@@ -41,7 +42,28 @@ pub(super) struct Pending {
     pub(super) relay: Option<RelayAttempt>,
 }
 
+/// True while the puzzle task still holds its stop receiver.
+fn probing(stop: Option<&oneshot::Sender<()>>) -> bool {
+    stop.is_some_and(|s| !s.is_closed())
+}
+
 impl Pending {
+    /// True while the puzzle of this slot is still running.
+    pub(super) fn puzzle_alive(&self) -> bool {
+        probing(self.punch.as_ref().and_then(|p| p.stop.as_ref()))
+    }
+
+    /// The slot timed out: like [`Pending::destroy`], and says so if the puzzle still probes.
+    pub(super) fn expire(self) {
+        if self.puzzle_alive() {
+            tracing::debug!(
+                remote_udx_id = self.remote_udx_id,
+                "server: handshake slot expired while the puzzle still probes"
+            );
+        }
+        self.destroy();
+    }
+
     /// Gives the connection up: destroys the puzzle, drops the stream.
     pub(super) fn destroy(self) {
         if let Some(punch) = self.punch {
