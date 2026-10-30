@@ -52,5 +52,4 @@ mod withdraw_relays_tests;
 mod withdraw_time_tests;
 
 pub use handle::Server;
-pub(crate) use opts::rejects_with;
 pub use opts::{Firewall, FirewallInput, ServerOpts};

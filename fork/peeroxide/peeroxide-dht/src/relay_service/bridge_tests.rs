@@ -60,7 +60,7 @@ async fn bridge_counts_streams() {
     let relay = matched_server();
     let active: ActiveStreamMap = Arc::default();
 
-    let pair = open_pair(&runtime, &socket, &relay, [11, 12], [100, 200])
+    let pair = open_pair(&runtime, [&socket, &socket], &relay, [11, 12], [100, 200])
         .await
         .expect("open pair");
     assert_eq!(relay.stats().streams_opened, 2);
@@ -79,7 +79,7 @@ async fn open_pair_with_bad_client_id_counts_an_error() {
     let relay = matched_server();
     let bad = u64::from(u32::MAX) + 1;
 
-    let result = open_pair(&runtime, &socket, &relay, [21, 22], [bad, 1]).await;
+    let result = open_pair(&runtime, [&socket, &socket], &relay, [21, 22], [bad, 1]).await;
     assert!(result.is_err());
     assert_eq!(relay.stats().streams_errors, 1);
 }
@@ -122,4 +122,80 @@ async fn unpair_from_one_side_tears_down_both_streams() {
         "both bridged streams must be dropped, live handles: {}",
         Arc::strong_count(&alive) - 1
     );
+}
+
+mod pair_on_two_sockets {
+    use super::*;
+    use crate::hyperdht::HyperDhtError;
+    use crate::relay_service::session::SessionSockets;
+
+    #[tokio::test]
+    async fn bytes_cross_between_streams_on_different_sockets() {
+        // given: a relay whose two bridged streams sit on two different sockets, one client per socket
+        let runtime = UdxRuntime::new().expect("runtime");
+        let (relay_a, relay_b) = (bound(&runtime).await, bound(&runtime).await);
+        let (client_a, client_b) = (bound(&runtime).await, bound(&runtime).await);
+        let relay = matched_server();
+        let _bridged = open_pair(&runtime, [&relay_a, &relay_b], &relay, [11, 12], [101, 102])
+            .await
+            .expect("open pair");
+        let mut a = runtime.create_stream(101).await.expect("stream a");
+        let mut b = runtime.create_stream(102).await.expect("stream b");
+        let addr_a = relay_a.local_addr().await.expect("relay a address");
+        let addr_b = relay_b.local_addr().await.expect("relay b address");
+
+        // when: each client connects to the relay socket its stream lives on and speaks first
+        a.connect(&client_a, 11, addr_a).await.expect("connect a");
+        b.connect(&client_b, 12, addr_b).await.expect("connect b");
+        let (wa, wb) = tokio::join!(a.write(b"from a"), b.write(b"from b"));
+        wa.expect("write a");
+        wb.expect("write b");
+
+        // then: each hears the other
+        let heard = tokio::time::timeout(Duration::from_secs(10), async {
+            (
+                b.read().await.expect("read b"),
+                a.read().await.expect("read a"),
+            )
+        })
+        .await
+        .expect("relayed bytes did not arrive");
+        assert_eq!(heard.0.as_deref(), Some(&b"from a"[..]));
+        assert_eq!(heard.1.as_deref(), Some(&b"from b"[..]));
+    }
+
+    #[tokio::test]
+    async fn pairing_without_a_session_socket_counts_an_error() {
+        // given: a matched pairing whose sessions have no registered socket
+        let runtime = UdxRuntime::new().expect("runtime");
+        let relay = BlindRelayServer::new(BlindRelayServerConfig::default());
+        relay.try_pair(1, true, TOKEN, 100, 0, noop_outbound());
+        let PairOutcome::Matched(matched) =
+            relay.try_pair(2, false, TOKEN, 200, 0, noop_outbound())
+        else {
+            panic!("expected Matched");
+        };
+
+        // when: the bridge is asked to open it
+        let result = bridge_one_pairing(
+            runtime.handle(),
+            &SessionSockets::default(),
+            &relay,
+            matched,
+        )
+        .await;
+
+        // then: it fails the way a missing server socket did, and counts the error
+        assert!(matches!(result, Err(HyperDhtError::StreamEstablishment(_))));
+        assert_eq!(relay.stats().streams_errors, 1);
+    }
+}
+
+async fn bound(runtime: &UdxRuntime) -> UdxSocket {
+    let socket = runtime.create_socket().await.expect("socket");
+    socket
+        .bind("127.0.0.1:0".parse().unwrap())
+        .await
+        .expect("bind");
+    socket
 }
