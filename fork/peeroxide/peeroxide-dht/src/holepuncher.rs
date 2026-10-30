@@ -180,6 +180,7 @@ impl Holepuncher {
             let Some(rx) = socket_ref.dht_reply_rx.take() else {
                 return 0;
             };
+            socket_ref.serve_dht_requests(dht);
             (socket_ref.socket.clone(), rx)
         };
         crate::nat_sampler::spawn_dht_reply_forwarder(dht.clone(), rx);

@@ -20,6 +20,7 @@ impl Holepuncher {
         let Some(rx) = socket_ref.dht_reply_rx.take() else {
             return;
         };
+        socket_ref.serve_dht_requests(dht);
         let socket = socket_ref.socket.clone();
         spawn_dht_reply_forwarder(dht.clone(), rx);
         if self.nat.firewall == FIREWALL_UNKNOWN {
@@ -63,3 +64,7 @@ impl Holepuncher {
 #[cfg(test)]
 #[path = "sampling_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "dht_request_tests.rs"]
+mod dht_request_tests;
