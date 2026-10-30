@@ -4,7 +4,7 @@
 //! session, its Mux driver and every bridged pair) live in one flat
 //! [`TaskSet`]. There is no hierarchy: aborting the set stops everything at
 //! once. [`RelayServiceHandle`] owns the set; `close` withdraws the service,
-//! `Drop` aborts it without network calls. Siblings: `handshake`, `bridge`.
+//! `Drop` aborts it without network calls. Siblings: `accept`, `bridge`.
 // JS: hyperdht/lib/server.js (`close`)
 
 use std::future::Future;
@@ -14,6 +14,7 @@ use std::time::Duration;
 use tokio::task::JoinSet;
 
 use crate::hyperdht::{HyperDhtHandle, KeyPair};
+use crate::server::Server;
 
 /// How long `close` waits for aborted tasks to unwind.
 const DRAIN_LIMIT: Duration = Duration::from_secs(1);
@@ -119,6 +120,8 @@ pub struct RelayServiceHandle {
     key_pair: KeyPair,
     target: [u8; 32],
     announce: bool,
+    /// The control-connection server, dropped on `close` before the registration is withdrawn.
+    server: Option<Arc<Server>>,
 }
 
 impl RelayServiceHandle {
@@ -128,6 +131,7 @@ impl RelayServiceHandle {
         key_pair: KeyPair,
         target: [u8; 32],
         announce: bool,
+        server: Arc<Server>,
     ) -> Self {
         Self {
             tasks,
@@ -135,12 +139,22 @@ impl RelayServiceHandle {
             key_pair,
             target,
             announce,
+            server: Some(server),
+        }
+    }
+
+    /// The relays the control-connection server currently advertises.
+    #[cfg(test)]
+    pub(super) async fn server_relays(&self) -> Vec<crate::hyperdht_messages::RelayInfo> {
+        match &self.server {
+            Some(server) => server.relays().await,
+            None => Vec::new(),
         }
     }
 
     /// Stop every task, unregister the relay, then withdraw the self-announce
     /// (if enabled, at most 5 s; failures are only logged).
-    pub async fn close(self) {
+    pub async fn close(mut self) {
         if let Some(mut set) = self.tasks.take() {
             set.abort_all();
             let drained = tokio::time::timeout(DRAIN_LIMIT, async {
@@ -151,6 +165,7 @@ impl RelayServiceHandle {
                 tracing::debug!("relay: tasks still unwinding after close");
             }
         }
+        self.server.take();
         self.dht.unregister_server(&self.target);
         if self.announce {
             self.withdraw_announce().await;
