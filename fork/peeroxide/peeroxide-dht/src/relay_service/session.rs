@@ -1,6 +1,11 @@
 //! One relay control session: drives a `BlindRelaySession` over a Protomux
-//! channel. Siblings: `handshake`, `bridge`.
+//! channel, and the registry of the UDX socket each session runs on.
 // JS: blind-relay/index.js
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
+
+use libudx::UdxSocket;
 
 use crate::blind_relay::{BlindRelayServer, BlindRelaySession, MatchedPairing};
 use crate::protomux::{Channel, Mux};
@@ -15,6 +20,8 @@ pub(super) async fn run_relay_session(
     mux: Mux,
     remote_public_key: [u8; 32],
     matched_tx: mpsc::UnboundedSender<MatchedPairing>,
+    sockets: SessionSockets,
+    socket: UdxSocket,
 ) {
     let channel = match mux
         .create_channel(
@@ -31,7 +38,7 @@ pub(super) async fn run_relay_session(
         }
     };
 
-    serve_session(relay, channel, &matched_tx, OPEN_TIMEOUT).await;
+    serve_session(relay, channel, &matched_tx, OPEN_TIMEOUT, &sockets, socket).await;
 }
 
 /// Runs the session once the peer opens its side of the channel; a peer that never does
@@ -41,11 +48,17 @@ async fn serve_session(
     channel: Channel,
     matched_tx: &mpsc::UnboundedSender<MatchedPairing>,
     open_timeout: Duration,
+    sockets: &SessionSockets,
+    socket: UdxSocket,
 ) {
     let Some(mut session) = BlindRelaySession::new(relay, channel) else {
         tracing::warn!("relay: rejecting session — at max_sessions capacity");
         return;
     };
+
+    // The pair's streams must sit on the socket this control connection runs on: the client
+    // sends its pair packets to the address it reached us at.
+    let _hold = sockets.hold(session.session_id(), socket);
 
     let opened = tokio::time::timeout(open_timeout, session.wait_opened()).await;
     if !matches!(opened, Ok(Ok(()))) {
@@ -59,6 +72,42 @@ async fn serve_session(
     }
 
     session.run(matched_tx).await;
+}
+
+/// The UDX socket of each live control session, keyed by session id (cheap to clone).
+#[derive(Clone, Default)]
+pub(super) struct SessionSockets(Arc<Mutex<HashMap<u64, UdxSocket>>>);
+
+/// Keeps a session's socket registered; dropping it forgets the entry.
+pub(super) struct SocketHold {
+    sockets: SessionSockets,
+    session_id: u64,
+}
+
+impl SessionSockets {
+    fn lock(&self) -> MutexGuard<'_, HashMap<u64, UdxSocket>> {
+        self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Register `socket` for `session_id` until the returned hold is dropped.
+    pub(super) fn hold(&self, session_id: u64, socket: UdxSocket) -> SocketHold {
+        self.lock().insert(session_id, socket);
+        SocketHold {
+            sockets: self.clone(),
+            session_id,
+        }
+    }
+
+    /// The socket of a live session.
+    pub(super) fn get(&self, session_id: u64) -> Option<UdxSocket> {
+        self.lock().get(&session_id).cloned()
+    }
+}
+
+impl Drop for SocketHold {
+    fn drop(&mut self) {
+        self.sockets.lock().remove(&self.session_id);
+    }
 }
 
 #[cfg(test)]
