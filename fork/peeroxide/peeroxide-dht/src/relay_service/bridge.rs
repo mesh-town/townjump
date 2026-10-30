@@ -1,5 +1,5 @@
 //! Data-plane bridging of matched pairings (raw UDX streams, blind relay).
-//! Siblings: `handshake`, `session`.
+//! Siblings: `accept`, `session`.
 // JS: blind-relay/index.js
 
 use std::collections::HashMap;
@@ -9,8 +9,9 @@ use libudx::{RuntimeHandle, UdxRuntime, UdxSocket, UdxStream};
 use tokio::sync::mpsc;
 
 use crate::blind_relay::{BlindRelayServer, MatchedPairing, SessionOutbound};
-use crate::hyperdht::{HyperDhtError, HyperDhtHandle, alloc_stream_id};
+use crate::hyperdht::{HyperDhtError, alloc_stream_id};
 
+use super::session::SessionSockets;
 use super::stop::TaskSet;
 
 /// Shared storage for bridged (active) pairings' raw stream pairs, keyed
@@ -31,22 +32,22 @@ pub(super) type ActiveStreamMap =
 /// stopping the service drops every bridged pair too.
 pub(super) async fn bridge_matched_pairings(
     runtime_handle: Arc<RuntimeHandle>,
-    dht: HyperDhtHandle,
     relay: BlindRelayServer,
     mut matched_rx: mpsc::UnboundedReceiver<MatchedPairing>,
     tasks: TaskSet,
+    sockets: SessionSockets,
 ) {
     let active: ActiveStreamMap = Arc::new(tokio::sync::Mutex::new(HashMap::new()));
 
     while let Some(matched) = matched_rx.recv().await {
         let runtime_handle = Arc::clone(&runtime_handle);
-        let dht = dht.clone();
+        let sockets = sockets.clone();
         let relay = relay.clone();
         let active = Arc::clone(&active);
         tasks.spawn(async move {
             let token = matched.token;
             let session_ids = [matched.first.session_id, matched.second.session_id];
-            match bridge_one_pairing(runtime_handle, &dht, &relay, matched).await {
+            match bridge_one_pairing(runtime_handle, &sockets, &relay, matched).await {
                 Ok(pair) => hold_pair(&active, &relay, token, session_ids, pair).await,
                 Err(e) => {
                     tracing::debug!(err = %e, "relay: failed to bridge matched pairing");
@@ -78,21 +79,26 @@ pub(super) async fn hold_pair(
 
 pub(super) async fn bridge_one_pairing(
     runtime_handle: Arc<RuntimeHandle>,
-    dht: &HyperDhtHandle,
+    sockets: &SessionSockets,
     relay: &BlindRelayServer,
     matched: MatchedPairing,
 ) -> Result<(UdxStream, UdxStream), HyperDhtError> {
     let runtime = UdxRuntime::shared(runtime_handle);
-    let socket = dht.server_socket().await?.ok_or_else(|| {
+    let (Some(first_socket), Some(second_socket)) = (
+        sockets.get(matched.first.session_id),
+        sockets.get(matched.second.session_id),
+    ) else {
         relay.note_stream_error();
-        HyperDhtError::StreamEstablishment("DHT server socket not available".into())
-    })?;
+        return Err(HyperDhtError::StreamEstablishment(
+            "control connection socket not available".into(),
+        ));
+    };
 
     let first_local_id = alloc_stream_id();
     let second_local_id = alloc_stream_id();
     let (first_stream, second_stream) = open_pair(
         &runtime,
-        &socket,
+        [&first_socket, &second_socket],
         relay,
         [first_local_id, second_local_id],
         [
@@ -126,12 +132,12 @@ pub(super) async fn bridge_one_pairing(
 /// packets between them in both directions. Counts opened streams and errors.
 pub(super) async fn open_pair(
     runtime: &UdxRuntime,
-    socket: &UdxSocket,
+    sockets: [&UdxSocket; 2],
     relay: &BlindRelayServer,
     local_ids: [u32; 2],
     client_ids: [u64; 2],
 ) -> Result<(UdxStream, UdxStream), HyperDhtError> {
-    let opened = wire_pair(runtime, socket, relay, local_ids, client_ids).await;
+    let opened = wire_pair(runtime, sockets, relay, local_ids, client_ids).await;
     if opened.is_err() {
         relay.note_stream_error();
     }
@@ -140,7 +146,7 @@ pub(super) async fn open_pair(
 
 async fn wire_pair(
     runtime: &UdxRuntime,
-    socket: &UdxSocket,
+    sockets: [&UdxSocket; 2],
     relay: &BlindRelayServer,
     local_ids: [u32; 2],
     client_ids: [u64; 2],
@@ -150,11 +156,11 @@ async fn wire_pair(
 
     let first_stream = runtime.create_stream(local_ids[0]).await?;
     relay.note_stream_opened();
-    first_stream.set_firewall_hook(socket, first_remote_id, |_, _, _| true)?;
+    first_stream.set_firewall_hook(sockets[0], first_remote_id, |_, _, _| true)?;
 
     let second_stream = runtime.create_stream(local_ids[1]).await?;
     relay.note_stream_opened();
-    second_stream.set_firewall_hook(socket, second_remote_id, |_, _, _| true)?;
+    second_stream.set_firewall_hook(sockets[1], second_remote_id, |_, _, _| true)?;
 
     // Blind, bidirectional packet-level forwarding — peeroxide never reads
     // or decrypts the relayed application data. Safe to wire up before

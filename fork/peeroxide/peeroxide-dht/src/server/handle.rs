@@ -90,6 +90,28 @@ impl Server {
         }
     }
 
+    /// Starts accepting connections to `key_pair` without announcing it and without the
+    /// relay keep-alive: the caller owns the announcement (and its relays, see
+    /// [`Server::set_relays`]). `HyperDhtHandle::resume()` still announces such a server itself.
+    ///
+    /// Fails like [`Server::listen`]: `AlreadyListening`, `ServerClosed`.
+    pub(crate) fn listen_unannounced(&self, key_pair: KeyPair) -> Result<(), HyperDhtError> {
+        self.enter_starting()?;
+        let target = hash(&key_pair.public_key);
+        self.dht.register_server(&target);
+        let _ = self.cmd_tx.send(Command::Listen(key_pair.clone(), target));
+        if !self.try_promote(&key_pair, false) {
+            self.dht.unregister_server(&target);
+            return Err(HyperDhtError::ServerClosed);
+        }
+        Ok(())
+    }
+
+    /// Sets the relays that go into the holepunch info of replies (those of the caller's announcement).
+    pub(crate) fn set_relays(&self, relays: Vec<RelayInfo>) {
+        let _ = self.cmd_tx.send(Command::SetRelays(relays));
+    }
+
     /// Withdraws the announcement and stops accepting connections. Repeating it is harmless.
     pub async fn close(&self) -> Result<(), HyperDhtError> {
         let old = std::mem::replace(&mut *self.phase(), Phase::Closed);
@@ -122,21 +144,23 @@ impl Server {
     /// The announce succeeded: `Starting` becomes `Listening`. If `close`
     /// came in meanwhile, the announcement is withdrawn again.
     async fn promote(&self, key_pair: KeyPair, relays: &[RelayInfo]) -> Result<(), HyperDhtError> {
-        if self.try_promote(&key_pair) {
+        if self.try_promote(&key_pair, true) {
             return Ok(());
         }
         self.withdraw(&key_pair, relays).await;
         Err(HyperDhtError::ServerClosed)
     }
 
-    fn try_promote(&self, key_pair: &KeyPair) -> bool {
+    fn try_promote(&self, key_pair: &KeyPair, keepalive: bool) -> bool {
         let mut phase = self.phase();
         if !matches!(*phase, Phase::Starting) {
             return false;
         }
         *phase = Phase::Listening(key_pair.clone());
-        let task = self.spawn_refresh(key_pair.clone());
-        *self.refresh.lock().unwrap_or_else(|e| e.into_inner()) = Some(task);
+        if keepalive {
+            let task = self.spawn_refresh(key_pair.clone());
+            *self.refresh.lock().unwrap_or_else(|e| e.into_inner()) = Some(task);
+        }
         true
     }
 
@@ -151,7 +175,7 @@ impl Server {
     }
 
     /// The relays of the latest announcement, from the actor; empty when suspended or gone.
-    async fn relays(&self) -> Vec<RelayInfo> {
+    pub(crate) async fn relays(&self) -> Vec<RelayInfo> {
         let (tx, rx) = oneshot::channel();
         if self.cmd_tx.send(Command::Relays(tx)).is_err() {
             return vec![];
@@ -198,3 +222,7 @@ impl Drop for Server {
 #[cfg(test)]
 #[path = "handle_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "handle_unannounced_tests.rs"]
+mod unannounced_tests;

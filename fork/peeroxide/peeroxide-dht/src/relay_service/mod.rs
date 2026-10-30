@@ -30,11 +30,10 @@
 //! the minimal "accept a handshake, finalize a connection" path rather than
 //! reusing `Swarm`'s internals.
 //!
-//! Holepunching is intentionally out of scope for v1: a relay is expected
-//! to run with a directly reachable address (matches how
-//! `blind-relay-service`'s reference deployment works — a plain
-//! `dht.createServer()` with no NAT-traversal staging on the relay's own
-//! control connections).
+//! Control connections come from a regular [`crate::server::Server`] listening on the relay's
+//! key: a client behind a NAT is hole-punched (or dialed back when it is open), a peer whose
+//! own NAT is random is refused a punch. The relay's self-announce stays here and hands the
+//! relays that accepted it to the server for the holepunch info of its replies.
 //!
 //! Admission: `RelayServiceConfig::peer_firewall` sees each connecting peer's
 //! key; a refused peer gets no reply and no session (like a server firewall).
@@ -44,13 +43,18 @@
 //! [`RelayServiceHandle`]; `close` stops them and withdraws the relay,
 //! dropping the handle aborts them.
 //!
-//! Files: `handshake` (one PEER_HANDSHAKE, admission), `dedup` (repeated handshakes), `session` (control session),
+//! Files: `accept` (server options, control connections), `session` (control session and its socket),
 //! `bridge` (data plane), `stop` (task ownership and the stop handle).
 // JS: blind-relay/index.js
 
+mod accept;
 mod bridge;
-mod dedup;
-mod handshake;
+#[cfg(test)]
+#[path = "nat_tests.rs"]
+mod nat_tests;
+#[cfg(test)]
+#[path = "relays_tests.rs"]
+mod relays_tests;
 mod session;
 mod stop;
 #[cfg(test)]
@@ -59,18 +63,16 @@ mod test_net;
 use std::sync::Arc;
 use std::time::Duration;
 
-use libudx::RuntimeHandle;
+use libudx::{RuntimeHandle, UdxRuntime};
 use rand::Rng;
 use tokio::sync::mpsc;
 
 use crate::blind_relay::{BlindRelayServer, BlindRelayServerConfig, MatchedPairing};
 use crate::hyperdht::{HyperDhtHandle, KeyPair, ServerEvent};
-use crate::hyperdht_messages::FIREWALL_UNKNOWN;
-use crate::server::Firewall;
+use crate::server::Server;
 
 use bridge::bridge_matched_pairings;
-use dedup::Dedup;
-use handshake::handle_handshake;
+use session::SessionSockets;
 use stop::TaskSet;
 
 pub use stop::RelayServiceHandle;
@@ -83,11 +85,6 @@ pub struct RelayServiceConfig {
     pub relay: BlindRelayServerConfig,
     /// How often to sweep expired (timed-out) pending pairings.
     pub sweep_interval: Duration,
-    /// Firewall state advertised to connecting peers in the noise reply.
-    /// A relay is expected to run reachably, so this defaults to
-    /// `FIREWALL_UNKNOWN` (matches Node's default — the relay doesn't
-    /// participate in NAT classification for its own control connections).
-    pub firewall: u64,
     /// Announce `hash(public_key)` on the DHT at startup and on refresh (default `true`).
     pub announce: bool,
     /// Admission callback for connecting peers; `true` refuses (silence, no reply). `None` admits all.
@@ -99,7 +96,6 @@ impl Default for RelayServiceConfig {
         Self {
             relay: BlindRelayServerConfig::default(),
             sweep_interval: Duration::from_secs(30),
-            firewall: FIREWALL_UNKNOWN,
             announce: true,
             peer_firewall: None,
         }
@@ -111,7 +107,6 @@ impl std::fmt::Debug for RelayServiceConfig {
         f.debug_struct("RelayServiceConfig")
             .field("relay", &self.relay)
             .field("sweep_interval", &self.sweep_interval)
-            .field("firewall", &self.firewall)
             .field("announce", &self.announce)
             .field(
                 "peer_firewall",
@@ -121,18 +116,12 @@ impl std::fmt::Debug for RelayServiceConfig {
     }
 }
 
-/// Everything a handshake needs from the running service (cheap to clone).
+/// Everything a control session needs from the running service (cheap to clone).
 #[derive(Clone)]
 struct Service {
-    runtime_handle: Arc<RuntimeHandle>,
-    dht: HyperDhtHandle,
-    key_pair: KeyPair,
-    /// Firewall state advertised in the noise reply.
-    firewall: u64,
-    /// Admission callback; `None` admits all.
-    peer_firewall: Option<Firewall>,
     relay: BlindRelayServer,
     matched_tx: mpsc::UnboundedSender<MatchedPairing>,
+    sockets: SessionSockets,
     tasks: TaskSet,
 }
 
@@ -159,19 +148,27 @@ pub fn run_relay_server(
     server_rx: mpsc::UnboundedReceiver<ServerEvent>,
     config: RelayServiceConfig,
 ) -> (BlindRelayServer, RelayServiceHandle) {
-    // Register our own identity so the DHT layer's handshake router treats
-    // inbound `PEER_HANDSHAKE` requests targeting `hash(public_key)` as
-    // "handle locally" instead of replying CLOSER_NODES (mirrors
-    // upstream `peeroxide::swarm`'s `do_join(server: true)` — without this, nothing
-    // ever reaches this module's handshake handler at all). Kept without the
-    // self-announce too: a handshake sent straight to the relay's address is
-    // still answered.
     let target = crate::crypto::hash(&key_pair.public_key);
-    dht.register_server(&target);
-
     let tasks = TaskSet::new();
+    let (to_server_tx, to_server_rx) = mpsc::unbounded_channel::<ServerEvent>();
+    let (server, incoming) = Server::new(
+        dht.clone(),
+        to_server_rx,
+        UdxRuntime::shared(Arc::clone(&runtime_handle)),
+        accept::server_opts(&config),
+    );
+    if let Err(e) = server.listen_unannounced(key_pair.clone()) {
+        tracing::warn!(err = %e, "relay: control-connection server failed to start");
+    }
+    let server = Arc::new(server);
+    tasks.spawn(forward_events(server_rx, to_server_tx, tasks.clone()));
     if config.announce {
-        tasks.spawn(announce_loop(dht.clone(), key_pair.clone(), target));
+        tasks.spawn(announce_loop(
+            dht.clone(),
+            key_pair.clone(),
+            target,
+            Arc::clone(&server),
+        ));
     }
 
     let relay = BlindRelayServer::new(config.relay.clone());
@@ -179,28 +176,25 @@ pub fn run_relay_server(
 
     // Wires the raw UDX data-plane streams for every matched pairing and
     // bridges them bidirectionally.
+    let sockets = SessionSockets::default();
     tasks.spawn(bridge_matched_pairings(
         Arc::clone(&runtime_handle),
-        dht.clone(),
         relay.clone(),
         matched_rx,
         tasks.clone(),
+        sockets.clone(),
     ));
     tasks.spawn(sweep_loop(relay.clone(), config.sweep_interval));
 
     let service = Service {
-        runtime_handle,
-        dht: dht.clone(),
-        key_pair: key_pair.clone(),
-        firewall: config.firewall,
-        peer_firewall: config.peer_firewall,
         relay: relay.clone(),
         matched_tx,
+        sockets,
         tasks: tasks.clone(),
     };
-    tasks.spawn(accept_loop(service, server_rx));
+    tasks.spawn(accept::accept_loop(service, incoming));
 
-    let handle = RelayServiceHandle::new(tasks, dht, key_pair, target, config.announce);
+    let handle = RelayServiceHandle::new(tasks, dht, key_pair, target, config.announce, server);
     (relay, handle)
 }
 
@@ -214,7 +208,12 @@ pub fn run_relay_server(
 /// announced record on `hash(pubkey)`) never surfaces us and fails with
 /// PEER_NOT_FOUND. Mirrors upstream `peeroxide::peer_discovery::do_refresh`'s
 /// "self_announce" pattern.
-async fn announce_loop(dht: HyperDhtHandle, key_pair: KeyPair, target: [u8; 32]) {
+async fn announce_loop(
+    dht: HyperDhtHandle,
+    key_pair: KeyPair,
+    target: [u8; 32],
+    server: Arc<Server>,
+) {
     const REFRESH_INTERVAL: Duration = Duration::from_secs(600);
     const REFRESH_JITTER_MS: u64 = 120_000;
 
@@ -226,6 +225,9 @@ async fn announce_loop(dht: HyperDhtHandle, key_pair: KeyPair, target: [u8; 32])
                     closest = r.closest_nodes.len(),
                     "relay: self-announce complete"
                 );
+                // Every node that accepted the record may carry a punch round; the
+                // server verifies a client's address only through one of its relays.
+                server.set_relays(r.relays.clone());
             }
             Err(e) => {
                 tracing::warn!(err = %e, "relay: self-announce failed");
@@ -249,26 +251,16 @@ async fn sweep_loop(relay: BlindRelayServer, interval: Duration) {
     }
 }
 
-/// Answer server events until the node's channel closes; then the service is
-/// useless without its node, so every task is aborted.
-async fn accept_loop(service: Service, mut server_rx: mpsc::UnboundedReceiver<ServerEvent>) {
-    let mut dedup = Dedup::default();
-    while let Some(event) = server_rx.recv().await {
-        match event {
-            ServerEvent::PeerHandshake {
-                msg,
-                from,
-                peer_address,
-                reply_tx,
-                ..
-            } => {
-                handle_handshake(&service, &mut dedup, msg, from, peer_address, reply_tx).await;
-            }
-            ServerEvent::PeerHolepunch { reply_tx, .. } => {
-                // Not supported in v1 — see module docs. Politely decline.
-                let _ = reply_tx.send(None);
-            }
-        }
+/// Pass the node's server events on to the control-connection server; once the node's
+/// channel closes the service is useless without its node, so every task is aborted (the
+/// server's own task does not notice a closed event channel).
+async fn forward_events(
+    mut from: mpsc::UnboundedReceiver<ServerEvent>,
+    to: mpsc::UnboundedSender<ServerEvent>,
+    tasks: TaskSet,
+) {
+    while let Some(event) = from.recv().await {
+        let _ = to.send(event);
     }
-    service.tasks.abort_now();
+    tasks.abort_now();
 }
