@@ -205,7 +205,7 @@ async fn on_event(st: &mut State, event: ServerEvent, internal: &UnboundedSender
 
 fn on_tick(st: &mut State) {
     let now = Instant::now();
-    st.table.expire(now).into_iter().for_each(Pending::destroy);
+    st.table.expire(now).into_iter().for_each(Pending::expire);
     arelay::expire_relayed(st, now);
 }
 
