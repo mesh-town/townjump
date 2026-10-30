@@ -13,6 +13,10 @@ use libudx::UdxSocket;
 pub(super) const CLEAR_WAIT: Duration = Duration::from_secs(10);
 /// How long a pending connection waits for the client (JS `HANDSHAKE_INITIAL_TIMEOUT`).
 pub(super) const INITIAL_TIMEOUT: Duration = Duration::from_secs(10);
+/// How long a slot lives once a round started the puzzle. JS sets no deadline after the
+/// punching round: the handshake lives until the probes end (1750 x 20 ms), while the client
+/// gives up after 30 s.
+pub(super) const PUNCHING_TIMEOUT: Duration = Duration::from_secs(35);
 
 /// Outcome of [`Table::begin`].
 #[derive(Debug, Clone, PartialEq, Eq)]

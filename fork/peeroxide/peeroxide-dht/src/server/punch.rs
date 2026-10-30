@@ -103,6 +103,10 @@ fn spawn_puzzle(
             return puncher.destroy();
         };
         if !puncher.punch(&pool, &rt).await {
+            tracing::debug!(
+                firewall = puncher.nat.firewall,
+                "server: puzzle punch returned false, lingering"
+            );
             tokio::select! {
                 _ = stop_rx => {}
                 _ = tokio::time::sleep(linger) => {}
