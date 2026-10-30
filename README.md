@@ -149,7 +149,7 @@ The goal is to behave exactly like JavaScript Holesail 2.4.4. Where this port di
   quirks of the original are kept, so that scripts written for `holesail` keep working: for example
   `--public=false` still means public, and `--live P --port Q` ignores `Q`. The list is in
   [docs/spec/holesail/README.md](docs/spec/holesail/README.md).
-- **`--version`** prints `2.4.4`, the Holesail version this port follows, not the port version.
+- **`--version`** prints `2.4.4 (townjump 0.1.N)`: the Holesail version this port follows, then the port's own version (the patch number grows with every merge into `main`).
 
 ### Different
 
