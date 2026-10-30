@@ -145,3 +145,36 @@ async fn reply_socket_lives_with_the_repeat() {
     );
     assert!(table.via_of(b"other").is_none(), "another noise does not");
 }
+
+#[test]
+fn punching_slot_survives_ticks_past_initial_timeout() {
+    let t0 = Instant::now();
+    let mut table = Table::new();
+    let id = fresh(&mut table, b"noise", t0);
+    table.attach(id, "pending", t0 + INITIAL_TIMEOUT);
+    table.extend(id, t0 + PUNCHING_TIMEOUT);
+    for k in 1..35 {
+        assert!(
+            table.expire(t0 + Duration::from_secs(k)).is_empty(),
+            "tick {k}"
+        );
+    }
+    assert_eq!(table.take(id), Some("pending"));
+}
+
+#[test]
+fn punching_slot_expires_at_the_window_end() {
+    let t0 = Instant::now();
+    let mut table = Table::new();
+    let id = fresh(&mut table, b"noise", t0);
+    table.attach(id, "pending", t0 + INITIAL_TIMEOUT);
+    table.extend(id, t0 + PUNCHING_TIMEOUT);
+    assert_eq!(table.expire(t0 + PUNCHING_TIMEOUT), vec!["pending"]);
+    assert!(table.expire(t0 + PUNCHING_TIMEOUT).is_empty());
+}
+
+#[test]
+fn punching_timeout_covers_the_probe_window() {
+    assert!(PUNCHING_TIMEOUT >= crate::server::punch::PUZZLE_LINGER);
+    assert!(PUNCHING_TIMEOUT >= Duration::from_secs(30));
+}

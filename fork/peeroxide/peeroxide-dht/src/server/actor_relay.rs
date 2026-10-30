@@ -9,7 +9,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use super::actor::{Internal, State};
 use super::conn::Pending;
 use super::relay::{self, Relayed};
-use super::table::INITIAL_TIMEOUT;
+use super::table::{INITIAL_TIMEOUT, PUNCHING_TIMEOUT};
 use crate::hyperdht::{HyperDhtError, RelayPaired};
 
 /// The outcome of a relay pairing for the slot `id`.
@@ -69,16 +69,25 @@ pub(super) fn stop_relayed(st: &mut State) {
     ids.into_iter().for_each(|id| on_relay_done(st, id));
 }
 
-/// A round started the puzzle: the slot (or the relayed record) waits longer.
+/// The deadline once a round started the puzzle: the probe window, or the held relay
+/// attempt's deadline when that is later.
+fn punching_deadline(now: Instant, held: Option<Instant>) -> Instant {
+    let until = now + PUNCHING_TIMEOUT;
+    held.map_or(until, |h| until.max(h))
+}
+
+/// A round started the puzzle: the slot (or the relayed record) waits for the probe window.
 pub(super) fn extend_slot(st: &mut State, id: u64, now: Instant) {
-    let until = now + INITIAL_TIMEOUT;
     if let Some(r) = st.relayed.get_mut(&id) {
-        r.deadline = r.deadline.max(until);
+        r.deadline = punching_deadline(now, Some(r.deadline));
         return;
     }
-    let held = st.table.get_mut(id).and_then(|p| p.relay.as_ref());
-    let until = held.map_or(until, |r| until.max(r.deadline));
-    st.table.extend(id, until);
+    let held = st
+        .table
+        .get_mut(id)
+        .and_then(|p| p.relay.as_ref())
+        .map(|r| r.deadline);
+    st.table.extend(id, punching_deadline(now, held));
 }
 
 /// The client gave up: the puzzle goes; a slot that waits for the relay stays.
@@ -94,3 +103,7 @@ pub(super) fn abort_slot(st: &mut State, id: u64, now: Instant) {
     st.table.take(id).into_iter().for_each(Pending::destroy);
     st.table.clear_later(id, now);
 }
+
+#[cfg(test)]
+#[path = "actor_relay_tests.rs"]
+mod tests;
