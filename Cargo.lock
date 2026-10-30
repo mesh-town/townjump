@@ -782,7 +782,7 @@ dependencies = [
 
 [[package]]
 name = "townjump"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "getrandom 0.3.4",
  "hex",
@@ -806,7 +806,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-client"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "hex",
  "serde_json",
@@ -822,7 +822,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-dht"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "thiserror",
  "tokio",
@@ -832,7 +832,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-dht-peeroxide"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "libudx",
  "peeroxide-dht",
@@ -845,7 +845,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-filemanager"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "tokio",
  "townjump-jsval",
@@ -854,7 +854,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-jsval"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "serde",
  "serde_json",
@@ -864,7 +864,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-keys"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ed25519-dalek",
  "hex",
@@ -877,7 +877,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-logger"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "tokio",
  "townjump-testkit",
@@ -885,7 +885,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-pipe"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "portable-atomic",
  "tokio",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-server"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "getrandom 0.3.4",
  "hex",
@@ -912,7 +912,7 @@ dependencies = [
 
 [[package]]
 name = "townjump-testkit"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "ed25519-dalek",
  "hex",
