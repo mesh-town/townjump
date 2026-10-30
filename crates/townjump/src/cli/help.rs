@@ -1,4 +1,4 @@
-// JS: holesail/src/lib/help.js:printHelp, version from package.json (`2.4.4`).
+// JS: holesail/src/lib/help.js:printHelp, version from package.json (`2.4.4`), kept for compatibility; `--version` appends the build's own version in parentheses.
 // See also: run.rs prints the result; the byte reference is testvectors/holesail-cli/golden/.
 
 use townjump_jsval::JsValue;
@@ -38,9 +38,9 @@ pub fn with_port_lines(js: &str) -> String {
     out
 }
 
-/// Output of `--version`: `2.4.4\n`.
+/// Output of `--version`: `2.4.4 (townjump <crate version>)\n`: the JS version, then this build's own version.
 pub fn version_text() -> String {
-    format!("{VERSION}\n")
+    format!("{VERSION} (townjump {})\n", env!("CARGO_PKG_VERSION"))
 }
 
 #[cfg(test)]

@@ -1,8 +1,15 @@
-// Tests of `cli::help`: help and version byte for byte against golden/*.txt and the CLI matrix stdout (cases help-*, version*).
-// `help_text` and `version_text` are exactly the JS stdout: they stand in the `cli-matrix.json` vectors (`help-noargs` ends with `\n\n`, `version` is `2.4.4\n`).
+// Tests of `cli::help`: help byte for byte against golden/*.txt and the CLI matrix stdout (cases help-*); version is the JS line plus the build's own version.
+// `help_text` is exactly the JS stdout (`help-noargs` ends with `\n\n`); `version_text` is the JS `version` stdout without its `\n`, then ` (townjump <CARGO_PKG_VERSION>)\n`.
 use super::*;
 use townjump_jsval::JsValue;
 use townjump_testkit::vectors::load_value;
+
+fn with_own_version(js: &str) -> String {
+    let js = js
+        .strip_suffix('\n')
+        .expect("JS version ends with a newline");
+    format!("{js} (townjump {})\n", env!("CARGO_PKG_VERSION"))
+}
 
 mod general {
     use super::*;
@@ -126,13 +133,16 @@ mod version {
 
     #[test]
     fn version_text_is_the_golden_bytes() {
-        assert_eq!(version_text(), golden("version"));
+        assert_eq!(version_text(), with_own_version(&golden("version")));
     }
 
     #[test]
     fn version_text_is_the_constant_and_a_newline() {
-        assert_eq!(version_text(), format!("{VERSION}\n"));
-        assert_eq!(version_text(), "2.4.4\n");
+        assert_eq!(
+            version_text(),
+            format!("{VERSION} (townjump {})\n", env!("CARGO_PKG_VERSION"))
+        );
+        assert!(version_text().starts_with("2.4.4 (townjump "));
     }
 }
 
@@ -179,7 +189,11 @@ mod matrix {
     #[test]
     fn version_cases_print_the_version() {
         for id in ["version", "version-before-live"] {
-            assert_eq!(version_text(), matrix_stdout(id), "case {id}");
+            assert_eq!(
+                version_text(),
+                with_own_version(&matrix_stdout(id)),
+                "case {id}"
+            );
         }
     }
 }

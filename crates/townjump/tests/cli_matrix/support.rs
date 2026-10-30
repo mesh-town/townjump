@@ -173,6 +173,10 @@ fn assert_stream(id: &str, name: &str, actual: &str, expected: &str) {
     let actual = hide_timestamps(actual);
     let expected = if id == "help-filemanager" && name == "stdout" {
         townjump::cli::help::with_port_lines(expected)
+    } else if matches!(id, "version" | "version-before-live") && name == "stdout" {
+        // The JS line plus this build's own version.
+        let js = expected.strip_suffix('\n').unwrap_or(expected);
+        format!("{js} (townjump {})\n", env!("CARGO_PKG_VERSION"))
     } else {
         expected.to_owned()
     };
