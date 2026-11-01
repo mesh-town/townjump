@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use super::pick_lan_addr;
+use super::{pick_direct_address, pick_lan_addr};
 use crate::messages::Ipv4Peer;
 
 fn peer(h: &str) -> Ipv4Peer {
@@ -89,5 +89,52 @@ fn own_loopback_address_still_matches() {
     assert_eq!(
         pick_lan_addr(&adv, &[net("127.0.0.1", 8)]),
         Some(peer("127.0.0.1"))
+    );
+}
+
+#[test]
+fn direct_dial_keeps_the_dialed_address_when_a_public_one_is_known() {
+    let adv = [peer("8.8.8.8"), peer("10.0.0.5")];
+    let server = peer("198.51.100.9");
+    for same_host in [false, true] {
+        let got = pick_direct_address(true, same_host, &adv, &server, &[net("10.0.0.2", 24)]);
+        assert_eq!(got, server);
+    }
+}
+
+#[test]
+fn relayed_pick_is_unchanged() {
+    let server = peer("198.51.100.9");
+    let adv = [peer("10.0.0.5"), peer("8.8.8.8"), peer("9.9.9.9")];
+    let got = pick_direct_address(false, false, &adv, &server, &[net("10.0.0.2", 24)]);
+    assert_eq!(got, peer("8.8.8.8"));
+    let got = pick_direct_address(false, false, &[peer("10.0.0.5")], &server, &[]);
+    assert_eq!(got, server);
+}
+
+#[test]
+fn server_as_holder_keeps_the_lan_address() {
+    let server = peer("198.51.100.9");
+    let adv = [peer("8.8.8.8"), peer("192.168.5.5"), peer("10.0.0.5")];
+    let nets = [net("10.0.0.2", 24)];
+    // own subnet first
+    assert_eq!(
+        pick_direct_address(false, true, &adv, &server, &nets),
+        peer("10.0.0.5")
+    );
+    // no own-subnet match: first private
+    assert_eq!(
+        pick_direct_address(false, true, &adv, &server, &[]),
+        peer("192.168.5.5")
+    );
+    // no private: first public
+    assert_eq!(
+        pick_direct_address(false, true, &[peer("8.8.8.8")], &server, &nets),
+        peer("8.8.8.8")
+    );
+    // nothing advertised: server address
+    assert_eq!(
+        pick_direct_address(false, true, &[], &server, &nets),
+        server
     );
 }
