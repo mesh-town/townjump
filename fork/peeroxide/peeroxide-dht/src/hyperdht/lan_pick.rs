@@ -56,6 +56,36 @@ pub(super) fn pick_lan_addr(
         .cloned()
 }
 
+/// Dial target of a direct connect.
+/// `direct_dial` (only `connect_to`): the address that answered the handshake, `server_address`.
+/// Otherwise, same host: an address on our subnet, else the first private, else the first public
+/// advertised one; not the same host: the first public advertised one. Last resort: `server_address`.
+pub(super) fn pick_direct_address(
+    direct_dial: bool,
+    same_host: bool,
+    addresses4: &[Ipv4Peer],
+    server_address: &Ipv4Peer,
+    local_nets: &[(Ipv4Addr, u8)],
+) -> Ipv4Peer {
+    if direct_dial {
+        return server_address.clone();
+    }
+    let public = || addresses4.iter().find(|a| !is_addr_private(&a.host));
+    let picked = if same_host {
+        pick_lan_addr(addresses4, local_nets)
+            .or_else(|| {
+                addresses4
+                    .iter()
+                    .find(|a| is_addr_private(&a.host))
+                    .cloned()
+            })
+            .or_else(|| public().cloned())
+    } else {
+        public().cloned()
+    };
+    picked.unwrap_or_else(|| server_address.clone())
+}
+
 #[cfg(test)]
 #[path = "lan_pick_tests.rs"]
 mod tests;

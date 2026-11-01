@@ -88,10 +88,38 @@ pub(super) async fn prepare(
             .ok_or(HyperDhtError::ChannelClosed)?,
     };
     let port = socket.local_addr().await?.port();
+    #[cfg(test)]
+    let addresses4 = {
+        let mut all = injected_addresses4(port);
+        all.extend(st.dht.noise_addresses4(port).await);
+        all
+    };
+    #[cfg(not(test))]
     let addresses4 = st.dht.noise_addresses4(port).await;
     Ok(Prepared {
         socket,
         addresses4,
         punch: None,
     })
+}
+
+/// Test lever: addresses a server on this socket port announces before its own ones.
+#[cfg(test)]
+static INJECTED: std::sync::Mutex<Vec<(u16, Vec<Ipv4Peer>)>> = std::sync::Mutex::new(Vec::new());
+
+/// Announces `addresses` first from the server whose socket port is `port` (tests run in parallel).
+#[cfg(test)]
+pub(super) fn inject_addresses4(port: u16, addresses: Vec<Ipv4Peer>) {
+    let mut map = INJECTED.lock().expect("injected addresses");
+    map.retain(|(p, _)| *p != port);
+    map.push((port, addresses));
+}
+
+#[cfg(test)]
+fn injected_addresses4(port: u16) -> Vec<Ipv4Peer> {
+    let map = INJECTED.lock().expect("injected addresses");
+    map.iter()
+        .find(|(p, _)| *p == port)
+        .map(|(_, a)| a.clone())
+        .unwrap_or_default()
 }

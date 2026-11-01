@@ -15,7 +15,7 @@ use super::connect_trace::trace;
 use super::connection::{ConnectResult, PeerConnection};
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
-use super::lan_pick::{local_v4_nets, pick_lan_addr};
+use super::lan_pick::{local_v4_nets, pick_direct_address};
 use super::relay::client_role;
 use super::stream::establish_stream_with_socket;
 use super::types::HyperDhtError;
@@ -146,6 +146,7 @@ impl HyperDhtHandle {
             hs_result,
             local_stream_id,
             relay_ask,
+            direct_dial,
             ..
         } = handshaken;
         let relay = &relay;
@@ -202,40 +203,14 @@ impl HyperDhtHandle {
             remote_payload.firewall,
             remote_holepunchable,
         ) {
-            // Pick the dial target. When same-host is true (both peers
-            // share a NAT), prefer a private/loopback address from the
-            // remote's advertised list, since the public IP often can't be
-            // reached from inside the same NAT (no NAT hairpin). Otherwise
-            // prefer a non-private public address, falling back to the
-            // FE-holder's-tagged server address. Mirrors Node
-            // `lib/connect.js::holepunch` LAN-shortcut.
-            // Prefers an advertised address on one of our own subnets, so
-            // the reply source matches the saved route.
-            let connect_addr = if same_host {
-                pick_lan_addr(&remote_payload.addresses4, &local_v4_nets())
-                    .or_else(|| {
-                        remote_payload
-                            .addresses4
-                            .iter()
-                            .find(|a| is_addr_private(&a.host))
-                            .cloned()
-                    })
-                    .or_else(|| {
-                        remote_payload
-                            .addresses4
-                            .iter()
-                            .find(|a| !is_addr_private(&a.host))
-                            .cloned()
-                    })
-                    .unwrap_or_else(|| hs_result.server_address.clone())
-            } else {
-                remote_payload
-                    .addresses4
-                    .iter()
-                    .find(|a| !is_addr_private(&a.host))
-                    .cloned()
-                    .unwrap_or_else(|| hs_result.server_address.clone())
-            };
+            // Dial target: see `pick_direct_address`.
+            let connect_addr = pick_direct_address(
+                direct_dial,
+                same_host,
+                &remote_payload.addresses4,
+                &hs_result.server_address,
+                &local_v4_nets(),
+            );
             tracing::debug!(
                 same_host,
                 connect_addr = %format!("{}:{}", connect_addr.host, connect_addr.port),
