@@ -72,6 +72,24 @@ fn drain(socket: &UdpSocket, nonce: &Nonce, target: &Target) -> Option<SocketAdd
     None
 }
 
+/// The window is over: one last look at the socket, and a `debug` line when nothing came.
+fn at_deadline(
+    socket: &UdpSocket,
+    nonce: &Nonce,
+    target: &Target,
+    timing: &ProbeTiming,
+    (requests, interfaces): (usize, usize),
+) -> Option<SocketAddrV4> {
+    let found = drain(socket, nonce, target);
+    if found.is_none() {
+        tracing::debug!(
+            "lan: no reply within {:?} after {requests} requests on {interfaces} interfaces",
+            timing.window
+        );
+    }
+    found
+}
+
 /// Looks for the server of `target` on the LAN. Returns its address (reply
 /// source IP, port from the payload) or `None` when nobody answers in time.
 /// Never fails: socket errors are logged and end in `None`.
@@ -92,7 +110,7 @@ pub async fn find(cfg: &LanConfig, target: Target, timing: &ProbeTiming) -> Opti
     loop {
         let due = timing.sends.get(next).map(|o| start + *o);
         tokio::select! {
-            _ = sleep_until(deadline) => return drain(&socket, &nonce, &target),
+            _ = sleep_until(deadline) => return at_deadline(&socket, &nonce, &target, timing, (next, ifaces.len())),
             _ = sleep_until(due.unwrap_or(deadline)), if due.is_some() => {
                 send_all(&socket, cfg, &packet, &ifaces);
                 next += 1;

@@ -116,7 +116,12 @@ async fn lan_path(node: &Node, remote: [u8; 32], failed: &Notify) -> Option<Peer
     };
     wait_start(node.lan.setup.start, state, failed).await;
     let target = peeroxide_dht::crypto::hash(&remote);
-    let addr = townjump_lan::find(&node.lan.setup.config, target, &node.lan.setup.timing).await?;
+    let Some(addr) =
+        townjump_lan::find(&node.lan.setup.config, target, &node.lan.setup.timing).await
+    else {
+        tracing::debug!("lan: discovery found no server on the local network");
+        return None;
+    };
     let dialed =
         node.handle
             .connect_to(&node.identity, remote, SocketAddr::V4(addr), &node.runtime);

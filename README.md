@@ -120,6 +120,7 @@ not through a reverse proxy with a public domain name. The full rules are in
 | Variable | Meaning |
 |---|---|
 | `TOWNJUMP_BOOTSTRAP` | Comma-separated `host:port` list of DHT bootstrap nodes, for a private DHT or a test network. Unset or empty: the public HyperDHT bootstrap nodes. |
+| `TOWNJUMP_LAN_DISCOVERY` | Local-network discovery: a server answers multicast probes on the LAN and a client probes in parallel with the DHT lookup, so peers on the same network connect directly even without internet. On by default; `0` (also `false`, `off`, `no`) turns it off. |
 | `RUST_LOG` | Enables the internal `tracing` log of the DHT and transport layers (for example `RUST_LOG=info`), separate from `--log`. |
 
 ### Windows
@@ -135,6 +136,14 @@ New-NetFirewallRule -DisplayName townjump -Direction Inbound -Program C:\path\to
 ```
 
 A client (`townjump <key>`) only connects out and needs no rule.
+
+### macOS
+
+With the application firewall on (System Settings, Network, Firewall), local-network discovery packets (the probes a
+server listens for and the replies a client waits for) do not reach townjump until it is allowed to accept incoming
+connections: allow it in the macOS dialog if one appears, or
+manually under Firewall, Options. Without that, connections go through the DHT only. The firewall tracks each build of
+the binary as a separate application, so a new version needs the permission again.
 
 ## Differences from the original Holesail
 
