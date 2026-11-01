@@ -16,7 +16,8 @@ use crate::interfaces::ipv4_interfaces;
 pub struct ProbeTiming {
     /// Send offsets from the start of the probe.
     pub sends: Vec<Duration>,
-    /// Total waiting time; `find` returns `None` when it passes.
+    /// Total waiting time; `find` returns `None` when it passes. 3 s by default: the macOS application firewall
+    /// delays the first packet of a new flow under CPU load.
     pub window: Duration,
 }
 
@@ -28,7 +29,7 @@ impl Default for ProbeTiming {
                 Duration::from_millis(250),
                 Duration::from_millis(750),
             ],
-            window: Duration::from_millis(1500),
+            window: Duration::from_millis(3000),
         }
     }
 }
@@ -60,6 +61,17 @@ fn accept(buf: &[u8], src: SocketAddrV4, nonce: &Nonce, target: &Target) -> Opti
         .then(|| SocketAddrV4::new(*src.ip(), r.port))
 }
 
+/// Last look at the deadline: takes a valid reply already sitting in the socket buffer, without waiting.
+fn drain(socket: &UdpSocket, nonce: &Nonce, target: &Target) -> Option<SocketAddrV4> {
+    let mut buf = [0u8; 256];
+    while let Ok((n, SocketAddr::V4(src))) = socket.try_recv_from(&mut buf) {
+        if let Some(addr) = accept(&buf[..n], src, nonce, target) {
+            return Some(addr);
+        }
+    }
+    None
+}
+
 /// Looks for the server of `target` on the LAN. Returns its address (reply
 /// source IP, port from the payload) or `None` when nobody answers in time.
 /// Never fails: socket errors are logged and end in `None`.
@@ -80,7 +92,7 @@ pub async fn find(cfg: &LanConfig, target: Target, timing: &ProbeTiming) -> Opti
     loop {
         let due = timing.sends.get(next).map(|o| start + *o);
         tokio::select! {
-            _ = sleep_until(deadline) => return None,
+            _ = sleep_until(deadline) => return drain(&socket, &nonce, &target),
             _ = sleep_until(due.unwrap_or(deadline)), if due.is_some() => {
                 send_all(&socket, cfg, &packet, &ifaces);
                 next += 1;
