@@ -1,7 +1,7 @@
 // JS: `server.listen(keyPair)` and `server.close()` (hyperdht/lib/server.js).
 // See also: dht.rs (`create_server`), node.rs (node state), stream.rs (incoming wrapper).
 use crate::error::map_error;
-use crate::node::{Node, fork_pair};
+use crate::node::{Lan, Node, fork_pair};
 use crate::opts_map::fork_opts;
 use peeroxide_dht::hyperdht::PeerConnection;
 use peeroxide_dht::server::Server;
@@ -26,6 +26,9 @@ pub struct PeeroxideServer {
 pub(crate) struct Shared {
     server: Server,
     forward: Mutex<Option<JoinHandle<()>>>,
+    /// LAN target (hash of the public key) while the server listens.
+    lan: Arc<Lan>,
+    lan_target: Mutex<Option<[u8; 32]>>,
 }
 
 impl PeeroxideServer {
@@ -47,6 +50,8 @@ impl PeeroxideServer {
         let shared = Arc::new(Shared {
             server,
             forward: Mutex::new(Some(forward)),
+            lan: Arc::clone(&node.lan),
+            lan_target: Mutex::new(None),
         });
         node.track(&shared);
         Ok((PeeroxideServer { shared, node }, incoming))
@@ -56,6 +61,14 @@ impl PeeroxideServer {
 impl Shared {
     /// Withdraws the announce and aborts forwarding: the fork channel is not closed after `close`, yet `Incoming` must end.
     pub(crate) async fn close(&self) -> Result<(), DhtError> {
+        let target = self
+            .lan_target
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .take();
+        if let Some(target) = target {
+            self.lan.unregister(&target);
+        }
         let closed = self.server.close().await.map_err(map_error);
         let forward = self
             .forward
@@ -73,6 +86,24 @@ impl fmt::Debug for PeeroxideServer {
     }
 }
 
+impl PeeroxideServer {
+    /// After the fork accepts handshakes (before that a direct request is answered without noise): LAN registration of
+    /// the hashed key at the IO port of the node.
+    async fn announce_on_lan(&self, public_key: [u8; 32]) {
+        let port = match self.node.handle.local_port().await {
+            Ok(port) => port,
+            Err(e) => return tracing::debug!("lan: no local port: {e}"),
+        };
+        let target = peeroxide_dht::crypto::hash(&public_key);
+        *self
+            .shared
+            .lan_target
+            .lock()
+            .unwrap_or_else(|e| e.into_inner()) = Some(target);
+        self.shared.lan.register(target, port);
+    }
+}
+
 impl DhtServer for PeeroxideServer {
     /// JS: `NODE_DESTROYED` on a destroyed node; announce only after bootstrap, otherwise it would go into an empty table.
     async fn listen(&self, kp: KeyPair) -> Result<(), DhtError> {
@@ -81,7 +112,9 @@ impl DhtServer for PeeroxideServer {
             .server
             .listen(fork_pair(&kp))
             .await
-            .map_err(map_error)
+            .map_err(map_error)?;
+        self.announce_on_lan(kp.public_key).await;
+        Ok(())
     }
 
     async fn close(&self) -> Result<(), DhtError> {

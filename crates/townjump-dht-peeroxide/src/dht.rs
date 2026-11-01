@@ -1,6 +1,7 @@
 // JS: the `HyperDHT` node (connect, mutablePut, mutableGet, destroy, suspend, resume, createServer).
 // See also: factory.rs creates the node, node.rs holds its state, server.rs — the node server, stream.rs — the connection stream.
 use crate::error::map_error;
+use crate::lan_race;
 use crate::node::{Node, fork_pair};
 use crate::opts_map::fork_connect_opts;
 use crate::server::PeeroxideServer;
@@ -14,7 +15,7 @@ use townjump_keys::KeyPair;
 
 /// DHT node; one `UdxRuntime` per node (in `Node`).
 pub struct PeeroxideDht {
-    node: Arc<Node>,
+    pub(crate) node: Arc<Node>,
 }
 
 impl PeeroxideDht {
@@ -46,13 +47,8 @@ impl Dht for PeeroxideDht {
         remote: [u8; 32],
         opts: ConnectOpts,
     ) -> Result<DhtConnection, DhtError> {
-        self.node.ready().await?;
-        let node = &self.node;
-        let o = fork_connect_opts(opts);
-        let connected =
-            node.handle
-                .connect_with_options(&node.identity, remote, &[], &node.runtime, o);
-        node.adopt(connected.await.map_err(map_error)?)
+        let conn = lan_race::connect(&self.node, remote, fork_connect_opts(opts)).await?;
+        self.node.adopt(conn)
     }
 
     /// Does not wait for the node bootstrap and does no DHT lookup: dials `addr` directly with default options.

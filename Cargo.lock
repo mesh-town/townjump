@@ -834,13 +834,16 @@ dependencies = [
 name = "townjump-dht-peeroxide"
 version = "0.1.2"
 dependencies = [
+ "if-addrs",
  "libudx",
  "peeroxide-dht",
  "tokio",
  "townjump-dht",
  "townjump-keys",
+ "townjump-lan",
  "townjump-pipe",
  "townjump-testkit",
+ "tracing",
 ]
 
 [[package]]

@@ -7,6 +7,7 @@ mod bootstrap;
 pub mod dht;
 pub mod error;
 pub mod factory;
+mod lan_race;
 mod node;
 mod node_mode;
 mod node_suspend;
@@ -28,6 +29,8 @@ pub use server::PeeroxideServer;
 
 #[cfg(test)]
 mod js_peer_support_tests;
+#[cfg(test)]
+mod lan_race_tests;
 #[cfg(test)]
 mod native_testnet_tests;
 #[cfg(test)]
