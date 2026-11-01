@@ -113,3 +113,83 @@ async fn bootstrap_already_in_table_is_asked_once() {
     // then: one request, not two
     assert_eq!(r.node.tid_to_query.len(), 1);
 }
+
+const UNRESOLVED: &str = "bootstrap.invalid:9100";
+
+#[tokio::test(start_paused = true)]
+async fn unresolved_bootstrap_is_kept_and_resolved_on_top_up() {
+    // given: a name that does not resolve at build time
+    let mut r = rig(&[UNRESOLVED]).await;
+    assert_eq!(r.node.bootstrap_unresolved, [UNRESOLVED]);
+    assert!(r.node.config.bootstrap.is_empty());
+    // when: a query starts; it launches one background resolution
+    user_query(&mut r.node);
+    assert!(r.node.bootstrap_resolving);
+    // and: the resolution result arrives (fed by hand, no real DNS)
+    r.node
+        .handle_bootstrap_resolved(vec![(UNRESOLVED.into(), Some(boot_addr()))]);
+    // then: the address is a bootstrap node, the name is no longer pending
+    assert_eq!(r.node.config.bootstrap, [boot_addr()]);
+    assert!(r.node.bootstrap_unresolved.is_empty());
+    assert!(!r.node.bootstrap_resolving);
+}
+
+#[tokio::test(start_paused = true)]
+async fn failed_resolution_keeps_the_name_for_the_next_try() {
+    // given: a resolution is running
+    let mut r = rig(&[UNRESOLVED]).await;
+    user_query(&mut r.node);
+    // when: it fails
+    r.node
+        .handle_bootstrap_resolved(vec![(UNRESOLVED.into(), None)]);
+    // then: the name stays, a new round may start
+    assert_eq!(r.node.bootstrap_unresolved, [UNRESOLVED]);
+    assert!(!r.node.bootstrap_resolving);
+}
+
+#[tokio::test(start_paused = true)]
+async fn resolved_bootstrap_with_empty_table_triggers_refresh() {
+    // given: empty table, unresolved name, no query so far
+    let mut r = rig(&[UNRESOLVED]).await;
+    assert!(r.node.tid_to_query.is_empty());
+    // when: the name resolves
+    r.node
+        .handle_bootstrap_resolved(vec![(UNRESOLVED.into(), Some(boot_addr()))]);
+    // then: a refresh query went to the new bootstrap node
+    assert_eq!(r.node.tid_to_query.len(), 1);
+    assert!(only_query(&r.node).has_seen(&boot_addr()));
+}
+
+#[tokio::test(start_paused = true)]
+async fn resolved_bootstrap_with_filled_table_does_not_refresh() {
+    // given: a node in the table
+    let mut r = rig(&[UNRESOLVED]).await;
+    fill_table(&r.node, 9200..9201);
+    // when: the name resolves
+    r.node
+        .handle_bootstrap_resolved(vec![(UNRESOLVED.into(), Some(boot_addr()))]);
+    // then: no query is started
+    assert!(r.node.tid_to_query.is_empty());
+}
+
+#[tokio::test]
+async fn emptied_table_reaches_bootstrap_that_comes_up_later() {
+    use std::time::Duration;
+    use tokio::net::UdpSocket;
+    // given: the bootstrap port is closed; the table held a node that was dropped
+    let port = {
+        let probe = UdpSocket::bind((HOST, 0)).await.expect("bind probe");
+        probe.local_addr().expect("addr").port()
+    };
+    let mut r = rig(&[&format!("{HOST}:{port}")]).await;
+    fill_table(&r.node, 9200..9201);
+    let gone = peer_id(HOST, 9200);
+    r.node.table.lock().expect("table").remove(&gone);
+    // when: a responder comes up on the bootstrap port and a query starts
+    let responder = UdpSocket::bind((HOST, port)).await.expect("bind responder");
+    user_query(&mut r.node);
+    // then: the request reaches it
+    let mut buf = [0u8; 2048];
+    let got = tokio::time::timeout(Duration::from_secs(5), responder.recv_from(&mut buf)).await;
+    assert!(matches!(got, Ok(Ok((n, _))) if n > 0), "{got:?}");
+}
