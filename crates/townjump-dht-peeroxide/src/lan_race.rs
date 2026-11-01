@@ -23,8 +23,8 @@ pub(crate) enum ProbeStart {
     AfterFailure,
 }
 
-/// The variant in force (question 381 of the owner; default (b)).
-pub(crate) const PROBE_START: ProbeStart = ProbeStart::Quiet;
+/// The variant in force: the probe starts at once. `Quiet` and `AfterFailure` stay for a later switch.
+pub(crate) const PROBE_START: ProbeStart = ProbeStart::Now;
 /// How long an empty table during bootstrap counts as silence.
 pub(crate) const SILENCE: Duration = Duration::from_secs(1);
 const POLL: Duration = Duration::from_millis(100);

@@ -96,6 +96,7 @@ async fn destroyed_node_stops_answering() {
 
 mod trigger {
     use super::*;
+    use crate::lan_race::PROBE_START;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
     const EMPTY: Table = Table {
@@ -126,6 +127,17 @@ mod trigger {
             }
         };
         tokio::join!(start, fail).0
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn the_probe_starts_at_once_by_default() {
+        assert_eq!(PROBE_START, ProbeStart::Now);
+        let full = Table {
+            bootstrapped: true,
+            size: 5,
+        };
+        let took = started_after(PROBE_START, |_| full, None).await;
+        assert!(took < Duration::from_millis(50), "took {took:?}");
     }
 
     #[tokio::test(start_paused = true)]
