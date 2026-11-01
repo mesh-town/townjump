@@ -126,7 +126,7 @@ async fn lan_path(node: &Node, remote: [u8; 32], failed: &Notify) -> Option<Peer
         .ok()
 }
 
-async fn race<A, B>(dht: A, lan: B) -> Result<PeerConnection, DhtError>
+pub(crate) async fn race<A, B>(dht: A, lan: B) -> Result<PeerConnection, DhtError>
 where
     A: Future<Output = Result<PeerConnection, DhtError>>,
     B: Future<Output = Option<PeerConnection>>,

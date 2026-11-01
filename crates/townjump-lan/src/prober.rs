@@ -112,3 +112,7 @@ pub async fn find(cfg: &LanConfig, target: Target, timing: &ProbeTiming) -> Opti
         }
     }
 }
+
+#[cfg(test)]
+#[path = "prober_tests.rs"]
+mod tests;
