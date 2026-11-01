@@ -37,6 +37,8 @@ pub(super) struct Handshaken {
     pub(super) relay_ask: Option<RelayAsk>,
     /// Socket and stream the PEER_HANDSHAKE went over (a retry by route); `None` — the node's socket.
     pub(super) via: Option<Via>,
+    /// Set only by `connect_to`: the dialed address answered, so it stays the dial target.
+    pub(super) direct_dial: bool,
 }
 
 /// Index in a `RelayThrough::List` where this connect starts: random, fixed by tests.
