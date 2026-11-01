@@ -123,20 +123,6 @@ not through a reverse proxy with a public domain name. The full rules are in
 | `TOWNJUMP_LAN_DISCOVERY` | Local-network discovery: a server answers multicast probes on the LAN and a client probes in parallel with the DHT lookup, so peers on the same network connect directly even without internet. On by default; `0` (also `false`, `off`, `no`) turns it off. |
 | `RUST_LOG` | Enables the internal `tracing` log of the DHT and transport layers (for example `RUST_LOG=info`), separate from `--log`. |
 
-### Windows
-
-`townjump.exe` runs from PowerShell or `cmd`. The first time you start a server (`--live` or `--filemanager`),
-Windows Defender Firewall asks whether `townjump.exe` may accept incoming connections. Allow it: a server
-that was not allowed stays unreachable (clients time out, the server keeps running). If the dialog was closed or
-never shown, allow the program in Windows Security, Firewall & network protection, Allow an app through firewall,
-or from an elevated PowerShell:
-
-```
-New-NetFirewallRule -DisplayName townjump -Direction Inbound -Program C:\path\to\townjump.exe -Action Allow
-```
-
-A client (`townjump <key>`) only connects out and needs no rule.
-
 ### macOS
 
 With the application firewall on (System Settings, Network, Firewall), local-network discovery packets (the probes a
@@ -144,6 +130,22 @@ server listens for and the replies a client waits for) do not reach townjump unt
 connections: allow it in the macOS dialog if one appears, or
 manually under Firewall, Options. Without that, connections go through the DHT only. The firewall tracks each build of
 the binary as a separate application, so a new version needs the permission again.
+
+### Windows
+
+The first time you start a server (`--live` or `--filemanager`), Windows asks whether `townjump.exe` may accept
+incoming connections. Allow it on the private network. If the dialog is closed or declined, Windows creates a block
+rule for that executable by itself, and local-network discovery packets never reach the server: connections go
+through the DHT only. To fix it, allow townjump under Windows Security, Firewall & network protection, Allow an app
+through firewall, or delete the blocking townjump rules in Windows Defender Firewall with Advanced Security, Inbound
+Rules. From an elevated PowerShell, the same in two commands:
+
+```
+Get-NetFirewallApplicationFilter -Program C:\path\to\townjump.exe | Get-NetFirewallRule | Where-Object Action -eq Block | Remove-NetFirewallRule
+New-NetFirewallRule -DisplayName townjump -Direction Inbound -Program C:\path\to\townjump.exe -Action Allow
+```
+
+A client needs no permission. A build in a different path counts as a new application.
 
 ## Differences from the original Holesail
 
