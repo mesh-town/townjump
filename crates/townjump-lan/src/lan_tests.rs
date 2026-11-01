@@ -137,8 +137,8 @@ async fn prober_returns_none_when_nobody_answers_within_the_window() {
     let got = find(&cfg, TARGET, &ProbeTiming::default()).await;
     let took = start.elapsed();
     assert_eq!(got, None);
-    assert!(took >= Duration::from_millis(1400), "too early: {took:?}");
-    assert!(took < Duration::from_millis(2500), "too late: {took:?}");
+    assert!(took >= Duration::from_millis(2900), "too early: {took:?}");
+    assert!(took < Duration::from_millis(4000), "too late: {took:?}");
 }
 
 #[tokio::test]
