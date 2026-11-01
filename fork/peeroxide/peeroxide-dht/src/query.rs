@@ -259,10 +259,15 @@ impl Query {
         }
     }
 
+    /// The queue holds fewer than `k` nodes (js `_open`: `_pending.length < k`).
+    pub(crate) fn is_sparse(&self) -> bool {
+        self.pending.len() < self.k
+    }
+
     /// Adds `nodes` only while fewer than `k` nodes wait in the queue (js `_open`: bootstrap top-up
     /// after `_addFromTable`). Addresses already queued or seen are not queued twice.
     pub(crate) fn add_nodes_if_sparse(&mut self, nodes: &[(String, u16)]) {
-        if self.pending.len() < self.k {
+        if self.is_sparse() {
             self.add_nodes(nodes);
         }
     }
