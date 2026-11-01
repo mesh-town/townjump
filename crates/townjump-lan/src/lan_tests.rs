@@ -33,14 +33,28 @@ fn cfg(port: u16) -> LanConfig {
     }
 }
 
-/// Sends one raw request for `target` and collects replies for `wait`.
-async fn ask(cfg: &LanConfig, target: [u8; 32], wait: Duration) -> Vec<(Reply, Duration)> {
+/// Opens a raw asking socket bound to the LAN host interface.
+async fn asker() -> UdpSocket {
     let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0)).await.unwrap();
     socket.set_multicast_loop_v4(true).unwrap();
     socket.set_multicast_ttl_v4(1).unwrap();
     SockRef::from(&socket)
         .set_multicast_if_v4(&lan_host())
         .unwrap();
+    socket
+}
+
+/// Sends one raw request for `target` and collects replies for `wait`.
+async fn ask(cfg: &LanConfig, target: [u8; 32], wait: Duration) -> Vec<(Reply, Duration)> {
+    ask_on(&asker().await, cfg, target, wait).await
+}
+
+async fn ask_on(
+    socket: &UdpSocket,
+    cfg: &LanConfig,
+    target: [u8; 32],
+    wait: Duration,
+) -> Vec<(Reply, Duration)> {
     let packet = codec::encode_request(&Request {
         nonce: NONCE,
         target,
@@ -54,9 +68,13 @@ async fn ask(cfg: &LanConfig, target: [u8; 32], wait: Duration) -> Vec<(Reply, D
     let start = Instant::now();
     let mut out = Vec::new();
     let mut buf = [0u8; 128];
-    while let Ok(Ok((n, _))) = tokio::time::timeout(wait, socket.recv_from(&mut buf)).await {
+    // `wait` bounds the silence before the first reply (a new flow can be slow
+    // on some hosts); once something arrives, stragglers get a short gap.
+    let mut gap = wait;
+    while let Ok(Ok((n, _))) = tokio::time::timeout(gap, socket.recv_from(&mut buf)).await {
         if let Some(r) = codec::decode_reply(&buf[..n]) {
             out.push((r, start.elapsed()));
+            gap = Duration::from_millis(200);
         }
     }
     out
@@ -68,10 +86,11 @@ async fn responder_answers_a_served_target() {
     let cfg = cfg(28601);
     let r = Responder::start(&cfg).unwrap();
     r.register(TARGET, 4242);
-    // Warm-up: the first multicast exchange of a process can be slow on some
-    // hosts; the latency bound applies to the steady state.
-    ask(&cfg, TARGET, Duration::from_millis(300)).await;
-    let got = ask(&cfg, TARGET, Duration::from_millis(300)).await;
+    // Warm-up on the same socket: the first packets of a new flow can take
+    // 100+ ms on some hosts; the latency bound applies to the steady state.
+    let socket = asker().await;
+    ask_on(&socket, &cfg, TARGET, Duration::from_millis(1000)).await;
+    let got = ask_on(&socket, &cfg, TARGET, Duration::from_millis(1000)).await;
     assert_eq!(got.len(), 1, "expected one reply");
     let (reply, took) = got[0];
     assert_eq!(reply.port, 4242);
@@ -87,7 +106,7 @@ async fn responder_stays_silent_for_an_unknown_target() {
     let r = Responder::start(&cfg).unwrap();
     r.register(TARGET, 4242);
     assert!(
-        ask(&cfg, [8; 32], Duration::from_millis(300))
+        ask(&cfg, [8; 32], Duration::from_millis(1000))
             .await
             .is_empty()
     );
@@ -101,7 +120,7 @@ async fn two_responders_on_one_host_both_answer() {
     let b = Responder::start(&cfg).unwrap();
     a.register(TARGET, 1001);
     b.register(TARGET, 1002);
-    let mut ports: Vec<u16> = ask(&cfg, TARGET, Duration::from_millis(300))
+    let mut ports: Vec<u16> = ask(&cfg, TARGET, Duration::from_millis(1000))
         .await
         .iter()
         .map(|(r, _)| r.port)
@@ -130,6 +149,10 @@ async fn prober_finds_a_served_target() {
     r.register(TARGET, 4242);
     let got = find(&cfg, TARGET, &ProbeTiming::default()).await.unwrap();
     assert_eq!(got.port(), 4242);
+    assert!(
+        crate::interfaces::ipv4_interfaces().contains(got.ip()),
+        "reply source is not a local interface: {got}"
+    );
 }
 
 #[tokio::test]
@@ -163,10 +186,13 @@ async fn unregister_stops_answering() {
     let cfg = cfg(28606);
     let r = Responder::start(&cfg).unwrap();
     r.register(TARGET, 4242);
-    assert_eq!(ask(&cfg, TARGET, Duration::from_millis(300)).await.len(), 1);
+    assert_eq!(
+        ask(&cfg, TARGET, Duration::from_millis(1000)).await.len(),
+        1
+    );
     r.unregister(&TARGET);
     assert!(
-        ask(&cfg, TARGET, Duration::from_millis(300))
+        ask(&cfg, TARGET, Duration::from_millis(1000))
             .await
             .is_empty()
     );
@@ -180,10 +206,87 @@ async fn paused_responder_stays_silent() {
     r.register(TARGET, 4242);
     r.set_paused(true);
     assert!(
-        ask(&cfg, TARGET, Duration::from_millis(300))
+        ask(&cfg, TARGET, Duration::from_millis(1000))
             .await
             .is_empty()
     );
     r.set_paused(false);
-    assert_eq!(ask(&cfg, TARGET, Duration::from_millis(300)).await.len(), 1);
+    assert_eq!(
+        ask(&cfg, TARGET, Duration::from_millis(1000)).await.len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn prober_ignores_a_foreign_target_and_a_zero_port() {
+    let _serial = SERIAL.lock().await;
+    let cfg = cfg(28610);
+    let socket = bind_group_socket(&cfg).unwrap();
+    let fake = tokio::spawn(async move {
+        let mut buf = [0u8; 128];
+        let (n, src) = socket.recv_from(&mut buf).await.unwrap();
+        let req = codec::decode_request(&buf[..n]).unwrap();
+        for (target, port) in [([8; 32], 1111), (req.target, 0), (req.target, 2222)] {
+            let reply = codec::encode_reply(&Reply {
+                nonce: req.nonce,
+                target,
+                port,
+            });
+            socket.send_to(&reply, src).await.unwrap();
+        }
+    });
+    let got = find(&cfg, TARGET, &ProbeTiming::default()).await;
+    fake.abort();
+    assert_eq!(got.map(|a| a.port()), Some(2222));
+}
+
+#[tokio::test]
+async fn prober_repeats_the_request_on_schedule() {
+    let _serial = SERIAL.lock().await;
+    let cfg = cfg(28611);
+    let socket = bind_group_socket(&cfg).unwrap();
+    let fake = tokio::spawn(async move {
+        let mut buf = [0u8; 128];
+        let mut first: Option<Instant> = None;
+        loop {
+            let (n, src) = socket.recv_from(&mut buf).await.unwrap();
+            let first = *first.get_or_insert_with(Instant::now);
+            if first.elapsed() < Duration::from_millis(600) {
+                continue;
+            }
+            let req = codec::decode_request(&buf[..n]).unwrap();
+            let reply = codec::encode_reply(&Reply {
+                nonce: req.nonce,
+                target: req.target,
+                port: 3333,
+            });
+            socket.send_to(&reply, src).await.unwrap();
+        }
+    });
+    let timing = ProbeTiming {
+        sends: vec![Duration::ZERO, Duration::from_millis(1000)],
+        window: Duration::from_millis(2000),
+    };
+    let got = find(&cfg, TARGET, &timing).await;
+    fake.abort();
+    assert_eq!(got.map(|a| a.port()), Some(3333));
+}
+
+#[tokio::test]
+async fn closed_or_dropped_responder_stays_silent() {
+    let _serial = SERIAL.lock().await;
+    let wait = Duration::from_millis(1000);
+    let a_cfg = cfg(28612);
+    let a = Responder::start(&a_cfg).unwrap();
+    a.register(TARGET, 4242);
+    assert_eq!(ask(&a_cfg, TARGET, wait).await.len(), 1);
+    a.close();
+    assert!(ask(&a_cfg, TARGET, wait).await.is_empty());
+
+    let b_cfg = cfg(28613);
+    let b = Responder::start(&b_cfg).unwrap();
+    b.register(TARGET, 4242);
+    assert_eq!(ask(&b_cfg, TARGET, wait).await.len(), 1);
+    drop(b);
+    assert!(ask(&b_cfg, TARGET, wait).await.is_empty());
 }

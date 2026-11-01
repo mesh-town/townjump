@@ -64,3 +64,19 @@ fn ignores_trailing_bytes() {
     bytes.extend_from_slice(b"future");
     assert_eq!(decode_reply(&bytes), Some(reply()));
 }
+
+#[test]
+fn wire_bytes_are_fixed() {
+    let mut want = b"TJLD".to_vec();
+    want.push(1);
+    want.extend_from_slice(&[1, 2, 3, 4, 5, 6, 7, 8]);
+    want.extend_from_slice(&[9; 32]);
+    assert_eq!(want.len(), 45);
+    assert_eq!(encode_request(&req()), want);
+    want.extend_from_slice(&[0x12, 0x34]);
+    assert_eq!(want.len(), 47);
+    assert_eq!(encode_reply(&reply()), want);
+    let cfg = crate::LanConfig::default();
+    assert_eq!(cfg.group, Ipv4Addr::new(239, 255, 84, 74));
+    assert_eq!(cfg.port, 28474);
+}
