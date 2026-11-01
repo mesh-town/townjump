@@ -253,3 +253,31 @@ async fn background_resolution_reaches_bootstrap_through_the_loop() {
     assert!(matches!(got, Ok(Ok((n, _))) if n > 0), "{got:?}");
     ask.abort();
 }
+
+#[tokio::test(start_paused = true)]
+async fn failed_resolution_with_empty_table_does_not_refresh() {
+    // given: empty table, one resolved bootstrap node, one name still unresolved, no query so far
+    let mut r = rig(&[&boot_addr()]).await;
+    r.node.bootstrap_unresolved = vec![UNRESOLVED.into()];
+    assert!(r.node.tid_to_query.is_empty());
+    // when: the background resolution fails
+    r.node
+        .handle_bootstrap_resolved(vec![(UNRESOLVED.into(), None)]);
+    // then: no refresh is started
+    assert!(r.node.tid_to_query.is_empty());
+}
+
+#[tokio::test(start_paused = true)]
+async fn partial_resolution_keeps_only_the_unresolved_name() {
+    // given: two names waiting
+    let mut r = rig(&[]).await;
+    r.node.bootstrap_unresolved = vec![UNRESOLVED.into(), "other.invalid:9100".into()];
+    // when: one resolves, the other fails
+    r.node.handle_bootstrap_resolved(vec![
+        (UNRESOLVED.into(), Some(boot_addr())),
+        ("other.invalid:9100".into(), None),
+    ]);
+    // then: only the failed one stays for the next try, the resolved address joins the bootstrap list
+    assert_eq!(r.node.bootstrap_unresolved, ["other.invalid:9100"]);
+    assert_eq!(r.node.config.bootstrap, [boot_addr()]);
+}
