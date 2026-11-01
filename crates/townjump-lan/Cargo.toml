@@ -1,0 +1,21 @@
+[package]
+name = "townjump-lan"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+description = "LAN discovery of townjump servers over IPv4 multicast."
+
+[dependencies]
+tokio = { workspace = true, features = ["sync"] }
+socket2 = { version = "0.6", features = ["all"] }
+if-addrs = "0.13"
+getrandom = "0.3"
+tracing = "0.1"
+
+[lints]
+workspace = true
