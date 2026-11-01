@@ -136,6 +136,7 @@ impl DhtNode {
             own_id,
         );
         q.add_from_table();
+        self.top_up_from_bootstrap(&mut q);
 
         let reqs = q.poll_requests();
         self.dispatch_query_requests(query_id, reqs);

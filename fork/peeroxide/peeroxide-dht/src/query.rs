@@ -259,6 +259,20 @@ impl Query {
         }
     }
 
+    /// Adds `nodes` only while fewer than `k` nodes wait in the queue (js `_open`: bootstrap top-up
+    /// after `_addFromTable`). Addresses already queued or seen are not queued twice.
+    pub(crate) fn add_nodes_if_sparse(&mut self, nodes: &[(String, u16)]) {
+        if self.pending.len() < self.k {
+            self.add_nodes(nodes);
+        }
+    }
+
+    /// Test probe: the query has queued or contacted `addr` (`host:port`).
+    #[cfg(test)]
+    pub(crate) fn has_seen(&self, addr: &str) -> bool {
+        self.seen.contains_key(addr)
+    }
+
     /// Generate the initial set of requests to send.
     /// Call once after [`Query::add_from_table`] / [`Query::add_nodes`].
     pub(crate) fn poll_requests(&mut self) -> Vec<QueryRequest> {
