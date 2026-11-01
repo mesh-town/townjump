@@ -215,6 +215,27 @@ mod create_with_garbage_bootstrap {
     }
 }
 
+mod lan_discovery_variable {
+    use super::*;
+
+    fn reads(vars: &'static [(&'static str, &'static str)]) -> bool {
+        let get = |name: &str| {
+            vars.iter()
+                .find(|(k, _)| *k == name)
+                .map(|(_, v)| v.to_string())
+        };
+        PeeroxideFactory::from_env_with(get).lan_discovery
+    }
+
+    #[test]
+    fn lan_discovery_reads_its_own_variable() {
+        assert!(!reads(&[("TOWNJUMP_LAN_DISCOVERY", "0")]));
+        assert!(!reads(&[("TOWNJUMP_LAN_DISCOVERY", "off")]));
+        assert!(reads(&[]));
+        assert!(reads(&[("TOWNJUMP_DHT_ADAPTIVE", "0")]));
+    }
+}
+
 /// `from_env_value(value).bootstrap` equals `expected` (`None` — the fork default).
 fn assert_reads(value: Option<&str>, expected: Option<&[&str]>) {
     let got = PeeroxideFactory::from_env_value(value).bootstrap;

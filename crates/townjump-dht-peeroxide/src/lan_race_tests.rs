@@ -281,3 +281,6 @@ async fn discovery_off_sends_no_probe() {
 
 #[path = "lan_responder_tests.rs"]
 mod responder;
+
+#[path = "lan_added_tests.rs"]
+mod added;
