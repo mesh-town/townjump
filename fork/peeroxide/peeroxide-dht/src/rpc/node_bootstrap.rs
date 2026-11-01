@@ -44,9 +44,13 @@ impl DhtNode {
             .collect()
     }
 
-    /// Call right after `Query::add_from_table`: a short queue (e.g. an empty table) gets the bootstrap nodes.
+    /// Call right after `Query::add_from_table`: a short queue (e.g. an empty table) gets the bootstrap nodes;
+    /// a full one leaves bootstrap and DNS alone (js `_open` returns before `_resolveBootstrapNodes`).
     /// Strings that failed to resolve earlier are resolved again in the background (js re-resolves per query).
     pub(super) fn top_up_from_bootstrap(&mut self, q: &mut Query) {
+        if !q.is_sparse() {
+            return;
+        }
         q.add_nodes_if_sparse(&self.bootstrap_nodes());
         self.retry_unresolved_bootstrap();
     }

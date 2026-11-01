@@ -193,3 +193,63 @@ async fn emptied_table_reaches_bootstrap_that_comes_up_later() {
     let got = tokio::time::timeout(Duration::from_secs(5), responder.recv_from(&mut buf)).await;
     assert!(matches!(got, Ok(Ok((n, _))) if n > 0), "{got:?}");
 }
+
+#[tokio::test(start_paused = true)]
+async fn one_background_resolution_at_a_time_and_its_result_arrives() {
+    use std::time::Duration;
+    use tokio::time::timeout;
+    // given: a literal address that is still listed as unresolved (resolves without DNS)
+    let mut r = rig(&[]).await;
+    r.node.bootstrap_unresolved = vec![boot_addr()];
+    // when: two queries start in a row
+    user_query(&mut r.node);
+    user_query(&mut r.node);
+    // then: exactly one result arrives on the channel
+    let rx = &mut r.node.bootstrap_resolved_rx;
+    let done = timeout(Duration::from_secs(1), rx.recv()).await;
+    let Ok(Some(done)) = done else {
+        panic!("no result: {done:?}")
+    };
+    assert_eq!(done, [(boot_addr(), Some(boot_addr()))]);
+    assert!(timeout(Duration::from_secs(1), rx.recv()).await.is_err());
+    // and: handling it joins the address to the bootstrap list and frees the flag
+    r.node.handle_bootstrap_resolved(done);
+    assert_eq!(r.node.config.bootstrap, [boot_addr()]);
+    assert!(!r.node.bootstrap_resolving);
+}
+
+#[tokio::test(start_paused = true)]
+async fn start_query_with_full_table_does_not_resolve_names() {
+    // given: a full table and a name waiting for resolution
+    let mut r = rig(&[]).await;
+    fill_table(&r.node, 9200..9200 + K as u16);
+    r.node.bootstrap_unresolved = vec![boot_addr()];
+    // when
+    user_query(&mut r.node);
+    // then: no resolution started
+    assert!(!r.node.bootstrap_resolving);
+    assert!(r.node.bootstrap_resolved_rx.try_recv().is_err());
+}
+
+#[tokio::test]
+async fn background_resolution_reaches_bootstrap_through_the_loop() {
+    use std::time::Duration;
+    use tokio::net::UdpSocket;
+    // given: a responder; the node has no bootstrap, only an unresolved entry for the responder
+    let responder = UdpSocket::bind((HOST, 0)).await.expect("bind responder");
+    let port = responder.local_addr().expect("addr").port();
+    let Rig {
+        mut node,
+        _handle: handle,
+        _rt,
+    } = rig(&[]).await;
+    node.bootstrap_unresolved = vec![format!("{HOST}:{port}")];
+    let _loop = tokio::spawn(node.run());
+    // when: one query goes through the handle (the table and bootstrap list are empty)
+    let ask = tokio::spawn(async move { handle.find_node([7u8; 32]).await });
+    // then: only resolution -> channel -> loop -> refresh can reach the responder
+    let mut buf = [0u8; 2048];
+    let got = tokio::time::timeout(Duration::from_secs(5), responder.recv_from(&mut buf)).await;
+    assert!(matches!(got, Ok(Ok((n, _))) if n > 0), "{got:?}");
+    ask.abort();
+}

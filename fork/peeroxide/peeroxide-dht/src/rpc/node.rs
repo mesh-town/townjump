@@ -76,7 +76,7 @@ pub(super) struct DhtNode {
 }
 
 impl DhtNode {
-    async fn run(mut self) -> Result<(), DhtError> {
+    pub(super) async fn run(mut self) -> Result<(), DhtError> {
         let own_id = {
             let t = self.table.lock().map_err(|_| DhtError::ChannelClosed)?;
             *t.id()
