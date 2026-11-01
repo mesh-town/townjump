@@ -50,6 +50,7 @@ pub(super) async fn native_testnet(size: usize) -> NativeTestnet {
         bootstrap: Some(bootstrap),
         adaptive: false,
         nodes: Vec::new(),
+        lan_discovery: false,
     };
     NativeTestnet { factory, nodes }
 }

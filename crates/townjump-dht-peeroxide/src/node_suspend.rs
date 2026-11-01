@@ -13,6 +13,7 @@ impl Node {
         if self.check_alive().is_err() {
             return Ok(());
         }
+        self.lan.set_paused(true);
         self.tunnels.close_all();
         let done = self.handle.suspend().await.map_err(map_error);
         self.tunnels.close_all();
@@ -24,7 +25,9 @@ impl Node {
         if self.check_alive().is_err() {
             return Ok(());
         }
-        self.handle.resume().await.map_err(map_error)
+        let resumed = self.handle.resume().await.map_err(map_error);
+        self.lan.set_paused(false);
+        resumed
     }
 
     /// Fork connection → consumer. The slot is recorded before the check: a node that is suspended later will tear it down with the second

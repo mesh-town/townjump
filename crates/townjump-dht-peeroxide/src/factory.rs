@@ -2,7 +2,7 @@
 // See also: dht.rs (the created node), error.rs (fork error mapping).
 use crate::bootstrap::BootstrapPlan;
 use crate::dht::PeeroxideDht;
-use crate::node::Node;
+use crate::node::{LanSetup, Node};
 use crate::nodes::to_peers;
 use peeroxide_dht::hyperdht::HyperDhtConfig;
 use std::net::SocketAddrV4;
@@ -18,6 +18,8 @@ pub struct PeeroxideFactory {
     pub adaptive: bool,
     /// Nodes put into the routing table without a ping (dht-rpc `opts.nodes`); default empty.
     pub nodes: Vec<SocketAddrV4>,
+    /// LAN discovery (multicast responder for listen, probe in connect); default `true`, `TOWNJUMP_LAN_DISCOVERY=0` — off.
+    pub lan_discovery: bool,
 }
 
 impl Default for PeeroxideFactory {
@@ -26,12 +28,13 @@ impl Default for PeeroxideFactory {
             bootstrap: None,
             adaptive: true,
             nodes: Vec::new(),
+            lan_discovery: true,
         }
     }
 }
 
 impl PeeroxideFactory {
-    /// Reads `TOWNJUMP_BOOTSTRAP` (`host:port,…`) and `TOWNJUMP_DHT_ADAPTIVE` (`0`/`false`/`off`/`no` — off);
+    /// Reads `TOWNJUMP_BOOTSTRAP` (`host:port,…`), `TOWNJUMP_DHT_ADAPTIVE` and `TOWNJUMP_LAN_DISCOVERY` (`0`/`false`/`off`/`no` — off);
     /// a malformed bootstrap is an error later, in `create`.
     pub fn from_env() -> PeeroxideFactory {
         Self::from_env_with(|name| std::env::var(name).ok())
@@ -53,11 +56,24 @@ impl PeeroxideFactory {
             bootstrap,
             adaptive,
             nodes: Vec::new(),
+            lan_discovery: adaptive_from_env(get(LAN_VAR).as_deref()),
         }
     }
 }
 
 impl PeeroxideFactory {
+    /// `create` with explicit LAN settings (tests pick their own group port); `lan_discovery: false` overrides `lan.enabled`.
+    pub(crate) async fn create_with_lan(
+        &self,
+        identity: Option<KeyPair>,
+        mut lan: LanSetup,
+    ) -> Result<PeeroxideDht, DhtError> {
+        let plan = BootstrapPlan::parse(self.bootstrap.as_deref())?;
+        lan.enabled &= self.lan_discovery;
+        let node = Node::start_with(self.node_config(&plan), identity, lan).await?;
+        Ok(PeeroxideDht::new(node))
+    }
+
     /// Fork config for `plan`; `ephemeral` stays as the plan sets it (`None` for the public network, `Some(true)` on loopback).
     pub(crate) fn node_config(&self, plan: &BootstrapPlan) -> HyperDhtConfig {
         let mut config = plan.config();
@@ -69,6 +85,7 @@ impl PeeroxideFactory {
 
 const BOOTSTRAP_VAR: &str = "TOWNJUMP_BOOTSTRAP";
 const ADAPTIVE_VAR: &str = "TOWNJUMP_DHT_ADAPTIVE";
+const LAN_VAR: &str = "TOWNJUMP_LAN_DISCOVERY";
 
 /// `0`, `false`, `off`, `no` (any case, trimmed) switch adaptive mode off; anything else, and unset, leaves it on.
 pub(crate) fn adaptive_from_env(value: Option<&str>) -> bool {
@@ -82,9 +99,7 @@ impl DhtFactory for PeeroxideFactory {
 
     /// A malformed bootstrap is an error before the node starts; the node itself does not wait for bootstrap (like `new HyperDHT`).
     async fn create(&self, identity: Option<KeyPair>) -> Result<PeeroxideDht, DhtError> {
-        let plan = BootstrapPlan::parse(self.bootstrap.as_deref())?;
-        let node = Node::start(self.node_config(&plan), identity).await?;
-        Ok(PeeroxideDht::new(node))
+        self.create_with_lan(identity, LanSetup::default()).await
     }
 
     fn set_nodes(&mut self, nodes: Vec<SocketAddrV4>) {

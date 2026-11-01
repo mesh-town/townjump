@@ -16,8 +16,12 @@ townjump-keys.workspace = true
 peeroxide-dht.workspace = true
 libudx.workspace = true
 tokio.workspace = true
+townjump-lan = { path = "../townjump-lan" }
+tracing = "0.1"
 
 [dev-dependencies]
+if-addrs = "0.13"
+tokio = { workspace = true, features = ["test-util"] }
 townjump-pipe.workspace = true
 townjump-testkit.workspace = true
 
