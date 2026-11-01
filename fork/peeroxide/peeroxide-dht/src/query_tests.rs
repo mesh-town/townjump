@@ -259,3 +259,43 @@ async fn test_resolve_bootstrap_bad_hostname_skipped() {
     let result = resolve_bootstrap_nodes(&["doesnotexist.invalid:1234".to_string()]).await;
     assert!(result.is_empty());
 }
+
+// ── add_nodes_if_sparse ───────────────────────────────────────────────────
+
+fn nodes(ports: &[u16]) -> Vec<(String, u16)> {
+    ports.iter().map(|p| ("10.1.0.1".to_string(), *p)).collect()
+}
+
+#[test]
+fn add_nodes_if_sparse_adds_when_queue_short() {
+    // given: k = 3, one node queued
+    let (mut q, _rx) = make_query_with_k([9u8; 32], 3);
+    q.add_nodes(&nodes(&[1]));
+    // when
+    q.add_nodes_if_sparse(&nodes(&[2]));
+    // then: the extra node is queued
+    assert!(q.has_seen("10.1.0.1:2"));
+}
+
+#[test]
+fn add_nodes_if_sparse_skips_when_queue_full() {
+    // given: k = 2, two nodes queued
+    let (mut q, _rx) = make_query_with_k([9u8; 32], 2);
+    q.add_nodes(&nodes(&[1, 2]));
+    // when
+    q.add_nodes_if_sparse(&nodes(&[3]));
+    // then: nothing is added
+    assert!(!q.has_seen("10.1.0.1:3"));
+}
+
+#[test]
+fn add_nodes_if_sparse_does_not_duplicate_known_address() {
+    // given: k = 3, the address is already queued
+    let (mut q, _rx) = make_query_with_k([9u8; 32], 3);
+    q.add_nodes(&nodes(&[1]));
+    // when: the same address is offered again
+    q.add_nodes_if_sparse(&nodes(&[1]));
+    // then: one request goes out, not two
+    let sent = q.poll_requests();
+    assert_eq!(sent.len(), 1);
+}

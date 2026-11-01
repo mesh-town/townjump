@@ -5,7 +5,7 @@
 //! `handle`, `handle_relay`, `handle_state` — `DhtHandle` (requests, relay sends, state getters);
 //! `session` — `Session` (scope that cancels its requests and queries);
 //! `query_stream` — `QueryStream` (query whose value replies are polled as they arrive);
-//! `node` — `DhtNode` struct, `run`, `spawn`; `node_events`, `node_responses`, `node_tick`,
+//! `node` — `DhtNode` struct, `run`, `spawn`; `node_bootstrap` — bootstrap top-up; `node_events`, `node_responses`, `node_tick`,
 //! `node_command`, `node_query`, `node_table` — `impl DhtNode` by theme.
 //! Suspend/resume — `rpc_suspend.rs`; tests — `rpc_tests.rs`.
 
@@ -26,6 +26,7 @@ mod nat_check;
 mod nat_window;
 mod node;
 mod node_adaptive;
+mod node_bootstrap;
 mod node_command;
 mod node_events;
 mod node_nat;
