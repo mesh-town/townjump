@@ -29,6 +29,8 @@ mod handshake;
 mod keepalive;
 #[cfg(test)]
 mod lan_dial_tests;
+#[cfg(test)]
+mod lan_pick_dial_tests;
 mod opts;
 mod plan;
 mod punch;
