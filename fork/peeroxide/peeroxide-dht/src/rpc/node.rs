@@ -16,7 +16,7 @@ use libudx::UdxRuntime;
 use crate::io::{Io, IoConfig};
 use crate::messages::Ipv4Peer;
 use crate::peer::{NodeId, peer_id};
-use crate::query::{Query, QueryResult, parse_bootstrap_str, resolve_bootstrap_nodes};
+use crate::query::{Query, QueryResult, parse_bootstrap_str};
 use crate::routing_table::RoutingTable;
 
 use super::adaptive::Adaptive;
@@ -25,6 +25,7 @@ use super::consts::{CMD_FIND_NODE, DRAIN_INTERVAL_MS, REFRESH_TICKS, TICK_INTERV
 use super::handle::DhtHandle;
 use super::nat_check::NatCheck;
 use super::node_adaptive::{adaptive_on, joins_network, node_address, start_mode};
+use super::node_bootstrap::{ResolvedBootstrap, split_bootstrap};
 use super::node_nat::NodeNat;
 use super::requests::{DeferredReply, StandaloneRequest, UserRequest};
 use super::types::{DhtConfig, DhtError, DhtMode};
@@ -57,6 +58,11 @@ pub(super) struct DhtNode {
     pub(super) bootstrap_query_id: Option<u64>,
     pub(super) deferred_reply_tx: mpsc::UnboundedSender<DeferredReply>,
     pub(super) deferred_reply_rx: mpsc::UnboundedReceiver<DeferredReply>,
+    /// Bootstrap strings that did not resolve yet (retried by `top_up_from_bootstrap`).
+    pub(super) bootstrap_unresolved: Vec<String>,
+    pub(super) bootstrap_resolving: bool,
+    pub(super) bootstrap_resolved_tx: mpsc::UnboundedSender<ResolvedBootstrap>,
+    pub(super) bootstrap_resolved_rx: mpsc::UnboundedReceiver<ResolvedBootstrap>,
 
     pub(super) needs_id_update: bool,
     pub(super) addr_samples: Vec<Ipv4Peer>,
@@ -110,6 +116,10 @@ impl DhtNode {
 
                 Some(reply) = self.deferred_reply_rx.recv() => {
                     self.handle_deferred_reply(reply);
+                },
+
+                Some(done) = self.bootstrap_resolved_rx.recv() => {
+                    self.handle_bootstrap_resolved(done);
                 },
 
                 Some(cmd) = self.cmd_rx.recv() => {
@@ -219,10 +229,12 @@ pub(super) async fn build_node(
     let (mode_tx, mode) = watch::channel(start_mode(&adaptive, &config, ephemeral, &node_address));
 
     let mut config = config;
-    config.bootstrap = resolve_bootstrap_nodes(&config.bootstrap).await;
+    let (resolved, bootstrap_unresolved) = split_bootstrap(&config.bootstrap).await;
+    config.bootstrap = resolved;
 
     let (cmd_tx, cmd_rx) = mpsc::unbounded_channel();
     let (deferred_reply_tx, deferred_reply_rx) = mpsc::unbounded_channel();
+    let (bootstrap_resolved_tx, bootstrap_resolved_rx) = mpsc::unbounded_channel();
 
     let firewalled = config.firewalled;
 
@@ -250,6 +262,10 @@ pub(super) async fn build_node(
         bootstrap_query_id: None,
         deferred_reply_tx,
         deferred_reply_rx,
+        bootstrap_unresolved,
+        bootstrap_resolving: false,
+        bootstrap_resolved_tx,
+        bootstrap_resolved_rx,
         needs_id_update,
         addr_samples: Vec::new(),
         node_nat: NodeNat::new(firewalled),
