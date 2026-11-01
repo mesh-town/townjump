@@ -174,9 +174,10 @@ impl HyperDhtHandle {
         runtime: &UdxRuntime,
         opts: &ConnectOpts,
     ) -> Result<PeerConnection, HyperDhtError> {
-        let handshaken = self
+        let mut handshaken = self
             .handshake_through_node(key_pair, remote_public_key, relay, None, opts)
             .await?;
+        handshaken.direct_dial = true;
         // JS `connect.js:547`: the session's other requests stop; it stays usable.
         session.destroy();
         self.finish_connection(handshaken, key_pair, remote_public_key, runtime, opts)
@@ -295,6 +296,7 @@ impl HyperDhtHandle {
             local_stream_id,
             relay_ask,
             via,
+            direct_dial: false,
         })
     }
 }
