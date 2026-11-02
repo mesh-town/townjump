@@ -59,7 +59,7 @@ VIAddVersionKey "LegalCopyright" "AGPL-3.0-only"
 !macro PathEdit un action script
   nsExec::ExecToLog 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File "${script}" ${action} "$INSTDIR"'
   Pop $0
-  ${If} $0 == 0
+  ${If} $0 S== "0"
     SendMessage ${HWND_BROADCAST} ${WM_SETTINGCHANGE} 0 "STR:Environment" /TIMEOUT=5000
   ${Else}
     DetailPrint "Could not update PATH (result: $0)."
