@@ -123,5 +123,16 @@ FAKE_FAIL=1 PATH="$tmp/fake:$PATH" "$script" "$tmp/$base.zip" --out "$tmp/out-fa
 expect_rc "makensis failure" 1 "$rc"
 if [[ ! -e "$tmp/out-fail" ]]; then ok "makensis failure leaves no output"; else nok "makensis failure leaves no output"; fi
 
+# 6. installer.nsi source checks
+nsi="$here/../../packaging/windows/installer.nsi"
+nsi_a=0
+nsi_b=0
+# the patterns are literal NSIS text
+# shellcheck disable=SC2016
+grep -qF '${If} $0 S== "0"' "$nsi" || nsi_a=$?
+# shellcheck disable=SC2016
+grep -qE '\$\{If\} \$0 == 0' "$nsi" || nsi_b=$?
+if [[ $nsi_a -eq 0 && $nsi_b -eq 1 ]]; then ok "nsi treats a non-numeric nsExec result as a failure"; else nok "nsi treats a non-numeric nsExec result as a failure"; fi
+
 echo "1..$n"
 [[ $failed -eq 0 ]]
