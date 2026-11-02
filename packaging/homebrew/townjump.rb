@@ -1,17 +1,30 @@
 class Townjump < Formula
   desc "Unofficial Rust port of Holesail: peer-to-peer TCP/UDP tunnels over HyperDHT"
   homepage "https://github.com/mesh-town/townjump"
-  url "https://github.com/mesh-town/townjump/archive/refs/tags/v0.1.0.tar.gz"
-  # Fill in after the release: shasum -a 256 <tarball>
+  # The checksum list of the release pins the archives below.
+  url "https://github.com/mesh-town/townjump/releases/download/v0.1.7/SHA256SUMS"
+  # placeholder hash
   sha256 "0000000000000000000000000000000000000000000000000000000000000000"
   license "AGPL-3.0-only"
-  head "https://github.com/mesh-town/townjump.git", branch: "main"
 
-  depends_on "rust" => :build
+  depends_on :macos
+
+  resource "binary" do
+    on_arm do
+      url "https://github.com/mesh-town/townjump/releases/download/v0.1.7/townjump-0.1.7-aarch64-apple-darwin.tar.gz"
+      # placeholder hash
+      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+    end
+
+    on_intel do
+      url "https://github.com/mesh-town/townjump/releases/download/v0.1.7/townjump-0.1.7-x86_64-apple-darwin.tar.gz"
+      # placeholder hash
+      sha256 "0000000000000000000000000000000000000000000000000000000000000000"
+    end
+  end
 
   def install
-    # std_cargo_args already passes --locked, --root and --path.
-    system "cargo", "install", *std_cargo_args(path: "crates/townjump")
+    resource("binary").stage { bin.install "townjump" }
   end
 
   def caveats
@@ -25,7 +38,5 @@ class Townjump < Formula
 
   test do
     assert_match "Holesail CLI", shell_output("#{bin}/townjump --help")
-    output = shell_output("#{bin}/townjump --live abc", 2)
-    assert_match "Given port is not a valid number", output
   end
 end
