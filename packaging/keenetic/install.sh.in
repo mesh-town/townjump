@@ -1,0 +1,46 @@
+#!/bin/sh
+# townjump for Keenetic (Entware): adds the package feed of this router's architecture and installs the binary.
+# Usage: wget -O- @BASE@/install.sh | sh
+# TOWNJUMP_FEED overrides the feed address (mirrors, testing).
+set -e
+BASE="${TOWNJUMP_FEED:-@BASE@}"
+OPKG=/opt/bin/opkg
+[ -x "$OPKG" ] || { echo "townjump: $OPKG not found: install Entware first" >&2; exit 1; }
+TMPD="$(mktemp -d)"
+trap 'rm -rf "$TMPD"' EXIT
+
+# The feed directory is named after the Entware architecture: the last part of the "src/gz entware" address.
+URL="$(sed -n 's/^src\/gz[[:space:]][[:space:]]*entware[[:space:]][[:space:]]*//p' /opt/etc/opkg.conf | head -n 1)"
+URL="${URL%%[[:space:]]*}"
+URL="${URL%/}"
+ARCH="${URL##*/}"
+[ -n "$ARCH" ] || { echo "townjump: no 'src/gz entware' line in /opt/etc/opkg.conf" >&2; exit 2; }
+
+# The default Entware wget cannot open https: install the ssl one first.
+ensure_https() {
+	case "$BASE" in https:*) ;; *) return 1 ;; esac
+	"$OPKG" update || true
+	"$OPKG" install ca-certificates wget-ssl
+	"$OPKG" remove wget-nossl || true
+}
+
+fetch_index() {
+	wget -q -O "$TMPD/Packages.gz" "$BASE/$ARCH/Packages.gz"
+}
+
+# The feed has to carry this architecture before any configuration is touched.
+if ! fetch_index && ! { ensure_https && fetch_index; }; then
+	echo "townjump: no packages for $ARCH ($BASE/$ARCH/Packages.gz)" >&2
+	exit 2
+fi
+echo "townjump: Entware architecture $ARCH"
+
+mkdir -p /opt/etc/opkg
+echo "src/gz townjump $BASE/$ARCH" > /opt/etc/opkg/townjump.conf
+"$OPKG" update || echo "townjump: opkg update reported errors (other feeds?), continuing" >&2
+if "$OPKG" list-installed townjump 2>/dev/null | grep -q '^townjump '; then
+	"$OPKG" upgrade townjump
+else
+	"$OPKG" install townjump
+fi
+echo "townjump: installed; run 'townjump --help'"
