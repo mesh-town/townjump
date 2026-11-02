@@ -2,6 +2,9 @@
 //! `impl DhtNode`: bootstrap top-up for queries (js `query.js` `_open`: bootstrap nodes join the queue
 //! when it holds fewer than k nodes). Neighbours: `node_query` (user queries), `node_tick` (refresh).
 
+use std::future::Future;
+use std::time::Duration;
+
 use tokio::sync::mpsc;
 
 use crate::query::{Query, parse_bootstrap_str, resolve_bootstrap_nodes};
@@ -25,10 +28,32 @@ pub(super) async fn split_bootstrap(raw: &[String]) -> (Vec<String>, Vec<String>
     (resolved, unresolved)
 }
 
+/// Upper bound for resolving ONE name; a hung `getaddrinfo` must not pin `bootstrap_resolving` forever.
+const RESOLVE_TIMEOUT: Duration = Duration::from_secs(10);
+
 async fn resolve_each(raw: &[String]) -> ResolvedBootstrap {
+    resolve_each_with(raw, RESOLVE_TIMEOUT, |s| async move {
+        resolve_bootstrap_nodes(&[s]).await.pop()
+    })
+    .await
+}
+
+/// Resolves the names one by one; a name that takes longer than `limit` counts as unresolved.
+pub(super) async fn resolve_each_with<F, Fut>(
+    raw: &[String],
+    limit: Duration,
+    resolve: F,
+) -> ResolvedBootstrap
+where
+    F: Fn(String) -> Fut,
+    Fut: Future<Output = Option<String>>,
+{
     let mut out = Vec::with_capacity(raw.len());
     for s in raw {
-        let found = resolve_bootstrap_nodes(std::slice::from_ref(s)).await.pop();
+        let found = tokio::time::timeout(limit, resolve(s.clone()))
+            .await
+            .ok()
+            .flatten();
         out.push((s.clone(), found));
     }
     out
@@ -81,7 +106,7 @@ impl DhtNode {
             any = true;
         }
         let empty = self.table.lock().map(|t| t.is_empty()).unwrap_or(false);
-        if any && empty {
+        if any && empty && self.bootstrapped && !self.is_suspended() {
             self.run_refresh();
         }
     }
@@ -90,3 +115,7 @@ impl DhtNode {
 #[cfg(test)]
 #[path = "node_bootstrap_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "node_bootstrap_resolve_tests.rs"]
+mod resolve_tests;

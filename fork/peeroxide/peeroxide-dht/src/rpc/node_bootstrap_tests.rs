@@ -151,6 +151,7 @@ async fn failed_resolution_keeps_the_name_for_the_next_try() {
 async fn resolved_bootstrap_with_empty_table_triggers_refresh() {
     // given: empty table, unresolved name, no query so far
     let mut r = rig(&[UNRESOLVED]).await;
+    r.node.bootstrapped = true;
     assert!(r.node.tid_to_query.is_empty());
     // when: the name resolves
     r.node
