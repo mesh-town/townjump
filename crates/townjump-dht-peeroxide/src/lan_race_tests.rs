@@ -284,3 +284,6 @@ mod responder;
 
 #[path = "lan_added_tests.rs"]
 mod added;
+
+#[path = "lan_opts_tests.rs"]
+mod opts;
