@@ -105,9 +105,10 @@ impl PeeroxideServer {
 }
 
 impl DhtServer for PeeroxideServer {
-    /// JS: `NODE_DESTROYED` on a destroyed node; announce only after bootstrap, otherwise it would go into an empty table.
+    /// JS: `NODE_DESTROYED` on a destroyed node. Waits only for the node being alive, like `Server.listen` in JS
+    /// (`dht.bind()`); the announce tops its query up from the bootstrap nodes itself.
     async fn listen(&self, kp: KeyPair) -> Result<(), DhtError> {
-        self.node.ready().await?;
+        self.node.check_alive()?;
         self.shared
             .server
             .listen(fork_pair(&kp))
@@ -139,6 +140,9 @@ async fn forward(
     }
 }
 
+#[cfg(test)]
+#[path = "server_listen_tests.rs"]
+mod listen_tests;
 #[cfg(test)]
 #[path = "server_tests.rs"]
 mod tests;
