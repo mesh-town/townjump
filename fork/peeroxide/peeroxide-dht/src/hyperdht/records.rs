@@ -31,6 +31,11 @@ impl HyperDhtHandle {
             })
             .await?;
 
+        // JS dht-rpc `_endAfterCommit`: no replies at all rejects with "Too few nodes responded".
+        if replies.is_empty() {
+            return Err(HyperDhtError::NoNodesResponded);
+        }
+
         let mut closest_nodes = Vec::new();
 
         for reply in &replies {
@@ -122,6 +127,11 @@ impl HyperDhtHandle {
                 concurrency: None,
             })
             .await?;
+
+        // JS dht-rpc `_endAfterCommit`: no replies at all rejects with "Too few nodes responded".
+        if replies.is_empty() {
+            return Err(HyperDhtError::NoNodesResponded);
+        }
 
         let mut closest_nodes = Vec::new();
         let mut commit_timeouts: u32 = 0;

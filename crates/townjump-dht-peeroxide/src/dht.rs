@@ -72,6 +72,7 @@ impl Dht for PeeroxideDht {
         self.node.handle.local_port().await.map_err(map_error)
     }
 
+    /// Fails with `Backend("Too few nodes responded")` when no node answered the put query (JS `_endAfterCommit`).
     async fn mutable_put(
         &self,
         kp: &KeyPair,
@@ -141,3 +142,7 @@ mod lifecycle_tests;
 #[cfg(test)]
 #[path = "addr_tests.rs"]
 mod addr_tests;
+
+#[cfg(test)]
+#[path = "dht_put_tests.rs"]
+mod put_tests;

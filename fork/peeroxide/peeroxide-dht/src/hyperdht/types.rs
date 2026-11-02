@@ -84,6 +84,9 @@ pub enum HyperDhtError {
     /// The blind-relay pairing did not complete (timeout or any failure on the way).
     #[error("relay aborted")]
     RelayAborted,
+    /// A put query ended with no node having replied (JS: "Too few nodes responded").
+    #[error("Too few nodes responded")]
+    NoNodesResponded,
 }
 
 // ── Server events (forwarded to listen() subscribers) ────────────────────────
