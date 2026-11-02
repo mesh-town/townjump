@@ -1,0 +1,6 @@
+Types: deb
+URIs: @BASE@/apt
+Suites: stable
+Components: main
+Architectures: @ARCH@
+Signed-By: /usr/share/keyrings/townjump.gpg
