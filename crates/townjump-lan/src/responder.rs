@@ -1,6 +1,6 @@
 //! Responder: answers LAN requests for the targets it serves.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap, HashSet};
 use std::io;
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,7 +13,8 @@ use tokio::task::JoinHandle;
 
 use crate::LanConfig;
 use crate::codec::{self, Reply, Target};
-use crate::interfaces::ipv4_interfaces;
+use crate::interfaces::InterfaceSource;
+use crate::membership;
 
 #[derive(Default)]
 struct State {
@@ -25,32 +26,73 @@ struct State {
 pub struct Responder {
     state: Arc<State>,
     task: JoinHandle<()>,
+    socket: Arc<UdpSocket>,
+    group: Ipv4Addr,
+    source: InterfaceSource,
+    joined: Mutex<HashSet<Ipv4Addr>>,
 }
 
-/// Binds the group port (shared with other responders on the host) and joins
-/// the group on every non-loopback IPv4 interface.
-pub(crate) fn bind_group_socket(cfg: &LanConfig) -> io::Result<UdpSocket> {
+/// Binds the group port (shared with other responders on the host); the group is joined by `membership`.
+fn bind_socket(cfg: &LanConfig) -> io::Result<UdpSocket> {
     let socket = Socket::new(Domain::IPV4, Type::DGRAM, Some(Protocol::UDP))?;
     socket.set_reuse_address(true)?;
     #[cfg(unix)]
     socket.set_reuse_port(true)?;
     socket.set_nonblocking(true)?;
     socket.bind(&SocketAddrV4::new(Ipv4Addr::UNSPECIFIED, cfg.port).into())?;
-    for iface in ipv4_interfaces() {
-        if let Err(e) = socket.join_multicast_v4(&cfg.group, &iface) {
-            tracing::debug!("lan: cannot join {} on {iface}: {e}", cfg.group);
-        }
-    }
     UdpSocket::from_std(socket.into())
+}
+
+/// A bound socket joined to the group on every interface of the host (for fake peers in tests).
+#[cfg(test)]
+pub(crate) fn bind_group_socket(cfg: &LanConfig) -> io::Result<UdpSocket> {
+    let socket = bind_socket(cfg)?;
+    let current = InterfaceSource::system().list();
+    membership::sync(&socket, cfg.group, &mut HashSet::new(), &current);
+    Ok(socket)
 }
 
 impl Responder {
     /// Binds the socket and starts answering. Must run inside a tokio runtime.
     pub fn start(cfg: &LanConfig) -> io::Result<Self> {
-        let socket = bind_group_socket(cfg)?;
+        Self::start_with(cfg, InterfaceSource::system())
+    }
+
+    /// Like `start`, with the interfaces taken from `source`.
+    pub fn start_with(cfg: &LanConfig, source: InterfaceSource) -> io::Result<Self> {
+        let socket = Arc::new(bind_socket(cfg)?);
         let state = Arc::new(State::default());
-        let task = tokio::spawn(run(socket, state.clone()));
-        Ok(Self { state, task })
+        let task = tokio::spawn(run(socket.clone(), state.clone()));
+        let joined = Mutex::new(HashSet::new());
+        let group = cfg.group;
+        let responder = Self {
+            state,
+            task,
+            socket,
+            group,
+            source,
+            joined,
+        };
+        responder.refresh_interfaces();
+        Ok(responder)
+    }
+
+    /// Walks the interfaces again: joins the group on new ones, forgets vanished ones.
+    pub fn refresh_interfaces(&self) {
+        let current = self.source.list();
+        let mut joined = self.joined.lock().unwrap();
+        membership::sync(&self.socket, self.group, &mut joined, &current);
+    }
+
+    /// Interfaces the group is joined on, ascending.
+    pub fn joined_interfaces(&self) -> Vec<Ipv4Addr> {
+        let joined = self.joined.lock().unwrap();
+        joined
+            .iter()
+            .copied()
+            .collect::<BTreeSet<_>>()
+            .into_iter()
+            .collect()
     }
 
     /// Starts answering requests for `target` with `port`.
@@ -80,7 +122,7 @@ impl Drop for Responder {
     }
 }
 
-async fn run(socket: UdpSocket, state: Arc<State>) {
+async fn run(socket: Arc<UdpSocket>, state: Arc<State>) {
     let mut buf = [0u8; 256];
     loop {
         let (n, src) = match socket.recv_from(&mut buf).await {

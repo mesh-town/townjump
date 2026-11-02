@@ -199,3 +199,44 @@ mod trigger {
         assert_eq!(took, at, "the probe started before the DHT failed");
     }
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn resume_walks_the_interfaces_again() {
+    let _lan = LAN.lock().await;
+    let mut real = townjump_lan::interfaces::ipv4_interfaces();
+    real.sort();
+    if real.is_empty() {
+        return eprintln!("skipped: no non-loopback IPv4 interface on this host");
+    }
+    let list = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let shared = list.clone();
+    let mut lan = setup(group_port(), ProbeStart::Now);
+    lan.interfaces = townjump_lan::InterfaceSource::new(move || shared.lock().unwrap().clone());
+    let dht = node(&closed_factory(), lan).await;
+    let target = peeroxide_dht::crypto::hash(&key_pair(SEED).public_key);
+    dht.node.lan.register(target, 1);
+    assert!(dht.node.lan.joined().is_empty());
+    dht.suspend().await.expect("suspend");
+    *list.lock().unwrap() = real.clone();
+    dht.resume().await.expect("resume");
+    assert_eq!(dht.node.lan.joined(), real);
+    let _ = dht.destroy().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_responder_started_while_suspended_is_silent_until_resume() {
+    let _lan = LAN.lock().await;
+    let port = group_port();
+    let dht = node(&closed_factory(), setup(port, ProbeStart::Now)).await;
+    let key = key_pair(SEED);
+    dht.suspend().await.expect("suspend");
+    let target = peeroxide_dht::crypto::hash(&key.public_key);
+    dht.node.lan.register(target, 1);
+    assert_eq!(ask(port, &key).await, None, "answered while suspended");
+    dht.resume().await.expect("resume");
+    assert!(
+        ask_some(port, &key).await.is_some(),
+        "no answer after resume"
+    );
+    let _ = dht.destroy().await;
+}

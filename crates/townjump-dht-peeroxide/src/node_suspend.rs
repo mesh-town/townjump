@@ -26,7 +26,7 @@ impl Node {
             return Ok(());
         }
         let resumed = self.handle.resume().await.map_err(map_error);
-        self.lan.set_paused(false);
+        self.lan.resume();
         resumed
     }
 
