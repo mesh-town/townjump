@@ -116,15 +116,47 @@ jobs:
           path: ${{ env.ASSET }}
           if-no-files-found: error
 
-  publish:
-    name: publish release
+  windows-installer:
+    name: windows installer
     needs: [check-tag, build]
     runs-on: ubuntu-24.04
     permissions:
+      contents: read
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install NSIS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y nsis
+      - uses: actions/download-artifact@v4
+        with:
+          name: asset-x86_64-pc-windows-msvc
+          path: win
+      - name: Build installer
+        run: |
+          scripts/dist/windows-installer.sh "win/townjump-${VERSION}-x86_64-pc-windows-msvc.zip" --out out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: asset-windows-installer
+          path: out/townjump-setup-${{ needs.check-tag.outputs.version }}.exe
+          if-no-files-found: error
+
+  publish:
+    name: publish release
+    needs: [check-tag, build, windows-installer]
+    runs-on: ubuntu-24.04
+    permissions:
       contents: write
+    concurrency:
+      group: release-publish
+      cancel-in-progress: false
     env:
       VERSION: ${{ needs.check-tag.outputs.version }}
       GH_TOKEN: ${{ github.token }}
+      DIST_TOKEN: ${{ secrets.DIST_TOKEN }}
+      TOWNJUMP_DIST_REPO: ${{ vars.DIST_REPO || github.repository }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -137,11 +169,32 @@ jobs:
           git archive --format=tar.gz --prefix="townjump-${VERSION}/" \
             -o "dist/townjump-${VERSION}.tar.gz" "${GITHUB_REF_NAME}"
       - name: Checksums
-        working-directory: dist
-        run: sha256sum -- *.tar.gz *.zip > SHA256SUMS
+        run: scripts/dist/publish.sh sums dist
       - name: Create release
-        run: |
-          gh release create "${GITHUB_REF_NAME}" dist/* \
-            --repo "${GITHUB_REPOSITORY}" \
-            --title "${GITHUB_REF_NAME}" \
-            --generate-notes
+        run: scripts/dist/publish.sh release "$VERSION" dist
+
+  tap:
+    name: Homebrew tap
+    needs: [check-tag, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/tap-bump.yml
+    with:
+      version: ${{ needs.check-tag.outputs.version }}
+      dist-repo: ${{ vars.DIST_REPO || github.repository }}
+    secrets:
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+
+  winget:
+    name: winget
+    needs: [check-tag, publish]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/winget.yml
+    with:
+      version: ${{ needs.check-tag.outputs.version }}
+      dist-repo: ${{ vars.DIST_REPO || github.repository }}
+    secrets:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+
+  # Package jobs: add new ones here (needs: [check-tag, publish]).

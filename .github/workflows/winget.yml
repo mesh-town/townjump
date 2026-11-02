@@ -1,0 +1,59 @@
+name: winget
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version X.Y.Z
+        required: true
+        type: string
+      dist-repo:
+        description: Repository that holds the release assets
+        required: false
+        type: string
+    secrets:
+      WINGET_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version X.Y.Z
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: winget-pkgs
+  cancel-in-progress: false
+
+jobs:
+  winget:
+    name: submit to winget-pkgs
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ inputs.version }}
+      GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      TOWNJUMP_DIST_REPO: ${{ inputs.dist-repo || vars.DIST_REPO || github.repository }}
+      KOMAC_VERSION: "2.17.1"
+      KOMAC_SHA256: e694e79cd451afabf47bead66ed34586fef4814f7b94e4b61a098f419978d5d7
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install komac
+        if: env.GITHUB_TOKEN != ''
+        run: |
+          set -euo pipefail
+          archive="komac-${KOMAC_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          curl -fsSL -o "$RUNNER_TEMP/$archive" \
+            "https://github.com/russellbanks/Komac/releases/download/v${KOMAC_VERSION}/${archive}"
+          echo "${KOMAC_SHA256}  $RUNNER_TEMP/$archive" | sha256sum -c -
+          mkdir "$RUNNER_TEMP/komac"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/komac"
+          bin=$(find "$RUNNER_TEMP/komac" -name komac -type f | head -n 1)
+          test -n "$bin"
+          mkdir -p "$HOME/.local/bin"
+          install -m 755 "$bin" "$HOME/.local/bin/komac"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Submit manifest
+        run: scripts/dist/winget.sh submit "$VERSION"
