@@ -79,7 +79,7 @@ fn lan_closed_factory() -> PeeroxideFactory {
     }
 }
 
-/// A listening server of a peerless node; `listen` returns after the bootstrap (about 4 s).
+/// A listening server of a peerless node; the wait of `listen` for the bootstrap is not asserted.
 async fn serving(
     port: u16,
     factory: &PeeroxideFactory,

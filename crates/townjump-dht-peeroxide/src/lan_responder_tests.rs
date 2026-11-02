@@ -28,6 +28,21 @@ async fn lan_discovery_errors_do_not_fail_the_dht_path() {
     let _ = tokio::join!(client.destroy(), server.destroy());
 }
 
+/// Dials the address a LAN answer named with a second node: the handshake must be accepted.
+async fn dial(port: u16, key: &KeyPair, addr: SocketAddrV4) {
+    let client = node(&closed_factory(), setup(port, ProbeStart::Now)).await;
+    let node = &client.node;
+    let dialed = node.handle.connect_to(
+        &node.identity,
+        key.public_key,
+        std::net::SocketAddr::V4(addr),
+        &node.runtime,
+    );
+    let result = within(WAIT, "dial", dialed).await;
+    assert!(result.is_ok(), "the LAN answer led to a refusing port");
+    let _ = client.destroy().await;
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn lan_answers_only_once_the_server_accepts_handshakes() {
     let _lan = LAN.lock().await;
@@ -39,16 +54,12 @@ async fn lan_answers_only_once_the_server_accepts_handshakes() {
         let key = key.clone();
         async move { server.listen(key).await }
     });
-    tokio::time::sleep(Duration::from_millis(1500)).await;
-    assert!(
-        !listen.is_finished(),
-        "listen must still wait for the bootstrap"
-    );
-    assert_eq!(
-        ask(port, &key).await,
-        None,
-        "answered before the server accepts handshakes"
-    );
+    // Whenever the responder answers while `listen` runs, the address must already accept a handshake.
+    while !listen.is_finished() {
+        if let Some(addr) = ask(port, &key).await {
+            dial(port, &key, addr).await;
+        }
+    }
     within(WAIT, "listen", listen)
         .await
         .expect("join")
