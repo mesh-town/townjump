@@ -30,6 +30,21 @@ pub fn map_error(e: HyperDhtError) -> DhtError {
     }
 }
 
+/// Whether the DHT path got a final answer the LAN cannot change: the node is gone or suspended, or the server
+/// itself refused. Anything else may still be fixed by a server found on the local network.
+pub(crate) fn refused(e: &HyperDhtError) -> bool {
+    match e {
+        HyperDhtError::Destroyed
+        | HyperDhtError::ChannelClosed
+        | HyperDhtError::FirewallRejected => true,
+        HyperDhtError::Dht(rpc) => matches!(
+            rpc,
+            RpcError::Destroyed | RpcError::ChannelClosed | RpcError::Suspended
+        ),
+        _ => false,
+    }
+}
+
 fn map_rpc(e: RpcError) -> DhtError {
     match e {
         RpcError::Destroyed | RpcError::ChannelClosed => DhtError::Destroyed,

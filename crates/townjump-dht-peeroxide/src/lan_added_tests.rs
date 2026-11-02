@@ -1,7 +1,7 @@
 // Added acceptance tests of the LAN part: a live DHT that lacks the key, the pure `race` (virtual time), the responder
 // life after `destroy`, the switch-off, the end of bootstrap. A child of lan_race_tests: shares its helpers.
 use super::*;
-use crate::lan_race::race;
+use crate::lan_race::{DhtFailure, race};
 use peeroxide_dht::hyperdht::PeerConnection;
 
 /// A socket on the group port that has joined the group on every interface: hears the probes.
@@ -44,10 +44,10 @@ async fn fails_with_peer_not_found_when_the_live_dht_does_not_know_the_key() {
 }
 
 #[tokio::test(start_paused = true)]
-async fn race_waits_for_the_lan_window_after_the_dht_fails() {
+async fn race_still_waits_for_the_lan_after_an_open_failure() {
     let dht = async {
         tokio::time::sleep(Duration::from_millis(100)).await;
-        Err::<PeerConnection, _>(DhtError::Backend("a".into()))
+        Err::<PeerConnection, DhtFailure>(DhtError::Backend("a".into()).into())
     };
     let lan = async {
         tokio::time::sleep(Duration::from_secs(3)).await;
@@ -63,7 +63,7 @@ async fn race_waits_for_the_lan_window_after_the_dht_fails() {
 async fn race_returns_the_dht_error_when_the_lan_gives_up_first() {
     let dht = async {
         tokio::time::sleep(Duration::from_secs(2)).await;
-        Err::<PeerConnection, _>(DhtError::Backend("b".into()))
+        Err::<PeerConnection, DhtFailure>(DhtError::Backend("b".into()).into())
     };
     let lan = async {
         tokio::time::sleep(Duration::from_millis(100)).await;
