@@ -19,10 +19,12 @@ use std::net::Ipv4Addr;
 
 pub mod codec;
 pub mod interfaces;
+mod membership;
 pub mod prober;
 pub mod responder;
 
 pub use codec::{DEFAULT_GROUP, DEFAULT_PORT, Nonce, Target};
+pub use interfaces::InterfaceSource;
 pub use prober::{ProbeTiming, find};
 pub use responder::Responder;
 
@@ -41,6 +43,10 @@ impl Default for LanConfig {
         }
     }
 }
+
+#[cfg(test)]
+#[path = "membership_tests.rs"]
+mod membership_tests;
 
 #[cfg(test)]
 #[path = "lan_tests.rs"]

@@ -13,7 +13,7 @@ use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::JoinHandle;
 use townjump_dht::DhtError;
 use townjump_keys::KeyPair;
-use townjump_lan::{LanConfig, ProbeTiming, Responder, Target};
+use townjump_lan::{InterfaceSource, LanConfig, ProbeTiming, Responder, Target};
 
 type Events = UnboundedReceiver<ServerEvent>;
 
@@ -39,6 +39,8 @@ pub(crate) struct LanSetup {
     pub config: LanConfig,
     pub timing: ProbeTiming,
     pub start: ProbeStart,
+    /// Where the responder learns the host interfaces from (a substitute in tests).
+    pub interfaces: InterfaceSource,
 }
 
 impl Default for LanSetup {
@@ -48,6 +50,7 @@ impl Default for LanSetup {
             config: LanConfig::default(),
             timing: ProbeTiming::default(),
             start: PROBE_START,
+            interfaces: InterfaceSource::system(),
         }
     }
 }
@@ -80,7 +83,7 @@ impl Lan {
             return;
         }
         if state.responder.is_none() {
-            match Responder::start(&self.setup.config) {
+            match Responder::start_with(&self.setup.config, self.setup.interfaces.clone()) {
                 Ok(responder) => state.responder = Some(responder),
                 Err(e) => return tracing::debug!("lan: responder did not start: {e}"),
             }
@@ -104,6 +107,27 @@ impl Lan {
         if let Some(responder) = &state.responder {
             responder.set_paused(paused);
         }
+    }
+
+    /// Wakes the responder: the interfaces may have changed during the sleep, so they are walked again before it answers.
+    pub fn resume(&self) {
+        let mut state = lock(&self.state);
+        state.paused = false;
+        if let Some(responder) = &state.responder {
+            responder.refresh_interfaces();
+            responder.set_paused(false);
+        }
+    }
+
+    /// Interfaces the responder has joined the group on (none while it has not started).
+    #[cfg(test)]
+    pub fn joined(&self) -> Vec<std::net::Ipv4Addr> {
+        let state = lock(&self.state);
+        state
+            .responder
+            .as_ref()
+            .map(Responder::joined_interfaces)
+            .unwrap_or_default()
     }
 
     pub fn close(&self) {

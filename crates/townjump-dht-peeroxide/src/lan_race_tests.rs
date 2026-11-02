@@ -50,6 +50,7 @@ fn setup(port: u16, start: ProbeStart) -> LanSetup {
         config,
         timing,
         start,
+        ..Default::default()
     }
 }
 
