@@ -5,14 +5,14 @@ do not collide. The help text of `townjump` is byte-for-byte that of the origina
 
 Release 0.1.0 is not published yet; the channels below are prepared.
 
-## Homebrew
+## Homebrew (macOS)
 
 ```
-brew tap mesh-town/tap
-brew install townjump
+brew install mesh-town/macos/townjump
 ```
 
-The formula builds from the release source archive with `cargo install`.
+This adds the tap `mesh-town/homebrew-macos` and installs the formula in one step. The formula is for macOS only
+(Apple silicon and Intel) and installs the prebuilt binary from the release; it does not build from source.
 
 ## Prebuilt binaries
 
@@ -34,12 +34,27 @@ shasum -a 256 -c SHA256SUMS --ignore-missing
 On macOS, a downloaded unsigned binary may be quarantined; remove the attribute with
 `xattr -d com.apple.quarantine townjump`.
 
+## Windows
+
+The installer `townjump-setup-<version>.exe` is among the release files and is listed in `SHA256SUMS`. It needs
+administrator rights (Windows asks for them) and 64-bit Windows. It installs `townjump.exe` into
+`C:\Program Files\Townjump` and adds that directory to the system `PATH`; open a new terminal window afterwards.
+`townjump-setup-<version>.exe /S` installs silently. To remove it, use "Apps" (Installed apps) in the Windows settings
+or run `uninstall.exe` in the installation directory. The installer is not signed, so SmartScreen may show a warning.
+
+A winget package will follow after the first release; this page will show the command once the package exists.
+
+## Debian and Ubuntu
+
+See `packaging/debian/README.md`.
+
 ## OpenWrt
 
-The package definition is `packaging/openwrt/townjump/Makefile`. Build it with the OpenWrt SDK
-(copy the directory into your `package/` tree or add the repository as a feed) and install the resulting `.ipk`/`.apk`.
-It is not in the official `openwrt/packages` feed. Supported targets are those with 64-bit atomics (no 32-bit MIPS).
-The package needs a Rust toolchain on the build host; check the Rust version required by `rust-version` in `Cargo.toml`.
+See `packaging/openwrt/README.md`.
+
+## Keenetic
+
+See `packaging/keenetic/README.md`.
 
 ## From source
 
