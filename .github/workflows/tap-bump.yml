@@ -1,0 +1,42 @@
+name: tap-bump
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version X.Y.Z
+        required: true
+        type: string
+      dist-repo:
+        description: Repository that holds the release assets
+        required: false
+        type: string
+    secrets:
+      TAP_TOKEN:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version X.Y.Z
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: homebrew-tap
+  cancel-in-progress: false
+
+jobs:
+  tap:
+    name: update Homebrew tap
+    runs-on: ubuntu-24.04
+    env:
+      VERSION: ${{ inputs.version }}
+      TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
+      TOWNJUMP_DIST_REPO: ${{ inputs.dist-repo || vars.DIST_REPO || github.repository }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update tap
+        run: scripts/dist/tap-bump.sh "$VERSION"
