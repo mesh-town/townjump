@@ -175,6 +175,20 @@ mod every_variant {
     }
 }
 
+mod no_nodes_responded {
+    use super::*;
+
+    // JS (dht-rpc/lib/query.js `_endAfterCommit`): `new Error('Too few nodes responded')`.
+    #[test]
+    fn no_nodes_responded_maps_to_backend_with_the_js_text() {
+        let mapped = map_error(HyperDhtError::NoNodesResponded);
+        assert!(
+            matches!(&mapped, DhtError::Backend(m) if m == "Too few nodes responded"),
+            "got {mapped:?}"
+        );
+    }
+}
+
 /// Error text as the user will see it.
 fn text(error: HyperDhtError) -> String {
     map_error(error).to_string()
@@ -193,6 +207,7 @@ fn samples() -> Vec<HyperDhtError> {
         HyperDhtError::HolepunchFailed,
         HyperDhtError::HolepunchAborted,
         HyperDhtError::RelayAborted,
+        HyperDhtError::NoNodesResponded,
         HyperDhtError::FirewallRejected,
         HyperDhtError::StreamEstablishment("x".into()),
         HyperDhtError::Dht(RpcError::ChannelClosed),
