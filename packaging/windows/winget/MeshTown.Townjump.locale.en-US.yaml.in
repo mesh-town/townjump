@@ -1,0 +1,23 @@
+# Created from a template; see scripts/dist/winget.sh
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.defaultLocale.@MANIFEST_VERSION@.schema.json
+
+PackageIdentifier: MeshTown.Townjump
+PackageVersion: @VERSION@
+PackageLocale: en-US
+Publisher: Mesh Town
+PublisherUrl: https://github.com/mesh-town
+PublisherSupportUrl: https://github.com/mesh-town/townjump/issues
+Author: Mesh Town
+PackageName: Townjump
+PackageUrl: https://github.com/mesh-town/townjump
+License: AGPL-3.0-only
+LicenseUrl: https://github.com/mesh-town/townjump/blob/main/LICENSE
+ShortDescription: 'Share a local TCP or UDP port with another machine over a peer-to-peer network: no public IP, no port forwarding, no VPN and no relay server.'
+Tags:
+- p2p
+- remote-access
+- port-forwarding
+- nat-traversal
+- holesail
+ManifestType: defaultLocale
+ManifestVersion: @MANIFEST_VERSION@

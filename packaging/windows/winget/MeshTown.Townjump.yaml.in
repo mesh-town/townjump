@@ -1,0 +1,8 @@
+# Created from a template; see scripts/dist/winget.sh
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.version.@MANIFEST_VERSION@.schema.json
+
+PackageIdentifier: MeshTown.Townjump
+PackageVersion: @VERSION@
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: @MANIFEST_VERSION@
