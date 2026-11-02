@@ -2,7 +2,7 @@
 
 use super::test_support::*;
 use super::*;
-use crate::UdxRuntime;
+use crate::{UdxRuntime, UdxSocket};
 
 type Weak2 = (
     std::sync::Weak<Mutex<StreamInner>>,
@@ -16,6 +16,7 @@ struct Bridge {
     raw_b: tokio::net::UdpSocket,
     addr_a: SocketAddr,
     raw_a: tokio::net::UdpSocket,
+    sock_a: UdxSocket,
 }
 
 async fn bridged() -> Bridge {
@@ -37,6 +38,7 @@ async fn bridged() -> Bridge {
         raw_b,
         addr_a,
         raw_a,
+        sock_a: sa,
     }
 }
 
@@ -99,4 +101,43 @@ async fn packet_for_live_side_is_dropped_when_peer_is_gone() {
     assert!(wa.upgrade().is_some(), "live stream a must stay alive");
     drop(a);
     assert!(freed(&wa).await, "stream a leaked after drop");
+}
+
+/// A relayed stream moves packets outside the engine, so its `next_seq` and `next_remote_seq` mean nothing:
+/// closing it sets no tombstone (`relay` refusal in `linger.rs`); the entry goes at once and the peer's late DATA is met with silence.
+#[tokio::test]
+async fn closed_relayed_stream_sets_no_tombstone() {
+    let Bridge {
+        a,
+        b: _b,
+        raw_a,
+        addr_a,
+        sock_a,
+        ..
+    } = bridged().await;
+    // the adapter's drop is the path that buries a plain stream (a bare handle's drop leaves no tombstone)
+    drop(a.into_async_stream());
+    tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+    let len = sock_a
+        .streams_ref()
+        .lock()
+        .unwrap_or_else(|e| e.into_inner())
+        .len();
+    assert_eq!(
+        len, 0,
+        "entry of the closed relayed stream is still in the table"
+    );
+    // packets the close itself sent (if any) are not an answer: drain them first
+    while recv_raw(&raw_a).await.is_some() {}
+    raw_a
+        .send_to(&peer_packet(FLAG_DATA, 0, 0, b"x"), addr_a)
+        .await
+        .expect("send");
+    // 2·rto with the initial rto of 1 s: two one-second waits
+    for _ in 0..2 {
+        assert!(
+            recv_raw(&raw_a).await.is_none(),
+            "closed relayed stream answered the peer (ACK or DESTROY)"
+        );
+    }
 }

@@ -183,6 +183,47 @@ async fn dropped_stream_does_not_remove_its_successors_entry() {
     assert_eq!(table_len(&sockets.a), 1, "successor entry removed");
 }
 
+/// The closed stream's tombstone must not take the id of a live successor (`not_ours` in `linger.rs`):
+/// the entry stays the successor's channel and the old peer's DATA reaches it instead of getting DESTROY.
+#[tokio::test]
+async fn tombstone_does_not_take_successors_id() {
+    let runtime = UdxRuntime::new().expect("runtime");
+    let sockets = two_sockets(&runtime).await;
+    let mut set = pairs(&runtime, &sockets, &[(1, 2)]).await;
+    let (a, _b) = set.remove(0);
+    drop(a);
+    let successor = runtime.create_stream(1).await.expect("successor");
+    successor.register(&sockets.a).expect("register");
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    let mine = successor.incoming_tx.as_ref().expect("successor tx");
+    {
+        let streams = sockets.a.streams_ref();
+        let map = streams.lock().unwrap_or_else(|e| e.into_inner());
+        let live = map.get(&1).expect("entry for id 1");
+        assert!(
+            live.same_channel(mine),
+            "entry of id 1 is not the successor's"
+        );
+    }
+    // DATA to id 1 from the old peer's own address: header `[ff 01 flags 0 id window seq ack]`, payload "x"
+    let mut packet = vec![0xff, 0x01, 0x01, 0];
+    packet.extend_from_slice(&1u32.to_le_bytes());
+    packet.extend_from_slice(&1_000_000u32.to_le_bytes());
+    packet.extend_from_slice(&[0u8; 8]);
+    packet.push(b'x');
+    sockets.b.send_to(&packet, sockets.addr_a).expect("send");
+    tokio::time::sleep(Duration::from_millis(300)).await;
+    let mut rx_slot = successor
+        .incoming_rx
+        .lock()
+        .unwrap_or_else(|e| e.into_inner());
+    let rx = rx_slot.as_mut().expect("successor rx");
+    assert!(
+        rx.try_recv().is_ok(),
+        "DATA for id 1 did not reach the successor"
+    );
+}
+
 #[tokio::test]
 async fn registered_unconnected_stream_leaves_table_empty() {
     let runtime = UdxRuntime::new().expect("runtime");

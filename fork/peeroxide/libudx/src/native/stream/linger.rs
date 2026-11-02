@@ -1,9 +1,10 @@
 // JS: libudx/src/udx.c (udx.c:442 leaves TIME_WAIT as a TODO; the fork keeps a closed stream's entry as a tombstone)
 //! Closed-stream tombstone (TIME_WAIT): after the processor ends, the stream's entry in the socket table stays for
-//! `clamp(4·rto, 5 s, 15 s)` and answers late DATA/END of the recorded peer; see `processor_task.rs` (`Grave`).
+//! `tomb_ttl` = `clamp(14·rto, 20 s, 60 s)` and answers late DATA/END of the recorded peer; see `processor_task.rs` (`Grave`).
 //!
 //! Limit: `change_remote` to a socket whose table holds a tombstone with the same id fails with "stream id taken
-//! on target socket" until the tombstone expires; ids come from `next_stream_id`, a repeat is possible only for manual ids.
+//! on target socket" until the tombstone expires. Ids on one socket do repeat (relay and swarm count separately),
+//! so `bury` refuses (`not_ours`) when the entry is no longer the closing stream's own: a live successor keeps its id.
 //! A packet from another address to a tombstone id is not forwarded to the fallback channel (it is silence).
 
 use std::sync::Weak;
