@@ -79,7 +79,7 @@ pub(crate) async fn connect(
     remote: [u8; 32],
     opts: ForkConnectOpts,
 ) -> Result<PeerConnection, DhtError> {
-    if !node.lan.setup.enabled {
+    if !node.lan.setup.enabled || !lan_allowed(&opts) {
         return Box::pin(dht_path(node, remote, opts)).await;
     }
     node.check_alive()?;
@@ -93,6 +93,12 @@ pub(crate) async fn connect(
     };
     // Boxed: the futures are large and the callers run on small test stacks.
     race(Box::pin(dht), Box::pin(lan_path(node, remote, &failed))).await
+}
+
+/// The LAN path dials the server directly, so it is skipped when the caller routes the connection explicitly:
+/// through a relay, or with LAN shortcuts switched off.
+pub(crate) fn lan_allowed(opts: &ForkConnectOpts) -> bool {
+    opts.relay_through.is_none() && opts.local_connection
 }
 
 async fn dht_path(

@@ -5,7 +5,7 @@ use crate::lan_race::race;
 use peeroxide_dht::hyperdht::PeerConnection;
 
 /// A socket on the group port that has joined the group on every interface: hears the probes.
-fn sniffer(port: u16) -> UdpSocket {
+pub(super) fn sniffer(port: u16) -> UdpSocket {
     let sniffer = UdpSocket::bind(("0.0.0.0", port)).expect("sniffer");
     sniffer
         .set_read_timeout(Some(Duration::from_millis(200)))
