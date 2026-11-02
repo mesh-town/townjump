@@ -287,3 +287,6 @@ mod added;
 
 #[path = "lan_opts_tests.rs"]
 mod opts;
+
+#[path = "lan_fail_tests.rs"]
+mod fail;

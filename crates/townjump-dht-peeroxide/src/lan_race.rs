@@ -1,6 +1,6 @@
 // JS: none (townjump extension): connect by key races the DHT path against a LAN multicast probe.
 // See also: dht.rs (`connect` calls `connect` here), node.rs (`Lan` responder, `table_size`), townjump-lan (probe protocol).
-use crate::error::map_error;
+use crate::error::{map_error, refused};
 use crate::node::Node;
 use peeroxide_dht::hyperdht::{ConnectOpts as ForkConnectOpts, PeerConnection};
 use std::future::{Future, pending};
@@ -73,14 +73,17 @@ where
 }
 
 /// Connect by key: the DHT path (A) against the LAN probe (B); the first connection wins, the loser is dropped.
-/// An error is always A's; B's errors are `debug` lines. If A fails first, B is awaited to the end of its window.
+/// An error is always A's; B's errors are `debug` lines. If A fails first, B is awaited to the end of its window,
+/// unless A's failure is a refusal (the node is destroyed or suspended, the server said no): the LAN cannot change it.
 pub(crate) async fn connect(
     node: &Node,
     remote: [u8; 32],
     opts: ForkConnectOpts,
 ) -> Result<PeerConnection, DhtError> {
     if !node.lan.setup.enabled || !lan_allowed(&opts) {
-        return Box::pin(dht_path(node, remote, opts)).await;
+        return Box::pin(dht_path(node, remote, opts))
+            .await
+            .map_err(|f| f.error);
     }
     node.check_alive()?;
     let failed = Notify::new();
@@ -101,19 +104,47 @@ pub(crate) fn lan_allowed(opts: &ForkConnectOpts) -> bool {
     opts.relay_through.is_none() && opts.local_connection
 }
 
+/// Why the DHT path failed, and whether that is a final answer (`refused`) the LAN path cannot improve.
+pub(crate) struct DhtFailure {
+    pub error: DhtError,
+    pub refused: bool,
+}
+
+impl From<DhtError> for DhtFailure {
+    fn from(error: DhtError) -> Self {
+        Self {
+            error,
+            refused: false,
+        }
+    }
+}
+
 async fn dht_path(
     node: &Node,
     remote: [u8; 32],
     opts: ForkConnectOpts,
-) -> Result<PeerConnection, DhtError> {
-    node.ready().await?;
+) -> Result<PeerConnection, DhtFailure> {
+    let refusal = |error| DhtFailure {
+        error,
+        refused: true,
+    };
+    node.ready().await.map_err(refusal)?;
     let connected =
         node.handle
             .connect_with_options(&node.identity, remote, &[], &node.runtime, opts);
-    connected.await.map_err(map_error)
+    connected.await.map_err(|e| DhtFailure {
+        refused: refused(&e),
+        error: map_error(e),
+    })
 }
 
-async fn lan_path(node: &Node, remote: [u8; 32], failed: &Notify) -> Option<PeerConnection> {
+/// `None` at once when the node is destroyed: no probe leaves a node that is gone.
+pub(crate) async fn lan_path(
+    node: &Node,
+    remote: [u8; 32],
+    failed: &Notify,
+) -> Option<PeerConnection> {
+    alive(node)?;
     let state = || async {
         Table {
             bootstrapped: node.bootstrap_done().await,
@@ -121,6 +152,7 @@ async fn lan_path(node: &Node, remote: [u8; 32], failed: &Notify) -> Option<Peer
         }
     };
     wait_start(node.lan.setup.start, state, failed).await;
+    alive(node)?;
     let target = peeroxide_dht::crypto::hash(&remote);
     let Some(addr) =
         townjump_lan::find(&node.lan.setup.config, target, &node.lan.setup.timing).await
@@ -137,9 +169,13 @@ async fn lan_path(node: &Node, remote: [u8; 32], failed: &Notify) -> Option<Peer
         .ok()
 }
 
+fn alive(node: &Node) -> Option<()> {
+    node.check_alive().ok()
+}
+
 pub(crate) async fn race<A, B>(dht: A, lan: B) -> Result<PeerConnection, DhtError>
 where
-    A: Future<Output = Result<PeerConnection, DhtError>>,
+    A: Future<Output = Result<PeerConnection, DhtFailure>>,
     B: Future<Output = Option<PeerConnection>>,
 {
     tokio::pin!(dht, lan);
@@ -149,7 +185,8 @@ where
         tokio::select! {
             result = &mut dht, if dht_error.is_none() => match result {
                 Ok(conn) => return Ok(conn),
-                Err(e) => dht_error = Some(e),
+                Err(f) if f.refused => return Err(f.error),
+                Err(f) => dht_error = Some(f.error),
             },
             found = &mut lan, if lan_open => match found {
                 Some(conn) => return Ok(conn),
