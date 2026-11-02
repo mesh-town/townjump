@@ -120,6 +120,20 @@ impl NativeTestnet {
         start_relay(config, opts).await
     }
 
+    /// Server announcements (router entries) held by each testnet node, in start order (node 0 is the bootstrap).
+    pub(super) async fn router_counts(&self) -> Vec<usize> {
+        let mut counts = Vec::new();
+        for node in &self.nodes {
+            let stats = node
+                .handle
+                .persistent_stats()
+                .await
+                .expect("persistent_stats");
+            counts.push(stats.router_entries);
+        }
+        counts
+    }
+
     /// Whether a node of the network (not the relay itself) finds an announcement under the key.
     pub(super) async fn is_announced(&self, key: &[u8; 32]) -> bool {
         let found = self.nodes[0].handle.find_peer(hash(key)).await;
