@@ -250,3 +250,130 @@ async fn stats_recv_queued_tracks_unread() {
     })
     .await;
 }
+
+#[tokio::test]
+async fn duplicate_out_of_order_is_counted_once() {
+    with_timeout(TEST_LIMIT, async {
+        // given: packet 5 arrives twice while packets 0..=4 are missing
+        let mut link = Link::new().await;
+        let payload = vec![7u8; CHUNK];
+        link.peer.send(&data_packet(5, &payload)).await;
+        link.peer.send(&data_packet(5, &payload)).await;
+        // then: the window counts the bytes once
+        let packets = drain(&link.peer, Duration::from_millis(400)).await;
+        let last = packets.last().expect("an ACK arrives");
+        assert_eq!(window_of(last), MAX - CHUNK as u32);
+        // when: the gap is filled and everything is read
+        for seq in 0..=4 {
+            link.peer.send(&data_packet(seq, &payload)).await;
+        }
+        let _ = drain(&link.peer, Duration::from_millis(300)).await;
+        for _ in 0..6 {
+            link.stream.read().await.expect("read").expect("data");
+        }
+        // then: nothing stays counted as queued
+        assert_eq!(link.stream.stats().recv_queued, 0);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn async_read_reopens_window_with_pure_ack() {
+    with_timeout(TEST_LIMIT, async {
+        // given: the peer filled the window to zero and is silent
+        let Link {
+            peer,
+            stream,
+            keep_alive: _keep,
+        } = Link::new().await;
+        let count = fill_window(&peer).await;
+        let _ = drain(&peer, Duration::from_millis(300)).await;
+        // when: the adapter reads more than a megabyte
+        let mut adapter = stream.into_async_stream();
+        let mut buf = vec![0u8; 1154 * CHUNK];
+        adapter.read_exact(&mut buf).await.expect("read");
+        // then: an ACK without DATA with a window of at least a megabyte arrives
+        let packets = drain(&peer, Duration::from_millis(500)).await;
+        let reopened = packets
+            .iter()
+            .any(|packet| flags_of(packet) & 0x01 == 0 && window_of(packet) >= 1 << 20);
+        assert!(
+            reopened,
+            "no window update after {count} packets: {packets:?}"
+        );
+    })
+    .await;
+}
+
+/// Sends 66 packets to a stream whose maximum is the floor: the window is zero afterwards.
+async fn close_floor_window(peer: &RawPeer) {
+    let payload = vec![7u8; CHUNK];
+    for seq in 0..66 {
+        peer.send(&data_packet(seq, &payload)).await;
+    }
+    let acks = drain(peer, Duration::from_millis(400)).await;
+    assert_eq!(ack_of(acks.last().expect("ACKs")), 66);
+    assert_eq!(window_of(acks.last().expect("ACKs")), 0);
+}
+
+/// The first packet without DATA after the maximum grew must carry the new window.
+fn assert_window_update(packets: &[Vec<u8>]) {
+    let expected = MAX - 66 * CHUNK as u32;
+    let update = packets
+        .iter()
+        .any(|packet| flags_of(packet) & 0x01 == 0 && window_of(packet) == expected);
+    assert!(update, "no window update to {expected}: {packets:?}");
+}
+
+#[tokio::test]
+async fn growing_the_maximum_sends_window_update() {
+    with_timeout(TEST_LIMIT, async {
+        // given: the window is closed at the floor maximum
+        let link = Link::new().await;
+        link.stream.set_recv_window_max(FLOOR);
+        close_floor_window(&link.peer).await;
+        // when: the maximum grows back
+        link.stream.set_recv_window_max(MAX);
+        // then: a pure ACK announces the new window at once
+        assert_window_update(&drain(&link.peer, Duration::from_millis(500)).await);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn adapter_growing_the_maximum_sends_window_update() {
+    with_timeout(TEST_LIMIT, async {
+        // given: the window of an adapter is closed at the floor maximum
+        let Link {
+            peer,
+            stream,
+            keep_alive: _keep,
+        } = Link::new().await;
+        let adapter = stream.into_async_stream();
+        adapter.set_recv_window_max(FLOOR);
+        close_floor_window(&peer).await;
+        // when: the maximum grows back
+        adapter.set_recv_window_max(MAX);
+        // then: a pure ACK announces the new window at once
+        assert_window_update(&drain(&peer, Duration::from_millis(500)).await);
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn set_recv_window_max_outside_runtime_does_not_panic() {
+    with_timeout(TEST_LIMIT, async {
+        // given: a stream whose maximum would grow enough to need an update
+        let link = Link::new().await;
+        let stream = link.stream;
+        // when: the maximum is set from a thread without a runtime
+        let joined = std::thread::spawn(move || {
+            stream.set_recv_window_max(8 << 20);
+            stream
+        })
+        .join();
+        // then: nothing panics
+        assert!(joined.is_ok(), "set_recv_window_max panicked");
+    })
+    .await;
+}

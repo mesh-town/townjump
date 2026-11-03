@@ -80,3 +80,37 @@ fn drain_limit_is_four_rto_within_two_and_ten_seconds() {
     assert_eq!(drain_limit(ms(1000)), Duration::from_secs(4));
     assert_eq!(drain_limit(ms(30_000)), Duration::from_secs(10));
 }
+
+#[tokio::test(start_paused = true)]
+async fn drain_limit_frees_queues_while_inner_is_held() {
+    // given: a writer whose peer never reads and advertises the smallest window
+    let runtime = UdxRuntime::new().expect("runtime");
+    let (sock_a, addr_a) = bound_socket(&runtime).await;
+    let (sock_b, addr_b) = bound_socket(&runtime).await;
+    let a = runtime.create_stream(1).await.expect("stream a");
+    let b = runtime.create_stream(100).await.expect("stream b");
+    a.connect(&sock_a, 100, addr_b).await.expect("connect a");
+    b.connect(&sock_b, 1, addr_a).await.expect("connect b");
+    b.set_recv_window_max(65_536);
+    let reader = b.into_async_stream();
+    let mut writer = a.into_async_stream();
+    for _ in 0..8 {
+        let write = writer.write_all(&[7u8; CHUNK]);
+        if tokio::time::timeout(Duration::from_millis(200), write)
+            .await
+            .is_err()
+        {
+            break;
+        }
+    }
+    // when: the writer is dropped while something else still holds its state
+    let held = std::sync::Arc::clone(&writer.inner);
+    drop(writer);
+    tokio::time::sleep(Duration::from_secs(5)).await;
+    // then: the drain limit freed the queues anyway
+    let inner = held.lock().unwrap_or_else(|e| e.into_inner());
+    assert_eq!(queued_bytes(&inner), 0, "queues not released");
+    assert!(inner.pending_writes.is_empty(), "pending writes remain");
+    drop(inner);
+    drop(reader);
+}
