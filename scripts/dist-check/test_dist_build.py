@@ -13,8 +13,10 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
 sys.path.insert(0, str(ROOT / "packaging" / "openwrt" / "common"))
+sys.path.insert(0, str(ROOT / "packaging" / "openwrt" / "feed"))
 
 import fixtures  # noqa: E402
+import keys as feed_keys  # noqa: E402
 
 VERSION = "0.1.7"
 DEB_TRIPLES = ["x86_64-unknown-linux-musl", "aarch64-unknown-linux-musl", "armv7-unknown-linux-musleabihf"]
@@ -175,6 +177,31 @@ class OpenwrtBuildTests(BuildTestCase):
         self.assertEqual(r.stdout.strip().splitlines()[-1], "signed=false")
         self.assertEqual(gh.read_text(), "signed=false\n")
         self.assertTrue(list((self.out / "pages" / "opkg").rglob("*.ipk")))
+
+    def test_openwrt_committed_keys_signed_true(self):
+        fixtures.require_tool("usign")
+        fixtures.require_tool("apk")
+        self.assets(OPENWRT_TRIPLES)
+        usign_sec, apk_sec, pubdir = feed_keys.ephemeral_keys(self.tmp / "gen", shutil.which("usign"))
+        committed = self.tree / "packaging" / "openwrt" / "keys"
+        committed.mkdir(parents=True)
+        for name in (feed_keys.USIGN_PUB, feed_keys.APK_PEM):
+            shutil.copy(pubdir / name, committed / name)
+        gh = self.tmp / "gh-output"
+        env = {"OPENWRT_USIGN_SEC": str(usign_sec), "OPENWRT_APK_SEC": str(apk_sec), "GITHUB_OUTPUT": str(gh)}
+        r = self.openwrt(env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip().splitlines()[-1], "signed=true")
+        self.assertEqual(gh.read_text(), "signed=true\n")
+        gh.unlink()
+        r = self.openwrt("--only", "ipk", env=env)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip().splitlines()[-1], "signed=false")
+        shutil.rmtree(committed)
+        shutil.rmtree(self.out)
+        r = self.openwrt(env={**env, "OPENWRT_PUBKEYS": str(pubdir)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip().splitlines()[-1], "signed=false")
 
     def test_openwrt_secret_key_without_pubkeys_exits_2(self):
         self.assets(OPENWRT_TRIPLES)
