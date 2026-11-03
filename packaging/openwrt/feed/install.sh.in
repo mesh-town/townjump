@@ -1,0 +1,64 @@
+#!/bin/sh
+# townjump for OpenWrt: adds the signed package feed and installs (or upgrades) the binary.
+# Usage: wget -O- @BASE@/install.sh | sh
+# TOWNJUMP_FEED overrides the feed address (mirrors, testing).
+set -e
+BASE="${TOWNJUMP_FEED:-@BASE@}"
+if [ "$#" -gt 0 ]; then
+	echo "townjump: install.sh takes no arguments" >&2; exit 2
+fi
+[ -r /etc/openwrt_release ] || { echo "townjump: not an OpenWrt system" >&2; exit 1; }
+# shellcheck source=/dev/null
+. /etc/openwrt_release
+ARCH="$DISTRIB_ARCH"
+[ -n "$ARCH" ] || { echo "townjump: no DISTRIB_ARCH in /etc/openwrt_release" >&2; exit 1; }
+TMPD="$(mktemp -d)"
+trap 'rm -rf "$TMPD"' EXIT
+
+if command -v apk >/dev/null 2>&1; then
+	PM=apk; INDEX="apk/$ARCH/packages.adb"
+elif command -v opkg >/dev/null 2>&1; then
+	PM=opkg; INDEX="opkg/$ARCH/Packages.gz"
+else
+	echo "townjump: neither apk nor opkg found" >&2; exit 1
+fi
+
+# The feed has to carry this architecture before any configuration is touched.
+if ! wget -q -O "$TMPD/index" "$BASE/$INDEX"; then
+	echo "townjump: no packages for $ARCH ($BASE/$INDEX)" >&2
+	exit 2
+fi
+echo "townjump: $PM, arch $ARCH"
+
+installed() {
+	if [ "$PM" = apk ]; then apk info -e townjump >/dev/null 2>&1
+	else opkg list-installed townjump 2>/dev/null | grep -q '^townjump '; fi
+}
+
+MANUAL=0
+if [ -e /usr/bin/townjump ] && ! installed; then
+	MANUAL=1
+	echo "townjump: replacing the manually installed /usr/bin/townjump with the package"
+fi
+
+if [ "$PM" = apk ]; then
+	wget -q -O "$TMPD/townjump-apk.pem" "$BASE/townjump-apk.pem"
+	mkdir -p /etc/apk/keys /etc/apk/repositories.d
+	cp "$TMPD/townjump-apk.pem" /etc/apk/keys/townjump.pem
+	touch /etc/apk/repositories.d/customfeeds.list
+	sed -i "\#/apk/$ARCH/packages.adb\$#d" /etc/apk/repositories.d/customfeeds.list
+	echo "$BASE/$INDEX" >> /etc/apk/repositories.d/customfeeds.list
+	apk update || echo "townjump: apk update reported errors (other feeds?), continuing" >&2
+	if installed; then apk upgrade townjump; else apk add townjump; fi
+else
+	wget -q -O "$TMPD/townjump-usign.pub" "$BASE/townjump-usign.pub"
+	opkg-key add "$TMPD/townjump-usign.pub"
+	touch /etc/opkg/customfeeds.conf
+	sed -i '/townjump/d' /etc/opkg/customfeeds.conf
+	echo "src/gz townjump $BASE/opkg/$ARCH" >> /etc/opkg/customfeeds.conf
+	opkg update || echo "townjump: opkg update reported errors (other feeds?), continuing" >&2
+	if installed; then opkg upgrade townjump
+	elif [ "$MANUAL" = 1 ]; then opkg install --force-overwrite townjump
+	else opkg install townjump; fi
+fi
+echo "townjump: installed; run 'townjump --help'"
