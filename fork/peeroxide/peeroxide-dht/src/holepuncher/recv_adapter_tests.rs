@@ -219,12 +219,27 @@ async fn recv_adapter_passive_reflects_probe() {
 
 #[tokio::test]
 async fn recv_adapter_scenarios_skip_a_stray_datagram() {
-    assert_eq!(
-        until_no_stray("initiator", true, initiator_scenario).await,
-        2
-    );
-    assert_eq!(until_no_stray("birthday", true, birthday_scenario).await, 2);
-    assert_eq!(until_no_stray("passive", true, passive_scenario).await, 2);
+    // At least 2: the injected datagram costs one attempt; a real foreign
+    // datagram from a parallel test binary may cost more.
+    for (name, attempts) in [
+        (
+            "initiator",
+            until_no_stray("initiator", true, initiator_scenario).await,
+        ),
+        (
+            "birthday",
+            until_no_stray("birthday", true, birthday_scenario).await,
+        ),
+        (
+            "passive",
+            until_no_stray("passive", true, passive_scenario).await,
+        ),
+    ] {
+        assert!(
+            attempts >= 2,
+            "{name}: injected stray not noticed, {attempts} attempt(s)"
+        );
+    }
 }
 
 #[tokio::test]
