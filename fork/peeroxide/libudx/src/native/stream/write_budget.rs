@@ -13,11 +13,11 @@ impl StreamInner {
         bytes.saturating_sub(HEADER_SIZE * packets)
     }
 
-    /// `WRITE_HIGH_WATERMARK + min(cwnd·max_payload, send_rwnd)`; recomputed on every call.
+    /// `write_high_watermark + min(cwnd·max_payload, effective_send_rwnd)`; recomputed on every call.
     fn write_budget(&self) -> usize {
         let window = (self.congestion.cwnd as usize).saturating_mul(self.max_payload());
-        let rwnd = self.send_rwnd as usize;
-        WRITE_HIGH_WATERMARK.saturating_add(window.min(rwnd))
+        let rwnd = self.effective_send_rwnd() as usize;
+        self.write_high_watermark.saturating_add(window.min(rwnd))
     }
 
     /// How many more bytes the adapter may accept; 0 means the writer waits for ACKs.

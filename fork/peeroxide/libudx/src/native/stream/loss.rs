@@ -165,7 +165,7 @@ impl StreamInner {
             lost: self.outgoing.lost(),
             inflight: self.inflight(),
             cwnd_cmp: self.outgoing.inflight(),
-            cwnd_lim: self.congestion.send_limit(self.send_rwnd),
+            cwnd_lim: self.congestion.send_limit(self.effective_send_rwnd()),
             rack_rtt_ms: rack.rtt.as_millis() as u64,
             reo_wnd_ms: self.reo_wnd().as_millis() as u64,
             min_rtt_ms: rack.rtt_min_ms,

@@ -49,6 +49,18 @@ impl UdxAsyncStream {
         }
     }
 
+    /// Sets the write threshold; see [`crate::UdxStream::set_write_high_watermark`].
+    pub fn set_write_high_watermark(&self, bytes: usize) {
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        inner.set_write_high_watermark(bytes);
+    }
+
+    /// Caps the send window; see [`crate::UdxStream::set_send_window_max`].
+    pub fn set_send_window_max(&self, bytes: u32) {
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        inner.set_send_window_max(bytes);
+    }
+
     /// A handle that keeps reporting the peer's current address after the stream is split or moved.
     pub fn peer(&self) -> crate::StreamPeer {
         crate::StreamPeer(Arc::clone(&self.inner))

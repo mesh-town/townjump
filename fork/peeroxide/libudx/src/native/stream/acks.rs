@@ -40,7 +40,9 @@ impl StreamInner {
     fn diag_ack(&self, kick: bool) {
         diag::ack(&diag::AckProbe {
             kick,
-            open: self.congestion.can_send(self.inflight(), self.send_rwnd),
+            open: self
+                .congestion
+                .can_send(self.inflight(), self.effective_send_rwnd()),
             parked: self.writer_waker.is_some(),
             room0: self.write_room() == 0,
             unsacked: self.outgoing.unsacked_bytes(),

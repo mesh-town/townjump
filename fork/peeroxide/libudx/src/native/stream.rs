@@ -83,6 +83,7 @@ mod relay_path;
 mod retransmit;
 mod sack;
 mod send_batch;
+mod send_knobs;
 mod send_queue;
 mod send_step;
 mod sent_map;

@@ -106,7 +106,8 @@ impl StreamInner {
         // in `unsacked_bytes`, so `retransmit_pending` in `check_app_limited` is always `false` here.
         let queued_bytes = self.send_queue.bytes() + self.outgoing.unsacked_bytes();
         self.congestion.check_app_limited(queued_bytes, inflight);
-        self.congestion.can_send(inflight, self.send_rwnd)
+        self.congestion
+            .can_send(inflight, self.effective_send_rwnd())
     }
 
     /// The detached queue head: if needed an MTU probe, then into `outgoing` and pacing debit. Result — a packet and an address for the socket.
