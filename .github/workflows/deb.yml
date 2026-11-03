@@ -1,0 +1,158 @@
+name: deb
+
+# Builds the .deb packages and the apt repository from a published release and, on request, publishes the
+# repository to the Pages branch. Called from release.yml after the release exists; also runnable by hand
+# (publish defaults to false, so a manual run is a dry run).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.7
+        type: string
+        required: true
+      pkg_release:
+        description: Package revision
+        type: string
+        default: "1"
+      publish:
+        description: Publish the apt repository to the Pages branch
+        type: boolean
+        default: false
+    secrets:
+      APT_GPG_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.7
+        type: string
+        required: true
+      pkg_release:
+        description: Package revision
+        type: string
+        default: "1"
+      publish:
+        description: Publish the apt repository to the Pages branch
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "packaging/debian/**"
+      - "packaging/openwrt/common/**"
+      - "scripts/dist/deb-*.sh"
+      - "scripts/dist-check/**"
+      - ".github/workflows/deb.yml"
+  pull_request:
+    paths:
+      - "packaging/debian/**"
+      - "packaging/openwrt/common/**"
+      - "scripts/dist/deb-*.sh"
+      - "scripts/dist-check/**"
+      - ".github/workflows/deb.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TOWNJUMP_PKG_REQUIRE_TOOLS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell scripts
+        run: shellcheck scripts/dist/deb-build.sh scripts/dist/deb-update.sh
+      - name: Debian tests
+        run: python3 -m unittest discover -s packaging/debian -t packaging/debian
+      - name: Check and build script tests
+        working-directory: scripts/dist-check
+        run: python3 -m unittest test_apt_check test_deb_check test_elf test_leak_check test_dist_build
+
+  build:
+    name: build packages
+    needs: test
+    if: inputs.tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      signed: ${{ steps.build.outputs['signed'] }}
+    env:
+      TAG: ${{ inputs.tag }}
+      PKG_RELEASE: ${{ inputs.pkg_release }}
+      GH_TOKEN: ${{ github.token }}
+      APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check inputs
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag '$TAG' is not vX.Y.Z"; exit 1; }
+          [[ "$PKG_RELEASE" =~ ^[1-9][0-9]*$ ]] || { echo "::error::pkg_release must be an integer > 0"; exit 1; }
+      - name: Fetch the tag
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin "+refs/tags/$TAG:refs/tags/$TAG"
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$TAG")" >> "$GITHUB_ENV"
+      - name: Download release archives
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir fetched \
+            --pattern 'townjump-*-linux-musl*.tar.gz' --pattern SHA256SUMS
+      - name: Signing key
+        run: |
+          set -euo pipefail
+          if [ -n "$APT_GPG_KEY" ]; then
+            (umask 077; printf '%s\n' "$APT_GPG_KEY" > "$RUNNER_TEMP/apt-key.asc")
+            echo "TOWNJUMP_APT_KEY=$RUNNER_TEMP/apt-key.asc" >> "$GITHUB_ENV"
+          else
+            echo "::notice::APT_GPG_KEY is not set: building .deb files without an apt source and no repository"
+          fi
+      - name: Build
+        id: build
+        run: scripts/dist/deb-build.sh fetched out "${TAG#v}" "$PKG_RELEASE"
+      - name: Metadata leak check
+        run: python3 scripts/dist-check/leak_check.py out
+      - uses: actions/upload-artifact@v4
+        with:
+          name: debs
+          path: out/debs
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v4
+        if: steps.build.outputs['signed'] == 'true'
+        with:
+          name: pages-apt
+          path: out/apt
+          if-no-files-found: error
+          include-hidden-files: true
+
+  publish:
+    name: publish apt repository
+    needs: build
+    if: inputs.publish && needs.build.outputs['signed'] == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+      APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: debs
+          path: debs
+      - name: Publish
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . packaging/openwrt/common/site.env
+          url="${PAGES_GIT_URL:-https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git}"
+          (umask 077; printf '%s\n' "$APT_GPG_KEY" > "$RUNNER_TEMP/apt-key.asc")
+          export TOWNJUMP_APT_KEY="$RUNNER_TEMP/apt-key.asc"
+          packaging/openwrt/common/publish_pages.sh apt debs "$url" "$PAGES_BRANCH" "${TAG#v}" \
+            --update scripts/dist/deb-update.sh
