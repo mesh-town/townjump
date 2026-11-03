@@ -184,7 +184,13 @@ impl UdxStream {
     pub async fn read(&mut self) -> Result<Option<Vec<u8>>> {
         let rx = self.read_rx.as_mut().ok_or(UdxError::StreamClosed)?;
         match rx.recv().await {
-            Some(StreamEvent::Data(d)) => Ok(Some(d)),
+            Some(StreamEvent::Data(d)) => {
+                let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+                if inner.release_read(d.len()) {
+                    inner.send_window_update();
+                }
+                Ok(Some(d))
+            }
             Some(StreamEvent::End) => {
                 self.read_rx = None;
                 Ok(None)

@@ -36,6 +36,8 @@ pub struct UdxStats {
     pub resent: u32,
     /// BBR min RTT (`min_rtt_ms`), ms; at least 1 (before the first measurement — 1).
     pub min_rtt: u32,
+    /// Bytes received but not yet read, incl. out-of-order.
+    pub recv_queued: u64,
 }
 
 /// `bw` (packets per ms) × `mss` (payload bytes) -> bytes per ms; NaN and negative — 0, above `u32::MAX` — `u32::MAX`.
@@ -66,6 +68,7 @@ impl StreamInner {
             rto_fires: self.rto_fires,
             resent: self.outgoing.resent(),
             min_rtt: self.congestion.bbr().min_rtt_ms(),
+            recv_queued: self.recv_queued(),
         }
     }
 }

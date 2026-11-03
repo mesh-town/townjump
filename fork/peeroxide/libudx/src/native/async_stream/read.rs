@@ -46,6 +46,12 @@ impl UdxAsyncStream {
     }
 
     fn take_data(&mut self, data: Vec<u8>, buf: &mut ReadBuf<'_>) {
+        {
+            let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+            if inner.release_read(data.len()) {
+                inner.send_window_update();
+            }
+        }
         let n = data.len().min(buf.remaining());
         buf.put_slice(&data[..n]);
         if n < data.len() {

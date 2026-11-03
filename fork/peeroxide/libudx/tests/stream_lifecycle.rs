@@ -124,17 +124,21 @@ async fn stream_write_read_10mb() {
         let (stream_a, mut stream_b, _socket_a, _socket_b) = create_connected_pair(&runtime).await;
 
         let payload = random_payload(10 * 1024 * 1024);
-        stream_a.write(&payload).await.expect("write failed");
-
-        let mut received = Vec::new();
-        while received.len() < payload.len() {
-            let chunk = stream_b
-                .read()
-                .await
-                .expect("read failed")
-                .expect("unexpected EOF");
-            received.extend_from_slice(&chunk);
-        }
+        // more than the receive window: `write` completes only once the reader has taken the bytes
+        let read = async {
+            let mut received = Vec::new();
+            while received.len() < payload.len() {
+                let chunk = stream_b
+                    .read()
+                    .await
+                    .expect("read failed")
+                    .expect("unexpected EOF");
+                received.extend_from_slice(&chunk);
+            }
+            received
+        };
+        let (written, received) = tokio::join!(stream_a.write(&payload), read);
+        written.expect("write failed");
         verify_payload(&payload, &received);
     })
     .await;

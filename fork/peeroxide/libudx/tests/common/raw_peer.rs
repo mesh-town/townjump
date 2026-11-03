@@ -195,3 +195,13 @@ pub fn from_hex(text: &str) -> Vec<u8> {
         .map(|i| u8::from_str_radix(&text[i..i + 2], 16).expect("hex digit"))
         .collect()
 }
+
+/// Receive window advertised in a packet header (bytes 8..12).
+pub fn window_of(packet: &[u8]) -> u32 {
+    u32::from_le_bytes(packet[8..12].try_into().expect("packet has a header"))
+}
+
+/// HEARTBEAT from the peer: `seq` and `ack` as in the peer's own state, window open.
+pub fn heartbeat_packet(seq: u32, ack: u32) -> Vec<u8> {
+    header(FLAG_HEARTBEAT, 0, STREAM_ID, OPEN_WINDOW, seq, ack).to_vec()
+}

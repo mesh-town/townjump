@@ -100,7 +100,7 @@ impl StreamInner {
                 self.remote_id,
                 self.next_send_seq(),
                 self.next_remote_seq,
-                DEFAULT_RWND,
+                self.advertised_window(),
             ),
         );
     }

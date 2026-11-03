@@ -25,7 +25,17 @@ pub(super) fn handle_data_packet(inner: &Mutex<StreamInner>, header: &Header, da
         (events, guard.read_tx.clone())
     };
     for event in events {
-        let _ = read_tx.send(event);
+        let len = match &event {
+            StreamEvent::Data(data) => data.len(),
+            StreamEvent::End => 0,
+        };
+        if read_tx.send(event).is_err() && len > 0 {
+            // the reader is gone: nobody will release these bytes
+            inner
+                .lock()
+                .unwrap_or_else(|e| e.into_inner())
+                .release_read(len);
+        }
     }
 }
 
@@ -55,20 +65,28 @@ impl StreamInner {
         }
 
         if seq == self.next_remote_seq {
-            // In-order: deliver directly
+            // In-order: deliver directly (always taken, a retransmission ignores the window)
             push_events(&mut events, payload, flags);
             self.next_remote_seq = seq.wrapping_add(1);
 
             // Drain consecutive buffered packets
             while let Some(recvd) = self.recv_buf.remove(&Seq(self.next_remote_seq)) {
+                self.recv_buf_bytes -= recvd.payload.len();
                 push_events(&mut events, recvd.payload, recvd.flags);
                 self.next_remote_seq = self.next_remote_seq.wrapping_add(1);
             }
-        } else {
+            for event in &events {
+                if let StreamEvent::Data(data) = event {
+                    self.note_unread(data.len());
+                }
+            }
+        } else if self.ooo_fits(payload.len()) {
             // Out-of-order: buffer for later delivery
-            self.recv_buf
-                .entry(Seq(seq))
-                .or_insert(RecvdPacket { payload, flags });
+            if let std::collections::btree_map::Entry::Vacant(slot) = self.recv_buf.entry(Seq(seq))
+            {
+                self.recv_buf_bytes += payload.len();
+                slot.insert(RecvdPacket { payload, flags });
+            }
         }
 
         self.remote_ended |= events.iter().any(|e| matches!(e, StreamEvent::End));
