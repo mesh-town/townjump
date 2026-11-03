@@ -134,6 +134,24 @@ mod routing_table {
     }
 }
 
+mod foreign_traffic {
+    use super::*;
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn stray_datagram_from_a_foreign_socket_is_skipped() {
+        // given
+        let lab = setup(Role::Server).await;
+        // when: a socket that is neither the puncher nor the node sends one byte to the remote
+        let foreign = UdpSocket::bind("127.0.0.1:0").await.expect("bind foreign");
+        let remote_addr = SocketAddr::from(([127, 0, 0, 1], lab.remote.port()));
+        foreign.send_to(&[0u8], remote_addr).await.expect("stray");
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        lab.remote.send(ping(7, lab.puncher_addr, None)).await;
+        // then
+        lab.then_answered_from_puncher_socket(7).await;
+    }
+}
+
 enum Role {
     Server,
     Client,
@@ -148,6 +166,7 @@ struct Lab {
     _events: mpsc::UnboundedReceiver<HolepunchEvent>,
     puncher_addr: SocketAddr,
     remote: Remote,
+    node_addr: SocketAddr,
 }
 
 impl Lab {
@@ -155,11 +174,16 @@ impl Lab {
         self.dht.table_size().await.expect("table size")
     }
 
+    /// Sources the outside peer cares about; datagrams from any other socket are skipped.
+    fn peers(&self) -> [SocketAddr; 2] {
+        [self.puncher_addr, self.node_addr]
+    }
+
     /// The outside peer gets a response with `tid` and no node id, sent from the puncher socket.
     async fn then_answered_from_puncher_socket(&self, tid: u16) {
         let (data, src) = self
             .remote
-            .recv_within(ANSWER_WAIT)
+            .recv_within(ANSWER_WAIT, &self.peers())
             .await
             .expect("no answer within 2 s");
         let res = decode_response(&data);
@@ -170,7 +194,7 @@ impl Lab {
 
     /// Not a single datagram, error answers included.
     async fn then_silence(&self) {
-        let got = self.remote.recv_within(SILENCE_WAIT).await;
+        let got = self.remote.recv_within(SILENCE_WAIT, &self.peers()).await;
         assert!(got.is_none(), "unexpected datagram: {got:?}");
     }
 }
@@ -196,6 +220,8 @@ async fn setup(role: Role) -> Lab {
         .socket
         .clone();
     let puncher_addr = socket.local_addr().await.expect("puncher addr");
+    let node_port = dht.local_port().await.expect("node port");
+    let node_addr = SocketAddr::from(([127, 0, 0, 1], node_port));
     Lab {
         _rt: rt,
         _node: node,
@@ -204,6 +230,7 @@ async fn setup(role: Role) -> Lab {
         _events: events,
         puncher_addr,
         remote: Remote::start().await,
+        node_addr,
     }
 }
 
@@ -281,12 +308,20 @@ impl Remote {
         self.sock.send_to(&data, dest).await.expect("send");
     }
 
-    async fn recv_within(&self, d: Duration) -> Option<(Vec<u8>, SocketAddr)> {
+    /// Next datagram from one of `peers`; others are dropped and the deadline does not move.
+    async fn recv_within(
+        &self,
+        d: Duration,
+        peers: &[SocketAddr],
+    ) -> Option<(Vec<u8>, SocketAddr)> {
+        let deadline = tokio::time::Instant::now() + d;
         let mut buf = vec![0u8; 2048];
-        let (n, src) = tokio::time::timeout(d, self.sock.recv_from(&mut buf))
-            .await
-            .ok()?
-            .expect("recv");
-        Some((buf[..n].to_vec(), src))
+        loop {
+            let got = tokio::time::timeout_at(deadline, self.sock.recv_from(&mut buf));
+            let (n, src) = got.await.ok()?.expect("recv");
+            if peers.contains(&src) {
+                return Some((buf[..n].to_vec(), src));
+            }
+        }
     }
 }
