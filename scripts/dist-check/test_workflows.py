@@ -1,14 +1,16 @@
 """Text-level tests of the package workflows (stdlib only: the conditions that actionlint cannot judge).
 
-WORKFLOWS lists the files under test; the OpenWrt workflow is appended to it by its own step.
+WORKFLOWS lists the files under test.
 """
 import re
 import unittest
 from pathlib import Path
 
 DIR = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows"
-WORKFLOWS = {"deb": "deb.yml", "keenetic": "keenetic-feed.yml"}
-PUBLISH_IF = {"deb": "inputs.publish && needs.build.outputs['signed'] == 'true'", "keenetic": "inputs.publish"}
+WORKFLOWS = {"deb": "deb.yml", "keenetic": "keenetic-feed.yml", "openwrt": "openwrt-feed.yml"}
+SIGNED_IF = "inputs.publish && needs.build.outputs['signed'] == 'true'"
+PUBLISH_IF = {"deb": SIGNED_IF, "keenetic": "inputs.publish", "openwrt": SIGNED_IF}
+TIMEOUTS = {"openwrt": ("30", "60", "30")}
 
 
 def text_of(key):
@@ -48,8 +50,8 @@ class WorkflowTests(unittest.TestCase):
         return [(key, text_of(key)) for key in WORKFLOWS]
 
     def test_publish_requires_input_and_signed(self):
-        text = text_of("deb")
-        self.assertEqual(job_if(job(text, "publish")), PUBLISH_IF["deb"])
+        for key in ("deb", "openwrt"):
+            self.assertEqual(job_if(job(text_of(key), "publish")), PUBLISH_IF[key])
 
     def test_keenetic_publish_requires_input(self):
         text = text_of("keenetic")
@@ -87,7 +89,8 @@ class WorkflowTests(unittest.TestCase):
         for key, text in self.each():
             self.assertRegex(text, r"(?m)^permissions:\n  contents: read\n")
             self.assertEqual(len(re.findall(r"runs-on: ubuntu-24\.04", text)), 3)
-            self.assertEqual(len(re.findall(r"timeout-minutes: 30", text)), 3)
+            want = TIMEOUTS.get(key, ("30", "30", "30"))
+            self.assertEqual(re.findall(r"timeout-minutes: (\d+)", text), list(want))
             self.assertIn("permissions:\n      contents: write", job(text, "publish"))
             self.assertNotIn("contents: write", job(text, "build"))
             self.assertNotIn("contents: write", job(text, "test"))
@@ -107,6 +110,28 @@ class WorkflowTests(unittest.TestCase):
     def test_deb_declares_optional_signing_secret(self):
         block = trigger_block(text_of("deb"), "workflow_call")
         self.assertRegex(block, r"secrets:\n      APT_GPG_KEY:\n        required: false")
+
+    def test_openwrt_secrets_declared_not_required(self):
+        block = trigger_block(text_of("openwrt"), "workflow_call")
+        for name in ("OPENWRT_USIGN_KEY", "OPENWRT_APK_KEY"):
+            self.assertRegex(block, rf"secrets:\n(?:      \w+:\n        required: false\n)*      {name}:\n        required: false")
+
+    def test_openwrt_strict_input_and_fakeroot(self):
+        text = text_of("openwrt")
+        for trig in ("workflow_call", "workflow_dispatch"):
+            block = input_block(text, trig, "strict")
+            self.assertIn("type: boolean", block)
+            self.assertIn("default: false", block)
+        self.assertIn("fakeroot scripts/dist/openwrt-build.sh", job(text, "build"))
+        self.assertIn("hashFiles('packaging/openwrt/feed/tools.sh')", job(text, "test"))
+        self.assertIn('TOWNJUMP_PKG_REQUIRE_TOOLS: "1"', job(text, "test"))
+
+    def test_openwrt_secret_files_are_private(self):
+        build = job(text_of("openwrt"), "build")
+        self.assertRegex(build, r"umask 077")
+        self.assertLess(build.index("umask 077"), build.index("usign.sec"))
+        self.assertIn("--ephemeral-keys", build)
+        self.assertIn("::notice::", build)
 
 
 if __name__ == "__main__":

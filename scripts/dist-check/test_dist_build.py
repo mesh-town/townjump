@@ -1,8 +1,7 @@
 """Tests of the scripts/dist/*-build.sh builders on synthetic release assets.
 
 The builders run from a copy of the tree, so the presence of the committed apt keyring in the real tree
-does not change the outcome. Cases for the OpenWrt builder are appended by its own step.
-"""
+does not change the outcome. """
 import os
 import shutil
 import subprocess
@@ -59,7 +58,8 @@ class BuildTestCase(unittest.TestCase):
 
     def build(self, script, *args, env=None, sde=SDE):
         full = {k: v for k, v in os.environ.items()
-                if k not in ("SOURCE_DATE_EPOCH", "TOWNJUMP_APT_KEY", "TOWNJUMP_APT_PUBKEY", "GITHUB_OUTPUT")}
+                if k not in ("SOURCE_DATE_EPOCH", "TOWNJUMP_APT_KEY", "TOWNJUMP_APT_PUBKEY", "GITHUB_OUTPUT",
+                             "OPENWRT_USIGN_SEC", "OPENWRT_APK_SEC", "OPENWRT_PUBKEYS", "USIGN", "APK")}
         if sde is not None:
             full["SOURCE_DATE_EPOCH"] = sde
         full.update(env or {})
@@ -157,6 +157,59 @@ class KeeneticBuildTests(BuildTestCase):
 
     def test_keenetic_bad_arguments_exit_2(self):
         self.assertEqual(self.build("keenetic-build.sh", "a", "b").returncode, 2)
+
+
+OPENWRT_TRIPLES = ["x86_64-unknown-linux-musl"]
+
+
+class OpenwrtBuildTests(BuildTestCase):
+    def openwrt(self, *extra, env=None, sde=SDE):
+        return self.build("openwrt-build.sh", self.tmp / "fetched", self.out, VERSION, "1", *extra, env=env, sde=sde)
+
+    def test_openwrt_ephemeral_never_signed(self):
+        fixtures.require_tool("usign")
+        self.assets(OPENWRT_TRIPLES)
+        gh = self.tmp / "gh-output"
+        r = self.openwrt("--ephemeral-keys", "--only", "ipk", env={"GITHUB_OUTPUT": str(gh)})
+        self.assertEqual(r.returncode, 0, r.stderr)
+        self.assertEqual(r.stdout.strip().splitlines()[-1], "signed=false")
+        self.assertEqual(gh.read_text(), "signed=false\n")
+        self.assertTrue(list((self.out / "pages" / "opkg").rglob("*.ipk")))
+
+    def test_openwrt_secret_key_without_pubkeys_exits_2(self):
+        self.assets(OPENWRT_TRIPLES)
+        secret = self.tmp / "usign.sec"
+        secret.write_text("not a key\n")
+        r = self.openwrt("--only", "ipk", env={"OPENWRT_USIGN_SEC": str(secret)})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("no public keys", r.stderr)
+        self.assertNotIn("signed=", r.stdout)
+
+    def test_openwrt_strict_missing_label_fails(self):
+        self.assets(OPENWRT_TRIPLES)
+        r = self.openwrt("--strict", "--only", "ipk", "--ephemeral-keys")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("--strict", r.stderr)
+        self.assertFalse((self.out / "pages").exists())
+
+    def test_openwrt_apk_without_tool_exits_2(self):
+        self.assets(OPENWRT_TRIPLES)
+        r = self.openwrt("--ephemeral-keys", env={"APK": str(self.tmp / "no-such-apk")})
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertIn("apk not found", r.stderr)
+        self.assertFalse((self.out / "feed").exists())
+
+    def test_openwrt_missing_sde_and_bad_arguments_exit_2(self):
+        self.assertEqual(self.openwrt("--ephemeral-keys", sde=None).returncode, 2)
+        self.assertEqual(self.build("openwrt-build.sh", "a", "b").returncode, 2)
+        self.assertEqual(self.openwrt("--only", "deb").returncode, 2)
+        self.assertEqual(self.openwrt("--bogus").returncode, 2)
+
+    def test_openwrt_no_keys_exits_2(self):
+        self.assets(OPENWRT_TRIPLES)
+        r = self.openwrt("--only", "ipk")
+        self.assertEqual(r.returncode, 2, r.stderr)
+        self.assertNotIn("signed=", r.stdout)
 
 
 if __name__ == "__main__":
