@@ -194,30 +194,7 @@ pub(super) async fn process_incoming(
                     guard.ack_confirmed_end(header.type_flags); // D8: final state packet
                 }
 
-                // ── DATA / END processing (unified — handles combined DATA+END packets) ──
-                let is_data = header.has_flag(FLAG_DATA);
-                let is_end = header.has_flag(FLAG_END);
-                if is_data || is_end {
-                    let payload_start = header.payload_offset();
-                    let payload = if payload_start <= packet.data.len() {
-                        packet.data[payload_start..].to_vec()
-                    } else {
-                        Vec::new()
-                    };
-                    let recv_flags = (if is_data { FLAG_DATA } else { 0 })
-                        | (if is_end { FLAG_END } else { 0 });
-
-                    // D8: ACK for every DATA/END, and for a duplicate
-                    let (events, read_tx) = {
-                        let mut guard = inner.lock().unwrap_or_else(|e| e.into_inner());
-                        let events = guard.receive_data(header.seq, payload, recv_flags);
-                        send_ack(&guard);
-                        (events, guard.read_tx.clone())
-                    };
-                    for event in events {
-                        let _ = read_tx.send(event);
-                    }
-                }
+                receive::handle_data_packet(&inner, &header, &packet.data);
 
                 path::note_direct(&mut inner.lock().unwrap_or_else(|e| e.into_inner()), &header, packet.addr);
 

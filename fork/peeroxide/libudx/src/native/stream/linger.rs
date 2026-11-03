@@ -99,7 +99,13 @@ impl Tomb {
         let in_order_end = flags & FLAG_END != 0 && hdr.seq == self.final_ack;
         if self.end_acked && (self.remote_ended || in_order_end) {
             let ack = Seq(self.final_ack).max(Seq(hdr.seq.wrapping_add(1))).0;
-            return Reply::Ack(ack_packet(self.remote_id, self.final_seq, ack, &[]));
+            return Reply::Ack(ack_packet(
+                self.remote_id,
+                self.final_seq,
+                ack,
+                DEFAULT_RWND,
+                &[],
+            ));
         }
         let header = Header {
             type_flags: FLAG_DESTROY,

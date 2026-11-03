@@ -48,7 +48,13 @@ impl StreamInner {
         let seq = self.next_send_seq();
         send_raw(
             self,
-            message_packet(self.remote_id, seq, self.next_remote_seq, payload),
+            message_packet(
+                self.remote_id,
+                seq,
+                self.next_remote_seq,
+                DEFAULT_RWND,
+                payload,
+            ),
         );
         true
     }

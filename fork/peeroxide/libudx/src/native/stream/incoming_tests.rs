@@ -98,7 +98,7 @@ async fn ack_opens_closed_window_via_timer() {
         "window closed"
     );
     // when: the peer acks all 10
-    let ack = wire::ack_packet(5, 0, first_seq.unwrap().wrapping_add(10), &[]);
+    let ack = wire::ack_packet(5, 0, first_seq.unwrap().wrapping_add(10), DEFAULT_RWND, &[]);
     live.peer.send_to(&ack, live.stream_addr).unwrap();
     // then: the ACK wakes the sender via the pacing timer — without clock movement the 11th DATA does not go out, with it it does;
     // under `UDX_FIX=pace,ackstep` the step runs inline after the ACK, and the 11th DATA goes out without clock movement
