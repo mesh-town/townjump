@@ -183,3 +183,33 @@ async fn destroy_reply_is_logged_at_debug() {
         "log: {log}"
     );
 }
+
+/// A stream that is closed in a state the tombstone can serve, with a bound socket.
+async fn closing_inner() -> (StreamInner, Arc<UdpSocket>) {
+    let udp = Arc::new(
+        tokio::net::UdpSocket::bind("127.0.0.1:0")
+            .await
+            .expect("bind"),
+    );
+    let (read_tx, _read_rx) = mpsc::unbounded_channel();
+    let mut inner = StreamInner::new(read_tx, None);
+    inner.remote_addr = Some(peer());
+    inner.udp = Some(Arc::clone(&udp));
+    (inner, udp)
+}
+
+#[tokio::test]
+async fn tomb_repeats_destroy_only_if_the_stream_sent_one() {
+    let (mut inner, udp) = closing_inner().await;
+    let home = Arc::downgrade(&udp);
+    // given: no DESTROY was sent
+    inner.destroy_sent = false;
+    // then: the tombstone owes no repeats
+    let tomb = Tomb::from_inner(&inner, &home, 5).expect("tomb");
+    assert_eq!(tomb.destroy_left, 0);
+    // given: a DESTROY was sent
+    inner.destroy_sent = true;
+    // then: the tombstone repeats it
+    let tomb = Tomb::from_inner(&inner, &home, 5).expect("tomb");
+    assert_eq!(tomb.destroy_left, DESTROY_REPEATS);
+}

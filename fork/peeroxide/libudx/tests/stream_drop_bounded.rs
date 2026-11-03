@@ -7,12 +7,12 @@ mod common;
 use std::time::Duration;
 
 use common::raw_peer::{
-    FLAG_DESTROY, FLAG_HEARTBEAT, Link, RawPeer, Received, ack_of, ack_packet, data_packet,
-    flags_of,
+    FLAG_DESTROY, FLAG_END, FLAG_HEARTBEAT, Link, OPEN_WINDOW, RawPeer, Received, ack_of,
+    ack_packet, data_packet, end_packet, flags_of,
 };
 use common::with_timeout;
 use libudx::{UdxAsyncStream, UdxStream};
-use tokio::io::AsyncWriteExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 const TEST_LIMIT: Duration = Duration::from_secs(40);
 /// `clamp(4 * rto, 2 s, 10 s)` at the initial rto of 1 s, plus slack.
@@ -166,6 +166,72 @@ async fn duplicate_after_drop_is_still_acked() {
             got.iter()
                 .any(|(_, p)| flags_of(p) & FLAG_DESTROY == 0 && ack_of(p) >= 1),
             "no ACK for the duplicate: {got:?}"
+        );
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn drop_without_runtime_sends_destroy_at_once() {
+    with_timeout(TEST_LIMIT, async {
+        // given: the peer advertised window 0, the adapter holds 64 KiB it cannot send
+        let Link {
+            peer,
+            stream,
+            keep_alive: _keep,
+        } = Link::new().await;
+        let adapter = adapter_with_unsent(stream, &peer, Some(0)).await;
+        peer.collect_for(Duration::from_millis(100)).await;
+        // when: the adapter is dropped on a thread without a runtime
+        let joined = std::thread::spawn(move || drop(adapter)).join();
+        assert!(joined.is_ok(), "drop panicked");
+        // then: DESTROY arrives at once and no HEARTBEAT follows it
+        let got = peer.collect_for(Duration::from_millis(500)).await;
+        assert!(got.iter().any(is_destroy), "no DESTROY: {got:?}");
+        let later = peer.collect_for(Duration::from_secs(3)).await;
+        let heartbeats = later
+            .iter()
+            .filter(|(_, p)| flags_of(p) & FLAG_HEARTBEAT != 0)
+            .count();
+        assert_eq!(heartbeats, 0, "HEARTBEAT after DESTROY: {later:?}");
+    })
+    .await;
+}
+
+#[tokio::test]
+async fn clean_close_sends_no_destroy() {
+    with_timeout(TEST_LIMIT, async {
+        // given: both ENDs are exchanged and acknowledged, the adapter has read EOF
+        let Link {
+            peer,
+            stream,
+            keep_alive: _keep,
+        } = Link::new().await;
+        let mut adapter = stream.into_async_stream();
+        peer.send(&end_packet(0)).await;
+        let mut rest = Vec::new();
+        adapter.read_to_end(&mut rest).await.expect("read");
+        let ack_our_end = async {
+            loop {
+                let (_, packet) = peer
+                    .recv_within(Duration::from_secs(2))
+                    .await
+                    .expect("no END from the stream");
+                if flags_of(&packet) & FLAG_END != 0 {
+                    peer.send(&ack_packet(1, OPEN_WINDOW, &[])).await;
+                    break;
+                }
+            }
+        };
+        let (shutdown, ()) = tokio::join!(adapter.shutdown(), ack_our_end);
+        shutdown.expect("shutdown");
+        // when: the adapter is dropped
+        drop(adapter);
+        // then: no DESTROY follows
+        let got = peer.collect_for(Duration::from_secs(3)).await;
+        assert!(
+            !got.iter().any(is_destroy),
+            "DESTROY after a clean close: {got:?}"
         );
     })
     .await;

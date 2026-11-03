@@ -114,6 +114,9 @@ fn send_best_effort(udp: Arc<UdpSocket>, bytes: Vec<u8>, addr: SocketAddr) {
     }
 }
 
+/// A graceful close is `shutdown()` and waiting for EOF before the drop; dropping with unsent data and then receiving
+/// data from the peer resets the stream and discards the unsent tail, like a TCP RST.
+///
 /// Three paths: stream finished — quiet processor exit; unsent data — DESTROY behind the data, with a watcher that
 /// ends the drain at `drain_limit`; otherwise (or without a runtime) — direct DESTROY and `abort()` of the processor.
 impl Drop for UdxAsyncStream {
