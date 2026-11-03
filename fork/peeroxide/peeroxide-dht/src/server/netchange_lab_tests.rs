@@ -13,7 +13,7 @@ use crate::server::test_net::{lan_host, node_on};
 const RESPONDERS: usize = 24;
 const AFTER_CHANGE: usize = 16;
 /// Total patience for the whole "moved pings" phase (inside the 60 s budget of the test).
-const LAN_PATIENCE: Duration = Duration::from_secs(40);
+const LAN_PATIENCE: Duration = Duration::from_secs(30);
 
 /// Pings until the first success; after a failure past `until` returns the last error.
 /// Always makes at least one attempt.
