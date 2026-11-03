@@ -31,7 +31,7 @@ mod ack_packet {
 
         #[test]
         fn is_plain_20_byte_ack() {
-            let packet = ack_packet(7, 0, 1, &[]);
+            let packet = ack_packet(7, 0, 1, DEFAULT_RWND, &[]);
 
             assert_eq!(hex(&packet), ACK_PLAIN);
         }
@@ -42,7 +42,7 @@ mod ack_packet {
 
         #[test]
         fn carries_sack_flag_and_the_block() {
-            let packet = ack_packet(7, 0, 3, &ranges(&[(4, 5)]));
+            let packet = ack_packet(7, 0, 3, DEFAULT_RWND, &ranges(&[(4, 5)]));
 
             assert_eq!(hex(&packet), ACK_BLOCK_4_5);
         }
@@ -53,7 +53,7 @@ mod ack_packet {
 
         #[test]
         fn carries_both_blocks_in_order() {
-            let packet = ack_packet(7, 0, 3, &ranges(&[(4, 6), (7, 8)]));
+            let packet = ack_packet(7, 0, 3, DEFAULT_RWND, &ranges(&[(4, 6), (7, 8)]));
 
             assert_eq!(hex(&packet), ACK_BLOCKS_4_6_7_8);
         }
@@ -67,7 +67,7 @@ mod ack_packet {
             // given: exactly the block limit
             let sacks = many_ranges(50);
             // when
-            let packet = ack_packet(7, 0, 3, &sacks);
+            let packet = ack_packet(7, 0, 3, DEFAULT_RWND, &sacks);
             // then
             assert_eq!(packet.len(), MAX_ACK_LEN);
             assert_eq!(packet[3], 0, "data_offset = 0, blocks follow the 20th byte");
@@ -84,7 +84,7 @@ mod ack_packet {
             // given: more blocks than the limit
             let sacks = many_ranges(60);
             // when
-            let packet = ack_packet(7, 0, 3, &sacks);
+            let packet = ack_packet(7, 0, 3, DEFAULT_RWND, &sacks);
             // then
             assert_eq!(packet.len(), MAX_ACK_LEN);
             assert_eq!(decode_sack(&packet[HEADER_SIZE..]).unwrap(), sacks[..50]);
@@ -97,7 +97,7 @@ mod heartbeat_packet {
 
     #[test]
     fn matches_js_keepalive_bytes() {
-        let packet = heartbeat_packet(7, 0, 0);
+        let packet = heartbeat_packet(7, 0, 0, DEFAULT_RWND);
 
         assert_eq!(hex(&packet), HEARTBEAT);
     }
@@ -105,7 +105,7 @@ mod heartbeat_packet {
     #[test]
     fn carries_given_seq_and_ack_in_20_bytes() {
         // when
-        let packet = heartbeat_packet(7, 5, 9);
+        let packet = heartbeat_packet(7, 5, 9, DEFAULT_RWND);
         // then
         let header = Header::decode(&packet).unwrap();
         assert_eq!(packet.len(), HEADER_SIZE);

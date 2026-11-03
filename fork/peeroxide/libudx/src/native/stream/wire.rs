@@ -3,10 +3,16 @@ use super::*;
 use crate::native::header::encode_sack;
 
 /// ACK: 20 header bytes + up to `MAX_SACK_RANGES` SACK blocks right after it (`data_offset` = 0, as in JS).
-pub(super) fn ack_packet(remote_id: u32, seq: u32, ack: u32, sacks: &[SackRange]) -> Vec<u8> {
+pub(super) fn ack_packet(
+    remote_id: u32,
+    seq: u32,
+    ack: u32,
+    window: u32,
+    sacks: &[SackRange],
+) -> Vec<u8> {
     let sacks = &sacks[..sacks.len().min(MAX_SACK_RANGES)];
     let type_flags = if sacks.is_empty() { 0 } else { FLAG_SACK };
-    let mut packet = header_bytes(type_flags, remote_id, seq, ack);
+    let mut packet = header_bytes(type_flags, remote_id, seq, ack, window);
     let mut blocks = vec![0u8; sacks.len() * 8];
     encode_sack(sacks, &mut blocks);
     packet.extend_from_slice(&blocks);
@@ -14,23 +20,29 @@ pub(super) fn ack_packet(remote_id: u32, seq: u32, ack: u32, sacks: &[SackRange]
 }
 
 /// HEARTBEAT: 20 header bytes, no payload (the reply to HEARTBEAT is an ACK; the probe itself is ZWP).
-pub(super) fn heartbeat_packet(remote_id: u32, seq: u32, ack: u32) -> Vec<u8> {
-    header_bytes(FLAG_HEARTBEAT, remote_id, seq, ack)
+pub(super) fn heartbeat_packet(remote_id: u32, seq: u32, ack: u32, window: u32) -> Vec<u8> {
+    header_bytes(FLAG_HEARTBEAT, remote_id, seq, ack, window)
 }
 
 /// MESSAGE: 20 header bytes and the payload; outside the sequence space (JS `udx_stream_send_message`).
-pub(super) fn message_packet(remote_id: u32, seq: u32, ack: u32, payload: &[u8]) -> Vec<u8> {
-    let mut packet = header_bytes(FLAG_MESSAGE, remote_id, seq, ack);
+pub(super) fn message_packet(
+    remote_id: u32,
+    seq: u32,
+    ack: u32,
+    window: u32,
+    payload: &[u8],
+) -> Vec<u8> {
+    let mut packet = header_bytes(FLAG_MESSAGE, remote_id, seq, ack, window);
     packet.extend_from_slice(payload);
     packet
 }
 
-fn header_bytes(type_flags: u8, remote_id: u32, seq: u32, ack: u32) -> Vec<u8> {
+fn header_bytes(type_flags: u8, remote_id: u32, seq: u32, ack: u32, window: u32) -> Vec<u8> {
     Header {
         type_flags,
         data_offset: 0,
         remote_id,
-        recv_window: DEFAULT_RWND,
+        recv_window: window,
         seq,
         ack,
     }
@@ -54,6 +66,7 @@ pub(super) fn send_ack(inner: &StreamInner) {
         inner.remote_id,
         inner.next_send_seq(),
         inner.next_remote_seq,
+        DEFAULT_RWND,
         &inner.sack_ranges(),
     );
     send_raw(inner, packet);

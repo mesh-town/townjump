@@ -96,7 +96,12 @@ impl StreamInner {
     fn send_probe(&self) {
         send_raw(
             self,
-            heartbeat_packet(self.remote_id, self.next_send_seq(), self.next_remote_seq),
+            heartbeat_packet(
+                self.remote_id,
+                self.next_send_seq(),
+                self.next_remote_seq,
+                DEFAULT_RWND,
+            ),
         );
     }
 }
