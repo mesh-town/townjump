@@ -1,14 +1,24 @@
 // JS: libudx/src/udx.c
 //! Data receive: ordering, SACK ranges and read event delivery; see also `incoming.rs`, `loss.rs`.
 
+use std::ops::ControlFlow;
+
 use super::*;
 
 /// DATA / END processing (unified, handles combined DATA+END packets): ACK for every DATA/END, and for a duplicate (D8).
-pub(super) fn handle_data_packet(inner: &Mutex<StreamInner>, header: &Header, data: &[u8]) {
+///
+/// `Break` means the stream is locally closed and the peer sent new payload: the packet is neither delivered nor
+/// acknowledged, the caller answers with DESTROY and ends the processor. Duplicates and END without payload are
+/// acknowledged as before.
+pub(super) fn handle_data_packet(
+    inner: &Mutex<StreamInner>,
+    header: &Header,
+    data: &[u8],
+) -> ControlFlow<()> {
     let is_data = header.has_flag(FLAG_DATA);
     let is_end = header.has_flag(FLAG_END);
     if !(is_data || is_end) {
-        return;
+        return ControlFlow::Continue(());
     }
     let payload_start = header.payload_offset();
     let payload = if payload_start <= data.len() {
@@ -20,6 +30,13 @@ pub(super) fn handle_data_packet(inner: &Mutex<StreamInner>, header: &Header, da
 
     let (events, read_tx) = {
         let mut guard = inner.lock().unwrap_or_else(|e| e.into_inner());
+        if guard.read_closed
+            && is_data
+            && !payload.is_empty()
+            && seq_diff(header.seq, guard.next_remote_seq) >= 0
+        {
+            return ControlFlow::Break(());
+        }
         let events = guard.receive_data(header.seq, payload, recv_flags);
         send_ack(&guard);
         (events, guard.read_tx.clone())
@@ -37,6 +54,7 @@ pub(super) fn handle_data_packet(inner: &Mutex<StreamInner>, header: &Header, da
                 .release_read(len);
         }
     }
+    ControlFlow::Continue(())
 }
 
 impl StreamInner {

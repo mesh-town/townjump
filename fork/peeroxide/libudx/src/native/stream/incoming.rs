@@ -194,7 +194,13 @@ pub(super) async fn process_incoming(
                     guard.ack_confirmed_end(header.type_flags); // D8: final state packet
                 }
 
-                receive::handle_data_packet(&inner, &header, &packet.data);
+                if receive::handle_data_packet(&inner, &header, &packet.data).is_break() {
+                    let destroy = inner.lock().unwrap_or_else(|e| e.into_inner()).destroy_packet();
+                    if let Some((udp, addr, bytes)) = destroy {
+                        let _sent = crate::native::tx_err::send_counted(&udp, &bytes, addr, "closed").await;
+                    }
+                    break;
+                }
 
                 path::note_direct(&mut inner.lock().unwrap_or_else(|e| e.into_inner()), &header, packet.addr);
 

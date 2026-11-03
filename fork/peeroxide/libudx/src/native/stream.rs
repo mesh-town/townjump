@@ -91,7 +91,7 @@ mod stats;
 #[cfg(test)]
 mod table_cleanup_tests;
 #[cfg(test)]
-mod test_support;
+pub(crate) mod test_support;
 mod timers;
 mod types;
 mod upgrade;
@@ -104,7 +104,7 @@ mod wire;
 mod wrap_tests;
 mod write_budget;
 
-pub(crate) use consts::{DEFAULT_RWND, WRITE_HIGH_WATERMARK};
+pub(crate) use consts::{DEFAULT_RWND, DRAIN_MAX, DRAIN_MIN, WRITE_HIGH_WATERMARK};
 pub use control::{RemoteChanged, StreamControl, StreamPeer};
 pub use handle::UdxStream;
 pub(crate) use inner::StreamInner;

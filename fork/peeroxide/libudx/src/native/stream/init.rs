@@ -24,6 +24,8 @@ impl StreamInner {
             recv_rwnd_max: DEFAULT_RWND,
             unread: 0,
             recv_buf_bytes: 0,
+            read_closed: false,
+            destroy_sent: false,
             srtt: 0,
             rttvar: 0,
             rto: INITIAL_RTO_MS,

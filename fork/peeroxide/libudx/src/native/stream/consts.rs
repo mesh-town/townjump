@@ -8,6 +8,13 @@ use super::*;
 /// Default receive window size (4 MB, matches C libudx).
 pub(crate) const DEFAULT_RWND: u32 = 4_194_304;
 
+/// Bounds of the drain of a dropped adapter with unsent data: `clamp(4 * rto, DRAIN_MIN, DRAIN_MAX)`.
+pub(crate) const DRAIN_MIN: std::time::Duration = std::time::Duration::from_secs(2);
+pub(crate) const DRAIN_MAX: std::time::Duration = std::time::Duration::from_secs(10);
+
+/// DESTROY repeats from the tombstone after the first one (3 in all), `max(1 s, rto)` apart.
+pub(super) const DESTROY_REPEATS: u8 = 2;
+
 /// Base of the adapter write budget — mirrors `UDX_HIGH_WATERMARK` (C: udx.c:47).
 pub(crate) const WRITE_HIGH_WATERMARK: usize = 262_144;
 

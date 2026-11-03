@@ -82,7 +82,7 @@ use crate::native::socket::UdxSocket;
 pub(super) const LOCAL_ID: u32 = 1;
 pub(super) const REMOTE_ID: u32 = 100;
 
-pub(super) async fn bound_socket(runtime: &UdxRuntime) -> (UdxSocket, SocketAddr) {
+pub(crate) async fn bound_socket(runtime: &UdxRuntime) -> (UdxSocket, SocketAddr) {
     let socket = runtime.create_socket().await.expect("create_socket");
     socket
         .bind("127.0.0.1:0".parse().unwrap())
@@ -194,4 +194,9 @@ pub(super) fn table_len(socket: &UdxSocket) -> usize {
         .lock()
         .unwrap_or_else(|e| e.into_inner())
         .len()
+}
+
+/// Bytes still queued or awaiting an ACK, headers included (what a dropped stream must release).
+pub(crate) fn queued_bytes(inner: &StreamInner) -> usize {
+    inner.send_queue.bytes() + inner.outgoing.unsacked_bytes()
 }

@@ -44,6 +44,8 @@ async fn packet_to_dropped_stream_id_goes_to_fallback_after_linger() {
             tokio::time::advance(Duration::from_secs(1)).await;
         }
         tokio::time::resume();
+        // the repeats of the stream's own DESTROY sent during the linger are still in the peer's socket
+        while peer.recv_within(Duration::from_millis(100)).await.is_some() {}
         peer.send(&data_packet(0, b"late")).await;
         // then: the packet goes to the fallback, the peer hears nothing
         let got = tokio::time::timeout(WAIT, fallback.recv()).await;
