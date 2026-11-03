@@ -30,8 +30,8 @@ class DryRunArguments(unittest.TestCase):
         self.assertEqual(r.returncode, 2)
         self.assertIn("not a directory", r.stderr)
 
-    def test_soft_float_arm_shim_is_in_local_assets(self):
-        text = (HERE / "local_assets.sh").read_text()
+    def test_soft_float_arm_shim_is_in_armv7_soft_build(self):
+        text = (HERE.parent / "dist" / "armv7-soft-build.sh").read_text()
         self.assertIn("fmaximum_num", text)
         self.assertIn("fminimum_num", text)
 

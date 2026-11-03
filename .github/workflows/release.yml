@@ -59,6 +59,7 @@ jobs:
           - target: armv7-unknown-linux-musleabi
             os: ubuntu-24.04
             zig: true
+            soft: true
           - target: mipsel-unknown-linux-musl
             os: ubuntu-24.04
             zig: true
@@ -96,8 +97,13 @@ jobs:
         if: ${{ !matrix.zig }}
         run: cargo build --release --locked -p townjump --target ${{ matrix.target }}
       - name: Build (zigbuild)
-        if: matrix.zig && !matrix.mips
+        if: matrix.zig && !matrix.mips && !matrix.soft
         run: cargo zigbuild --release --locked -p townjump --target ${{ matrix.target }}
+      - name: Build (armv7 soft-float)
+        if: matrix.soft
+        env:
+          CARGO_TARGET_DIR: target
+        run: scripts/dist/armv7-soft-build.sh "${{ matrix.target }}"
       - name: Build (mips)
         if: matrix.mips
         env:
