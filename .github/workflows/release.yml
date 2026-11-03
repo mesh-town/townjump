@@ -218,4 +218,42 @@ jobs:
     secrets:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
 
-  # Package jobs: add new ones here (needs: [check-tag, publish]).
+  deb:
+    name: Debian apt repository
+    needs: [check-tag, publish]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/deb.yml
+    with:
+      tag: ${{ github.ref_name }}
+      pkg_release: "1"
+      publish: true
+    secrets:
+      APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+
+  openwrt-feed:
+    name: OpenWrt feed
+    needs: [check-tag, publish]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/openwrt-feed.yml
+    with:
+      tag: ${{ github.ref_name }}
+      pkg_release: "1"
+      publish: true
+      strict: true
+    secrets:
+      OPENWRT_USIGN_KEY: ${{ secrets.OPENWRT_USIGN_KEY }}
+      OPENWRT_APK_KEY: ${{ secrets.OPENWRT_APK_KEY }}
+
+  keenetic-feed:
+    name: Keenetic feed
+    needs: [check-tag, publish]
+    permissions:
+      contents: write
+    uses: ./.github/workflows/keenetic-feed.yml
+    with:
+      tag: ${{ github.ref_name }}
+      pkg_release: "1"
+      publish: true
+      strict: true
