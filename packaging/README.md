@@ -1,12 +1,12 @@
 # Packaging
 
 Packaging of townjump: prebuilt binaries on GitHub Releases, a Homebrew
-formula (own tap), a Windows installer with a winget manifest, and an
-OpenWrt package recipe. A release tag (`v<version>`, equal to `version` in the root
+formula (own tap), a Windows installer with a winget manifest, and
+package feeds for Debian, OpenWrt and Keenetic. A release tag (`v<version>`, equal to `version` in the root
 `Cargo.toml`) starts everything; the Homebrew formula and the Windows
 installer install the binaries of that release, they do not build from source.
-The OpenWrt package builds from the source archive of the release, using the
-committed `Cargo.lock` and the vendored `fork/`.
+The Debian, OpenWrt and Keenetic feeds repack the static musl binaries of the
+release; they do not build from source.
 
 Unofficial Rust port of Holesail, not affiliated with Holesail / LIVEPORT.
 The installed command is called `townjump` (the npm package `holesail`
@@ -103,25 +103,10 @@ scripts/dist/winget.sh render <version> townjump-setup-<version>.exe <out>
    SHA-256.
 4. Users: `winget install MeshTown.Townjump`.
 
-## OpenWrt (own feed or SDK)
+## OpenWrt
 
-`openwrt/townjump/Makefile` follows `utils/ripgrep` from `openwrt/packages`
-(`MAKE_PATH:=crates/townjump`, `rust-package.mk`). 32-bit MIPS targets are
-excluded: they have no `AtomicU64`.
-
-1. Set `PKG_VERSION` and replace `PKG_HASH:=skip` with the sha256 of the
-   source archive (`make package/townjump/download` prints the expected
-   value).
-2. Own feed: put `townjump/Makefile` into a repository `openwrt-feed`;
-   in the firmware tree add `src-git townjump https://github.com/mesh-town/openwrt-feed.git`
-   to `feeds.conf`, then `./scripts/feeds update townjump &&
-   ./scripts/feeds install townjump`, then
-   `make package/townjump/{download,check,compile} V=s`.
-3. The Rust compiler in the feed must satisfy `rust-version` of the
-   workspace (OpenWrt master and 25.12 ship rustc 1.96, 24.10 ships 1.94).
-   If it does not, `cargo` refuses to build the package.
-4. No SDK at hand: the release has static musl binaries (aarch64, armv7,
-   x86_64); copy one to `/usr/bin` of the router.
+OpenWrt gets a signed package feed built without the SDK (`openwrt/feed/build_feed.py`, `.ipk` and `.apk`); see
+`openwrt/README.md`. Keenetic (Entware) has its own feed, see `keenetic/README.md`.
 
 The official `openwrt/packages` feed requires a real name and a non-private
 e-mail in `Author` and `Signed-off-by`, so the package stays in an own feed.
