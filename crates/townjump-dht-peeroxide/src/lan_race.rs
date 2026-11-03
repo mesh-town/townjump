@@ -2,7 +2,7 @@
 // See also: dht.rs (`connect` calls `connect` here), node.rs (`Lan` responder, `table_size`), townjump-lan (probe protocol).
 use crate::error::{map_error, refused};
 use crate::node::Node;
-use peeroxide_dht::hyperdht::{ConnectOpts as ForkConnectOpts, PeerConnection};
+use peeroxide_dht::hyperdht::{ConnectOpts as ForkConnectOpts, HyperDhtError, PeerConnection};
 use std::future::{Future, pending};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -132,10 +132,15 @@ async fn dht_path(
     let connected =
         node.handle
             .connect_with_options(&node.identity, remote, &[], &node.runtime, opts);
-    connected.await.map_err(|e| DhtFailure {
+    connected.await.map_err(failure_of)
+}
+
+/// Classifies a fork error: the mapped error plus whether the LAN cannot fix it.
+pub(crate) fn failure_of(e: HyperDhtError) -> DhtFailure {
+    DhtFailure {
         refused: refused(&e),
         error: map_error(e),
-    })
+    }
 }
 
 /// `None` at once when the node is destroyed: no probe leaves a node that is gone.

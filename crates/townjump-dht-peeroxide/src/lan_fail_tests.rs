@@ -2,8 +2,9 @@
 // destroyed node sends no probe. A child of lan_race_tests: shares its helpers.
 use super::added::sniffer;
 use super::*;
+use crate::error::map_error;
 use crate::error::refused;
-use crate::lan_race::{DhtFailure, lan_path, race};
+use crate::lan_race::{DhtFailure, failure_of, lan_path, race};
 use peeroxide_dht::hyperdht::{HyperDhtError, PeerConnection};
 use peeroxide_dht::rpc::DhtError as RpcError;
 
@@ -89,4 +90,76 @@ fn refused_marks_only_what_the_lan_cannot_fix() {
     ];
     assert!(yes.iter().all(refused), "a refusal is not marked");
     assert!(!no.iter().any(refused), "an open failure is marked");
+}
+
+#[test]
+fn a_failure_is_marked_final_only_when_the_lan_cannot_fix_it() {
+    let cases = [
+        (HyperDhtError::FirewallRejected, true),
+        (HyperDhtError::Dht(RpcError::Destroyed), true),
+        (HyperDhtError::NoRelayNodes, false),
+        (HyperDhtError::PeerNotFound, false),
+    ];
+    for (input, expected) in cases {
+        let name = format!("{input:?}");
+        let mapped = format!("{:?}", map_error(clone_of(&input)));
+        let failure = failure_of(input);
+        assert_eq!(failure.refused, expected, "{name}");
+        assert_eq!(format!("{:?}", failure.error), mapped, "{name}");
+    }
+}
+
+fn clone_of(e: &HyperDhtError) -> HyperDhtError {
+    match e {
+        HyperDhtError::FirewallRejected => HyperDhtError::FirewallRejected,
+        HyperDhtError::Dht(RpcError::Destroyed) => HyperDhtError::Dht(RpcError::Destroyed),
+        HyperDhtError::NoRelayNodes => HyperDhtError::NoRelayNodes,
+        _ => HyperDhtError::PeerNotFound,
+    }
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn lan_path_of_a_destroyed_node_does_not_wait_for_the_start() {
+    let _lan = LAN.lock().await;
+    let dht = node(
+        &lan_closed_factory(),
+        setup(group_port(), ProbeStart::AfterFailure),
+    )
+    .await;
+    dht.destroy().await.expect("destroy");
+    let found = within(
+        Duration::from_secs(1),
+        "lan_path",
+        lan_path(&dht.node, [8; 32], &Notify::new()),
+    )
+    .await;
+    assert!(found.is_none());
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn lan_path_after_a_destroy_during_the_wait_sends_no_probe() {
+    let _lan = LAN.lock().await;
+    let port = group_port();
+    let sniffer = sniffer(port);
+    let mut buf = [0u8; 64];
+    let control = ask(port, &key_pair(SEED)).await;
+    assert!(
+        control.is_none() && sniffer.recv(&mut buf).is_ok(),
+        "the sniffer must hear a control probe"
+    );
+    while sniffer.recv(&mut buf).is_ok() {}
+    let dht = node(&lan_closed_factory(), setup(port, ProbeStart::AfterFailure)).await;
+    let failed = Notify::new();
+    let waiting = within(WAIT, "lan_path", lan_path(&dht.node, [8; 32], &failed));
+    let destroying = async {
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        dht.destroy().await.expect("destroy");
+        failed.notify_one();
+    };
+    let (found, ()) = tokio::join!(waiting, destroying);
+    assert!(found.is_none());
+    assert!(
+        sniffer.recv(&mut buf).is_err(),
+        "a probe was sent after the destroy"
+    );
 }
