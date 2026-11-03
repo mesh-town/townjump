@@ -32,7 +32,7 @@ fresh() { rm -rf "$work/rel"; "$fake" 1.2.3 "$work/rel" >/dev/null 2>&1; : >"$GH
 
 fresh
 lines="$(wc -l <"$work/rel/SHA256SUMS" | tr -d ' ')"
-expect "sums has 8 lines" 8 "$lines"
+expect "sums has 11 lines" 11 "$lines"
 rc bash -c "cd '$work/rel' && shasum -a 256 -c SHA256SUMS"
 expect "shasum -c passes" 0 "$RC"
 rc "$pub" check 1.2.3 "$work/rel"
@@ -68,6 +68,18 @@ grep -v 'townjump-setup-1.2.3.exe' "$work/rel/SHA256SUMS" >"$work/s" && cp "$wor
 rc "$pub" check 1.2.3 "$work/rel"
 expect "missing sums line fails" 1 "$RC"
 if grep -q 'townjump-setup-1.2.3.exe' "$work/err"; then ok "stderr names missing asset"; else nok "stderr names missing asset"; fi
+
+fresh
+grep -v 'townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz' "$work/rel/SHA256SUMS" >"$work/s" && cp "$work/s" "$work/rel/SHA256SUMS"
+rc "$pub" check 1.2.3 "$work/rel"
+expect "missing mipsel sums line fails" 1 "$RC"
+if grep -q 'townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz' "$work/err"; then ok "stderr names missing mipsel asset"; else nok "stderr names missing mipsel asset"; fi
+
+fresh
+rm "$work/rel/townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz"
+rc "$pub" release 1.2.3 "$work/rel"
+expect "release without mipsel asset fails" 1 "$RC"
+if grep -q 'townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz' "$work/err"; then ok "release stderr names mipsel asset"; else nok "release stderr names mipsel asset"; fi
 
 fresh
 grep 'townjump-1.2.3-aarch64-apple-darwin.tar.gz' "$work/rel/SHA256SUMS" >"$work/dup"

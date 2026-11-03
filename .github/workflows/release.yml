@@ -56,6 +56,17 @@ jobs:
           - target: armv7-unknown-linux-musleabihf
             os: ubuntu-24.04
             zig: true
+          - target: armv7-unknown-linux-musleabi
+            os: ubuntu-24.04
+            zig: true
+          - target: mipsel-unknown-linux-musl
+            os: ubuntu-24.04
+            zig: true
+            mips: true
+          - target: mips-unknown-linux-musl
+            os: ubuntu-24.04
+            zig: true
+            mips: true
           - target: x86_64-pc-windows-msvc
             os: windows-latest
             zig: false
@@ -67,21 +78,31 @@ jobs:
         shell: bash
         run: |
           rustup show active-toolchain || rustup toolchain install
-          rustup target add "${{ matrix.target }}"
+          # MIPS targets are tier 3 (no prebuilt std); scripts/mips/build.sh installs nightly with rust-src.
+          if [ "${{ matrix.mips }}" != "true" ]; then
+            rustup target add "${{ matrix.target }}"
+          fi
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.target }}
       - name: Install zig and cargo-zigbuild
         if: matrix.zig
         run: |
-          pip3 install --user ziglang
-          cargo install cargo-zigbuild --locked
+          # Pinned: the MIPS build was verified with zig 0.16.0; a newer zig or zigbuild
+          # could change linking or libc behavior of released binaries without notice.
+          pip3 install --user ziglang==0.16.0
+          cargo install cargo-zigbuild --locked --version 0.23.4
       - name: Build (native)
         if: ${{ !matrix.zig }}
         run: cargo build --release --locked -p townjump --target ${{ matrix.target }}
       - name: Build (zigbuild)
-        if: matrix.zig
+        if: matrix.zig && !matrix.mips
         run: cargo zigbuild --release --locked -p townjump --target ${{ matrix.target }}
+      - name: Build (mips)
+        if: matrix.mips
+        env:
+          CARGO_TARGET_DIR: target
+        run: scripts/mips/build.sh "${{ matrix.target }}"
       - name: Binary name
         id: bin
         shell: bash
