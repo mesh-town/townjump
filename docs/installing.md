@@ -22,7 +22,7 @@ Releases (`https://github.com/mesh-town/townjump/releases`) contain archives nam
 | Target | Platform |
 |---|---|
 | `aarch64-apple-darwin`, `x86_64-apple-darwin` | macOS |
-| `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`, `armv7-unknown-linux-musleabihf` | Linux, static |
+| `x86_64-unknown-linux-musl`, `aarch64-unknown-linux-musl`, `armv7-unknown-linux-musleabihf`, `armv7-unknown-linux-musleabi`, `mipsel-unknown-linux-musl`, `mips-unknown-linux-musl` | Linux, static |
 | `x86_64-pc-windows-msvc` | Windows |
 
 Verify the download against `SHA256SUMS` from the same release:
