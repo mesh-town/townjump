@@ -65,6 +65,23 @@ class ReleaseCallers(unittest.TestCase):
                 self.assertEqual(value, "${{ secrets.%s }}" % key, name)
         self.assertEqual(sub_block(job(release_text(), "keenetic-feed"), "secrets", 4), {})
 
+    def test_callers_publish_from_tag_and_new_targets_build_by_script(self):
+        text = release_text()
+        for name in CALLERS:
+            given = sub_block(job(text, name), "with", 4)
+            self.assertEqual(given.get("tag"), "${{ github.ref_name }}", name)
+            self.assertEqual(given.get("publish"), "true", name)
+            self.assertEqual(given.get("pkg_release"), '"1"', name)
+            if name != "deb":
+                self.assertEqual(given.get("strict"), "true", name)
+        build = job(text, "build")
+        self.assertIn("      - name: Build (zigbuild)\n        if: matrix.zig && !matrix.mips && !matrix.soft\n", build)
+        self.assertIn("      - name: Build (mips)\n        if: matrix.mips\n", build)
+        self.assertIn('run: scripts/mips/build.sh "${{ matrix.target }}"', build)
+        self.assertRegex(build, r'if \[ "\$\{\{ matrix.mips \}\}" != "true" \]; then\n\s+rustup target add')
+        self.assertIn("ziglang==0.16.0", build)
+        self.assertIn("--version 0.23.4", build)
+
     def test_callers_have_write_permission(self):
         for name in CALLERS:
             perms = sub_block(job(release_text(), name), "permissions", 4)
