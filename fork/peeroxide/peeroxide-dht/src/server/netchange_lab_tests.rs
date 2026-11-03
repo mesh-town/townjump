@@ -12,6 +12,52 @@ use crate::server::test_net::{lan_host, node_on};
 
 const RESPONDERS: usize = 24;
 const AFTER_CHANGE: usize = 16;
+/// Total patience for the whole "moved pings" phase (inside the 60 s budget of the test).
+const LAN_PATIENCE: Duration = Duration::from_secs(40);
+
+/// Pings until the first success; after a failure past `until` returns the last error.
+/// Always makes at least one attempt.
+async fn ping_patiently(
+    dht: &DhtHandle,
+    host: &str,
+    port: u16,
+    until: tokio::time::Instant,
+) -> Result<(), String> {
+    loop {
+        match dht.ping(host, port).await {
+            Ok(_) => return Ok(()),
+            Err(err) if tokio::time::Instant::now() >= until => return Err(format!("{err:?}")),
+            Err(_) => {}
+        }
+    }
+}
+
+/// Whether plain UDP sockets (no DHT) get an echo through the LAN address `lan`.
+async fn lan_delivers_udp(lan: &str) -> bool {
+    let lan = lan.to_string();
+    tokio::task::spawn_blocking(move || {
+        let server = std::net::UdpSocket::bind("0.0.0.0:0").expect("bind server");
+        let client = std::net::UdpSocket::bind("0.0.0.0:0").expect("bind client");
+        let timeout = Some(Duration::from_millis(500));
+        server.set_read_timeout(timeout).expect("server timeout");
+        client.set_read_timeout(timeout).expect("client timeout");
+        let target = format!("{lan}:{}", server.local_addr().expect("server addr").port());
+        for _ in 0..4 {
+            let _ = client.send_to(&[1u8], &target);
+            let mut buf = [0u8; 8];
+            if let Ok((_, from)) = server.recv_from(&mut buf) {
+                let _ = server.send_to(&[2u8], from);
+                if client.recv_from(&mut buf).is_ok() {
+                    return true;
+                }
+            }
+            std::thread::sleep(Duration::from_secs(1));
+        }
+        false
+    })
+    .await
+    .unwrap_or(false)
+}
 
 /// Ephemeral wildcard-bound nodes that answer `FIND_NODE`; returns their ports.
 /// The join handles are kept so that the nodes live until the end of the test.
@@ -83,13 +129,21 @@ async fn client_after_network_change_punches_to_server_at_old_address() {
         }
 
         // when: the network changes (sixteen responders now see the LAN address)
+        let until = tokio::time::Instant::now() + LAN_PATIENCE;
         for port in ports.iter().take(AFTER_CHANGE) {
-            client
-                .handle
-                .dht()
-                .ping(&lan, *port)
-                .await
-                .expect("moved ping");
+            if let Err(err) = ping_patiently(client.handle.dht(), &lan, *port, until).await {
+                if !lan_delivers_udp(&lan).await {
+                    eprintln!(
+                        "SKIPPED (environment): plain UDP sockets do not reach {lan} either; \
+                         the host drops UDP to its own LAN address"
+                    );
+                    return;
+                }
+                panic!(
+                    "moved ping to {lan}:{port} failed for {LAN_PATIENCE:?} although plain UDP \
+                     sockets reach {lan}: {err}"
+                );
+            }
         }
         if let Some(seen) = wait_host(&client.handle, &lan).await {
             panic!("change: remote_address host never became {lan}, last {seen}");
@@ -121,4 +175,30 @@ async fn client_after_network_change_punches_to_server_at_old_address() {
         );
     })
     .await;
+}
+
+#[tokio::test]
+async fn ping_patiently_gives_up_at_the_deadline() {
+    // given: a port where nobody listens
+    let port = {
+        let sock = std::net::UdpSocket::bind("127.0.0.1:0").expect("bind");
+        sock.local_addr().expect("addr").port()
+    };
+    let rt = libudx::UdxRuntime::new().expect("udx runtime");
+    let cfg = DhtConfig {
+        bootstrap: vec![],
+        host: "127.0.0.1".into(),
+        port: 0,
+        ephemeral: Some(true),
+        ..DhtConfig::default()
+    };
+    let (_task, handle) = spawn(&rt, cfg).await.expect("spawn");
+    // when: the deadline has already passed
+    let result = ping_patiently(&handle, "127.0.0.1", port, tokio::time::Instant::now()).await;
+    // then: exactly one attempt and a timeout error
+    let err = result.expect_err("nobody answers");
+    assert!(
+        err.to_lowercase().contains("timeout"),
+        "expected a timeout, got {err}"
+    );
 }
