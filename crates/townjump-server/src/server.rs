@@ -143,6 +143,9 @@ mod fixture;
 #[path = "pause_tests.rs"]
 mod pause_tests;
 #[cfg(test)]
+#[path = "publish_tests.rs"]
+mod publish_tests;
+#[cfg(test)]
 #[path = "record_tests.rs"]
 mod record_tests;
 #[cfg(test)]

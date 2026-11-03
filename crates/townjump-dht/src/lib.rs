@@ -9,7 +9,7 @@ pub mod traits;
 pub mod types;
 
 pub use duplex::Duplex;
-pub use error::DhtError;
+pub use error::{DhtError, NO_NODES_RESPONDED};
 pub use incoming::Incoming;
 pub use mode::NodeMode;
 pub use relay::{HolepunchFilter, HolepunchInfo, RelayAddress, RelayPath, RelayThrough};

@@ -21,6 +21,16 @@ pub enum DhtError {
     Backend(String),
 }
 
+/// JS: dht-rpc/lib/query.js `_endAfterCommit` - the text of a put that no node answered.
+pub const NO_NODES_RESPONDED: &str = "Too few nodes responded";
+
+impl DhtError {
+    /// True only for `Backend` with exactly the JS text of a put that no node answered.
+    pub fn is_no_nodes_responded(&self) -> bool {
+        matches!(self, DhtError::Backend(m) if m == NO_NODES_RESPONDED)
+    }
+}
+
 #[cfg(test)]
 #[path = "error_tests.rs"]
 mod tests;

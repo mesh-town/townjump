@@ -28,7 +28,7 @@ pub struct MockConfig {
     pub(crate) hold_listen: bool,
     pub(crate) hold_put: bool,
     pub(crate) listen_error: Option<String>,
-    pub(crate) put_error_from: Option<usize>,
+    pub(crate) put_error_from: Option<(usize, String)>,
 }
 
 impl MockConfig {
@@ -69,8 +69,13 @@ impl MockConfig {
     }
 
     /// `mutable_put` number `call` (counting from 1) and all following ones answer `DhtError::Backend("put failed")`.
-    pub fn failing_put_from(mut self, call: usize) -> Self {
-        self.put_error_from = Some(call);
+    pub fn failing_put_from(self, call: usize) -> Self {
+        self.failing_put_with(call, "put failed")
+    }
+
+    /// Like `failing_put_from`, but the error is `DhtError::Backend(text)`.
+    pub fn failing_put_with(mut self, call: usize, text: impl Into<String>) -> Self {
+        self.put_error_from = Some((call, text.into()));
         self
     }
 
