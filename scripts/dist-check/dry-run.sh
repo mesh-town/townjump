@@ -115,20 +115,33 @@ run_keenetic() {
   publish keenetic "$dry/out-keenetic/pages"
 }
 
-run_openwrt() {
-  echo "== openwrt (not run until the OpenWrt builder is merged)"
-  local builder="$root/scripts/dist/openwrt-build.sh" only=()
-  [ -x "$builder" ] || { skip "scripts/dist/openwrt-build.sh is not present"; return 0; }
-  if ! command -v apk > /dev/null 2>&1 && ! command -v container > /dev/null 2>&1; then
-    skip "no apk and no container: apk feed not built"
-    only=(--only ipk)
+# The feed builder needs usign, apk and root (fakeroot). Without them on the host (macOS) the build runs in a Linux container.
+openwrt_on_host() { command -v usign > /dev/null 2>&1 && command -v apk > /dev/null 2>&1 && command -v fakeroot > /dev/null 2>&1; }
+
+build_openwrt() {
+  local builder="$root/scripts/dist/openwrt-build.sh" rc=0
+  if openwrt_on_host; then
+    fakeroot "$builder" "$assets" "$dry/out-openwrt" "$V" 1 --strict --ephemeral-keys
+    fakeroot "$builder" "$assets" "$dry/out-openwrt-b" "$V" 1 --strict --ephemeral-keys > /dev/null
+    return 0
   fi
-  "$builder" "$assets" "$dry/out-openwrt" "$V" 1 --strict "${only[@]}" --ephemeral-keys
-  "$builder" "$assets" "$dry/out-openwrt-b" "$V" 1 --strict "${only[@]}" --ephemeral-keys > /dev/null
+  [ "${DRY_SKIP_CONTAINER:-0}" != 1 ] || { skip "no usign/apk on the host and the container is disabled"; return 1; }
+  V="$V" "$here/container.sh" openwrt-build "$dry" || rc=$?
+  [ "$rc" = 0 ] && return 0
+  [ "$rc" = 3 ] || fail "container build of the OpenWrt feed failed ($rc)"
+  partial=1
+  return 1
+}
+
+run_openwrt() {
+  echo "== openwrt"
+  [ -x "$root/scripts/dist/openwrt-build.sh" ] || { skip "scripts/dist/openwrt-build.sh is not present"; return 0; }
+  build_openwrt || return 0
   same_bytes "$dry/out-openwrt/pages" "$dry/out-openwrt-b/pages"
   python3 "$here/leak_check.py" "$dry/out-openwrt/pages"
   new_pages
   publish openwrt "$dry/out-openwrt/pages"
+  container_gate alpine
 }
 
 container_gate() {
@@ -157,6 +170,7 @@ mkdir -p "$dry"
 case "$mode" in
   deb) make_assets "x86_64-unknown-linux-musl aarch64-unknown-linux-musl armv7-unknown-linux-musleabihf" ;;
   keenetic) make_assets "aarch64-unknown-linux-musl mipsel-unknown-linux-musl mips-unknown-linux-musl" ;;
+  openwrt) make_assets "x86_64-unknown-linux-musl aarch64-unknown-linux-musl armv7-unknown-linux-musleabihf armv7-unknown-linux-musleabi mipsel-unknown-linux-musl mips-unknown-linux-musl" ;;
   *) make_assets "" ;;
 esac
 case "$mode" in
