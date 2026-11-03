@@ -25,6 +25,16 @@ class DryRunArguments(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(run("container.sh", "fedora", tmp).returncode, 2)
 
+    def test_container_accepts_openwrt_build_but_needs_a_directory(self):
+        r = run("container.sh", "openwrt-build", "/nonexistent-dry-dir")
+        self.assertEqual(r.returncode, 2)
+        self.assertIn("not a directory", r.stderr)
+
+    def test_soft_float_arm_shim_is_in_local_assets(self):
+        text = (HERE / "local_assets.sh").read_text()
+        self.assertIn("fmaximum_num", text)
+        self.assertIn("fminimum_num", text)
+
 
 if __name__ == "__main__":
     unittest.main()

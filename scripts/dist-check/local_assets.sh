@@ -27,9 +27,42 @@ done
 sde="${SOURCE_DATE_EPOCH:-$(git -C "$root" log -1 --format=%ct HEAD)}"
 stamp="$(date -u -r "$sde" +%Y%m%d%H%M.%S 2>/dev/null || date -u -d "@$sde" +%Y%m%d%H%M.%S)"
 
+# Soft-float ARMv7 on musl lacks fmaximum_num/fminimum_num (Rust f64::max/min lower to them; neither musl nor
+# compiler_builtins has them there, so the link fails). Dry-run only: a tiny C shim is linked in. The release
+# workflow has no such shim, which is reported separately.
+shim_object() {
+  local dir="$1"
+  cat > "$dir/shim.c" <<'EOF'
+static int is_nan(double x) { return x != x; }
+double fmaximum_num(double a, double b) {
+  if (is_nan(a)) return b;
+  if (is_nan(b)) return a;
+  if (a == 0.0 && b == 0.0) return (1.0 / a < 0.0) ? b : a;
+  return a > b ? a : b;
+}
+double fminimum_num(double a, double b) {
+  if (is_nan(a)) return b;
+  if (is_nan(b)) return a;
+  if (a == 0.0 && b == 0.0) return (1.0 / a < 0.0) ? a : b;
+  return a < b ? a : b;
+}
+EOF
+  zig cc -target arm-linux-musleabi -Os -c "$dir/shim.c" -o "$dir/shim.o" >&2
+}
+
+build_soft_arm() {
+  local dir
+  dir="$(mktemp -d)"
+  shim_object "$dir"
+  rustup target add "$1" >&2
+  (cd "$root" && RUSTFLAGS="-C link-arg=$dir/shim.o ${RUSTFLAGS:-}" cargo zigbuild --release --locked -p townjump --target "$1" >&2)
+  rm -rf "$dir"
+}
+
 build() {
   case "$1" in
     mips*) "$root/scripts/mips/build.sh" "$1" >&2 ;;
+    armv7-unknown-linux-musleabi) build_soft_arm "$1" ;;
     *)
       rustup target add "$1" >&2
       (cd "$root" && cargo zigbuild --release --locked -p townjump --target "$1" >&2)
