@@ -69,7 +69,14 @@ async fn initiator_scenario(stray_first: bool) -> Run {
 
     let evt = timeout(Duration::from_secs(2), event_rx.recv())
         .await
-        .expect("Connected within 2s")
+        .unwrap_or_else(|_| {
+            panic!(
+                "Connected not delivered within 2 s; connected_flag = {}",
+                puncher
+                    .connected_flag
+                    .load(std::sync::atomic::Ordering::Acquire)
+            )
+        })
         .expect("event_rx open");
     match evt {
         HolepunchEvent::Connected { addr, socket } => {
@@ -141,7 +148,14 @@ async fn birthday_scenario(stray_first: bool) -> Run {
 
     let evt = timeout(Duration::from_secs(2), event_rx.recv())
         .await
-        .expect("Connected within 2s")
+        .unwrap_or_else(|_| {
+            panic!(
+                "Connected not delivered within 2 s; connected_flag = {}",
+                puncher
+                    .connected_flag
+                    .load(std::sync::atomic::Ordering::Acquire)
+            )
+        })
         .expect("event_rx open");
     match evt {
         HolepunchEvent::Connected { addr, socket } => {
