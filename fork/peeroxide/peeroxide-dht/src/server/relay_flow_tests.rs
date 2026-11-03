@@ -151,6 +151,16 @@ async fn open_or_direct_client_gets_no_relay() {
             ..ServerOpts::default()
         };
         let served = serve(node(&cl, true).await, &key(1), opts).await;
+        // the ANNOUNCE reaches only the 3 closest nodes, so the open client must come
+        // through one of them: a node without the record answers without a value
+        let holder = served
+            .server
+            .relays()
+            .await
+            .into_iter()
+            .map(|r| r.relay_address)
+            .find(|a| cl.addrs.iter().any(|c| c.port == a.port))
+            .expect("a cluster node among the holders of the record");
         let prober = node(&cl, false).await;
         let ask = Some(RelayThroughInfo {
             version: 1,
@@ -163,10 +173,7 @@ async fn open_or_direct_client_gets_no_relay() {
             port,
         };
         // when: one open client comes through a node, one unknown client straight to the server
-        let cases = [
-            (FIREWALL_OPEN, 2, &cl.addrs[0]),
-            (FIREWALL_UNKNOWN, 3, &direct),
-        ];
+        let cases = [(FIREWALL_OPEN, 2, &holder), (FIREWALL_UNKNOWN, 3, &direct)];
         for (firewall, tag, to) in cases {
             let (mut nw, noise) = hello_relay(
                 &key(tag),
