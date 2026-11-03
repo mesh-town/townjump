@@ -27,7 +27,7 @@ async fn ping_patiently(
         match dht.ping(host, port).await {
             Ok(_) => return Ok(()),
             Err(err) if tokio::time::Instant::now() >= until => return Err(format!("{err:?}")),
-            Err(_) => {}
+            Err(_) => tokio::time::sleep(Duration::from_millis(250)).await,
         }
     }
 }
@@ -200,5 +200,15 @@ async fn ping_patiently_gives_up_at_the_deadline() {
     assert!(
         err.to_lowercase().contains("timeout"),
         "expected a timeout, got {err}"
+    );
+}
+
+#[tokio::test]
+async fn lan_delivers_udp_tells_loopback_from_a_dead_address() {
+    assert!(lan_delivers_udp("127.0.0.1").await, "loopback must echo");
+    // TEST-NET-1 (documentation range): nothing answers there.
+    assert!(
+        !lan_delivers_udp("192.0.2.1").await,
+        "a dead address must not echo"
     );
 }
