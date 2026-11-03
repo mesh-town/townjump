@@ -34,6 +34,8 @@ impl StreamInner {
             rto_fires: 0,
             zp: diag::Zp::default(),
             send_rwnd: DEFAULT_RWND,
+            write_high_watermark: WRITE_HIGH_WATERMARK,
+            send_window_max: u32::MAX,
             zwp_active: false,
             mtu_state: MtuState::Base,
             mtu: MTU_BASE,

@@ -69,6 +69,37 @@ mod batch_stops {
     }
 }
 
+mod send_window_cap {
+    use super::*;
+
+    fn inflight_after_one_batch(max: Option<u32>) -> (u32, usize) {
+        let mut inner = stream_inner();
+        inner.congestion.cwnd = 1000;
+        inner.send_rwnd = 4 * 1024 * 1024;
+        if let Some(max) = max {
+            inner.send_window_max = max;
+        }
+        queue_full(&mut inner, 200);
+        inner.take_send_batch();
+        (inner.inflight(), inner.max_payload())
+    }
+
+    #[test]
+    fn send_window_max_caps_inflight() {
+        let max = 4096 + 1;
+        let (inflight, mss) = inflight_after_one_batch(Some(max));
+        assert!(inflight >= 1);
+        assert!(inflight as usize * mss <= max as usize + mss, "{inflight}");
+        assert!(inflight <= max.div_ceil(mss as u32));
+    }
+
+    #[test]
+    fn without_the_cap_only_cwnd_limits() {
+        let (inflight, _) = inflight_after_one_batch(None);
+        assert!(inflight > 10, "{inflight}");
+    }
+}
+
 // ── queue byte sum ──────────────────────────────────────────────────────────
 
 mod queued_bytes {

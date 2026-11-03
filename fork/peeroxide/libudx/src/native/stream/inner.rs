@@ -58,6 +58,10 @@ pub(crate) struct StreamInner {
     // ── Flow control ──
     /// Remote's last advertised receive window.
     pub(super) send_rwnd: u32,
+    /// Adapter write threshold: bytes accepted into the queue beyond the send window (default `WRITE_HIGH_WATERMARK`).
+    pub(super) write_high_watermark: usize,
+    /// Upper bound on the peer window used for sending (default `u32::MAX`, no bound).
+    pub(super) send_window_max: u32,
     /// Zero-window probe (ZWP, D4) is active: window 0 while the queue has data.
     pub(super) zwp_active: bool,
 

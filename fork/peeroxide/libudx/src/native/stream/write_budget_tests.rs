@@ -317,3 +317,21 @@ mod writable {
         same_refusal(&mut ended);
     }
 }
+
+#[test]
+fn write_budget_follows_the_configured_watermark() {
+    let mut inner = stream_with(10, 1_000_000);
+    let window = 10 * inner.max_payload();
+    assert_eq!(inner.write_budget(), B0 + window);
+    inner.write_high_watermark = 16 * 1024;
+    assert_eq!(inner.write_budget(), 16 * 1024 + window);
+    inner.write_high_watermark = 0;
+    assert_eq!(inner.write_budget(), window);
+}
+
+#[test]
+fn send_window_max_lowers_the_budget_window() {
+    let mut inner = stream_with(1000, 4_000_000);
+    inner.set_send_window_max(8192);
+    assert_eq!(inner.write_budget(), B0 + 8192);
+}
