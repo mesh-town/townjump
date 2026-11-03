@@ -22,6 +22,7 @@ fn tomb(end_acked: bool, remote_ended: bool, final_ack: u32) -> Tomb {
         remote_ended,
         rto: Duration::from_millis(1000),
         sent: 0,
+        destroy_left: 0,
         until: tokio::time::Instant::now() + LINGER_MIN,
     }
 }

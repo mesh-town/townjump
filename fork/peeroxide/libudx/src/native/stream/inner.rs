@@ -38,11 +38,15 @@ pub(crate) struct StreamInner {
     pub(super) unread: usize,
     /// Payload bytes in `recv_buf` (out-of-order).
     pub(super) recv_buf_bytes: usize,
+    /// The adapter was dropped: new payload is refused with DESTROY instead of being delivered (`receive.rs`).
+    pub(crate) read_closed: bool,
+    /// This stream sent (or queued) a DESTROY; the tombstone repeats it.
+    pub(super) destroy_sent: bool,
 
     // ── RTT estimation (Jacobson/Karels, matching C libudx constants) ──
     pub(super) srtt: u32,
     pub(super) rttvar: u32,
-    pub(super) rto: u32,
+    pub(crate) rto: u32,
     pub(super) rto_timeouts: u32,
     /// Time of the last packet that reached the ACK processing (`on_ack_packet`); `None` until the first one.
     pub(super) last_rx: Option<Instant>,
@@ -124,6 +128,43 @@ impl StreamInner {
         if let Some(w) = self.writer_waker.take() {
             w.wake();
         }
+    }
+
+    /// Drops everything still waiting to be sent, acknowledged or read, and fails the pending writes.
+    /// Sequence numbers stay as they are: the tombstone and the final DESTROY use them.
+    pub(crate) fn abandon_unsent(&mut self) {
+        self.send_queue = SendQueue::default();
+        self.outgoing = SentMap::default();
+        self.recv_buf.clear();
+        self.recv_buf_bytes = 0;
+        self.unread = 0;
+        for mut pw in self.pending_writes.drain(..) {
+            if let Some(tx) = pw.tx.take() {
+                let _ = tx.send(Err(UdxError::StreamClosed));
+            }
+        }
+    }
+
+    /// A DESTROY packet for the peer with the current numbers, or `None` when the stream is not connected.
+    /// Marks the DESTROY as sent so that the tombstone repeats it.
+    pub(crate) fn destroy_packet(
+        &mut self,
+    ) -> Option<(Arc<tokio::net::UdpSocket>, SocketAddr, Vec<u8>)> {
+        if !self.connected {
+            return None;
+        }
+        let udp = self.udp.clone()?;
+        let addr = self.remote_addr?;
+        let header = Header {
+            type_flags: FLAG_DESTROY,
+            data_offset: 0,
+            remote_id: self.remote_id,
+            recv_window: 0,
+            seq: self.next_seq,
+            ack: self.next_remote_seq,
+        };
+        self.destroy_sent = true;
+        Some((udp, addr, header.encode().to_vec()))
     }
 
     // ── MTU ──────────────────────────────────────────────────────────────────

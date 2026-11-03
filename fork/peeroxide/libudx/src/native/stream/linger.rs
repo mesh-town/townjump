@@ -38,6 +38,8 @@ pub(super) struct Tomb {
     pub(super) rto: Duration,
     /// Replies sent so far (the `sent` field of the `tombstone reply` log line).
     pub(super) sent: u32,
+    /// DESTROY repeats still due: `DESTROY_REPEATS` if the stream sent a DESTROY, else 0.
+    pub(super) destroy_left: u8,
     pub(super) until: tokio::time::Instant,
 }
 
@@ -83,6 +85,11 @@ impl Tomb {
             remote_ended: inner.remote_ended,
             rto,
             sent: 0,
+            destroy_left: if inner.destroy_sent {
+                DESTROY_REPEATS
+            } else {
+                0
+            },
             until: tokio::time::Instant::now() + tomb_ttl(rto),
         })
     }
@@ -107,6 +114,10 @@ impl Tomb {
                 &[],
             ));
         }
+        Reply::Destroy(self.destroy_bytes())
+    }
+
+    fn destroy_bytes(&self) -> Vec<u8> {
         let header = Header {
             type_flags: FLAG_DESTROY,
             data_offset: 0,
@@ -115,7 +126,12 @@ impl Tomb {
             seq: self.final_seq,
             ack: self.final_ack,
         };
-        Reply::Destroy(header.encode().to_vec())
+        header.encode().to_vec()
+    }
+
+    /// Gap between the repeats of the stream's own DESTROY (and from the last reply): `max(1 s, rto)`.
+    fn repeat_gap(&self) -> Duration {
+        self.rto.max(Duration::from_secs(1))
     }
 }
 
@@ -174,11 +190,22 @@ async fn linger(
     guard: TableEntry,
 ) {
     let mut last_reply: Option<tokio::time::Instant> = None;
+    let started = tokio::time::Instant::now();
     let expiry = tokio::time::sleep_until(tomb.until);
     tokio::pin!(expiry);
     loop {
         tokio::select! {
             () = &mut expiry => break,
+            () = tokio::time::sleep_until(last_reply.unwrap_or(started) + tomb.repeat_gap()),
+                if tomb.destroy_left > 0 =>
+            {
+                let Some(udp) = tomb.udp.upgrade() else { break };
+                tomb.destroy_left -= 1;
+                last_reply = Some(tokio::time::Instant::now());
+                tracing::debug!(local_id = guard.local_id, left = tomb.destroy_left, "tombstone DESTROY repeat");
+                let buf = tomb.destroy_bytes();
+                crate::native::tx_err::send_counted(&udp, &buf, tomb.remote_addr, "tomb").await;
+            }
             packet = rx.recv() => {
                 let Some(packet) = packet else { break };
                 let Some(udp) = tomb.udp.upgrade() else { break };

@@ -143,7 +143,8 @@ mod late_data_to_abandoned_stream {
             } = Link::new().await;
             drop(stream.into_async_stream());
             assert!(peer.recv_within(Duration::from_secs(1)).await.is_some());
-            tokio::time::sleep(Duration::from_millis(50)).await;
+            // the tombstone repeats the stream's own DESTROY twice (1 s and 2 s after the close): let those pass
+            peer.collect_for(Duration::from_millis(2500)).await;
             // when: a stranger sends DATA with the same id
             let stranger = tokio::net::UdpSocket::bind("127.0.0.1:0")
                 .await

@@ -69,6 +69,7 @@ async fn late_end(delay: Duration) -> (Option<u32>, String) {
         remote_ended: true,
         rto,
         sent: 0,
+        destroy_left: 0,
         until: tokio::time::Instant::now() + tomb_ttl(rto),
     };
     let (tx, rx) = mpsc::unbounded_channel();
