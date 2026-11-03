@@ -215,9 +215,32 @@ Release 0.1.0 is not published yet; the commands below describe the prepared cha
   [releases page](https://github.com/mesh-town/townjump/releases); it installs `townjump.exe` into
   `C:\Program Files\Townjump` and adds that directory to the system `PATH`. A winget package will follow after the
   first release.
-- **Debian and Ubuntu:** see `packaging/debian/README.md`.
-- **OpenWrt:** see `packaging/openwrt/README.md`.
-- **Keenetic:** see `packaging/keenetic/README.md`.
+- **Debian and Ubuntu** (apt feed, not published yet; address provisional):
+
+  ```sh
+  arch="$(dpkg --print-architecture)"
+  curl -fLO https://mesh-town.github.io/townjump/apt/townjump_${arch}.deb
+  sudo apt install ./townjump_${arch}.deb      # later: sudo apt update && sudo apt upgrade
+  ```
+
+  Details: `packaging/debian/README.md`.
+
+- **OpenWrt** (same status):
+
+  ```sh
+  wget -O- https://mesh-town.github.io/townjump/openwrt/install.sh | sh        # opkg (24.10) and apk (25.12); run again to upgrade
+  ```
+
+  Details: `packaging/openwrt/README.md`.
+
+- **Keenetic** (same status):
+
+  ```sh
+  wget -O- https://mesh-town.github.io/townjump/keenetic/install.sh | sh       # Entware must be installed first
+  ```
+
+  Details: `packaging/keenetic/README.md`.
+
 - **From source:** `cargo install --locked --path crates/townjump` (Rust 1.94 or newer; see
   [docs/building.md](docs/building.md)).
 

@@ -46,15 +46,31 @@ A winget package will follow after the first release; this page will show the co
 
 ## Debian and Ubuntu
 
-See `packaging/debian/README.md`.
+```sh
+arch="$(dpkg --print-architecture)"
+curl -fLO https://mesh-town.github.io/townjump/apt/townjump_${arch}.deb
+sudo apt install ./townjump_${arch}.deb      # later: sudo apt update && sudo apt upgrade
+```
+
+The feeds are not published yet and the address is provisional until the first publication.
+
+Details, architectures, removal and the build: `packaging/debian/README.md`.
 
 ## OpenWrt
 
-See `packaging/openwrt/README.md`.
+```sh
+wget -O- https://mesh-town.github.io/townjump/openwrt/install.sh | sh        # opkg (24.10) and apk (25.12); run again to upgrade
+```
+
+Details, architectures, removal and the build: `packaging/openwrt/README.md`.
 
 ## Keenetic
 
-See `packaging/keenetic/README.md`.
+```sh
+wget -O- https://mesh-town.github.io/townjump/keenetic/install.sh | sh       # Entware must be installed first
+```
+
+Details, architectures, removal and the build: `packaging/keenetic/README.md`.
 
 ## From source
 
