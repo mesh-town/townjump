@@ -48,3 +48,10 @@ unsafe_code = "forbid"
 
 [workspace.lints.clippy]
 too_many_lines = "warn"
+
+# Release binaries: fat LTO, one codegen unit, stripped symbols. Same code paths and the same panic semantics as the
+# defaults; the binary is about a third smaller, loopback throughput is unchanged within noise.
+[profile.release]
+lto = "fat"
+codegen-units = 1
+strip = true
