@@ -55,11 +55,14 @@ async fn lan_answers_only_once_the_server_accepts_handshakes() {
         async move { server.listen(key).await }
     });
     // Whenever the responder answers while `listen` runs, the address must already accept a handshake.
-    while !listen.is_finished() {
-        if let Some(addr) = ask(port, &key).await {
-            dial(port, &key, addr).await;
+    within(WAIT, "listen", async {
+        while !listen.is_finished() {
+            if let Some(addr) = ask(port, &key).await {
+                dial(port, &key, addr).await;
+            }
         }
-    }
+    })
+    .await;
     within(WAIT, "listen", listen)
         .await
         .expect("join")
@@ -238,5 +241,26 @@ async fn a_responder_started_while_suspended_is_silent_until_resume() {
         ask_some(port, &key).await.is_some(),
         "no answer after resume"
     );
+    let _ = dht.destroy().await;
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn a_registration_after_resume_is_not_paused() {
+    let _lan = LAN.lock().await;
+    let port = group_port();
+    let dht = node(&closed_factory(), setup(port, ProbeStart::Now)).await;
+    let key = key_pair(SEED);
+    let key2 = key_pair(SEED + 1);
+    // No responder exists yet: the resume must still clear the pause flag.
+    dht.suspend().await.expect("suspend");
+    dht.resume().await.expect("resume");
+    dht.node
+        .lan
+        .register(peeroxide_dht::crypto::hash(&key.public_key), 1);
+    assert_eq!(ask_some(port, &key).await.map(|a| a.port()), Some(1));
+    dht.node
+        .lan
+        .register(peeroxide_dht::crypto::hash(&key2.public_key), 2);
+    assert_eq!(ask_some(port, &key).await.map(|a| a.port()), Some(1));
     let _ = dht.destroy().await;
 }
