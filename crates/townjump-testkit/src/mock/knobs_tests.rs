@@ -175,6 +175,22 @@ mod failing_put_from {
     }
 }
 
+mod failing_put_with {
+    use super::*;
+
+    #[tokio::test]
+    async fn failing_put_with_returns_the_given_text() {
+        let net = factory(MockConfig::default().failing_put_with(2, "Too few nodes responded"));
+        let dht = node(&net, 1).await;
+        let kp = key_pair(1);
+        assert_eq!(dht.mutable_put(&kp, b"a", Some(1)).await.unwrap(), 1);
+        assert!(is_backend(
+            dht.mutable_put(&kp, b"b", Some(2)).await,
+            "Too few nodes responded"
+        ));
+    }
+}
+
 mod put_calls {
     use super::*;
 

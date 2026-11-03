@@ -1,7 +1,7 @@
 // JS: holesail-server/index.js:HolesailServer.start (order as in server.md «start(args)»); related: server.rs, refresh.rs.
 use crate::connection::Acceptor;
 use crate::server::{HolesailServer, Running, key_of};
-use crate::{args::ServerArgs, error::ServerError, listen::listen_now, refresh, seed};
+use crate::{args::ServerArgs, error::ServerError, listen::listen_now, record, refresh, seed};
 use std::sync::Arc;
 use townjump_dht::{Dht, Firewall, KeyPair, ServerOpts};
 use townjump_jsval::record_json;
@@ -87,11 +87,11 @@ impl<D: Dht> HolesailServer<D> {
         data
     }
 
-    /// The first `put` (its error is the `start` error) and the refresh timer.
+    /// The first `put` (a no-responders error is only logged; any other is the `start` error) and the refresh timer.
     async fn publish_first(&mut self, data: String) -> Result<(), ServerError> {
-        self.put(&data).await?;
         let running = self.running.as_mut().ok_or(ServerError::NotStarted)?;
         let key_pair = running.key_pair.clone();
+        record::publish(&*self.dht, &key_pair, &data, &self.logger).await?;
         let task = refresh::spawn(self.dht.clone(), key_pair, data, &self.logger, &self.fatal);
         running.tasks.push(task);
         Ok(())

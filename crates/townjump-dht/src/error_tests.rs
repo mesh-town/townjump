@@ -106,3 +106,20 @@ fn fails_with_io(kind: io::ErrorKind) -> Result<(), DhtError> {
     result?;
     Ok(())
 }
+
+mod no_nodes_responded {
+    use super::*;
+
+    #[test]
+    fn no_nodes_responded_text_is_recognised() {
+        let error = DhtError::Backend(NO_NODES_RESPONDED.to_string());
+        assert!(error.is_no_nodes_responded());
+    }
+
+    #[test]
+    fn other_errors_are_not_no_nodes_responded() {
+        assert!(!DhtError::Backend("put failed".to_string()).is_no_nodes_responded());
+        assert!(!DhtError::Destroyed.is_no_nodes_responded());
+        assert!(!DhtError::PeerNotFound.is_no_nodes_responded());
+    }
+}

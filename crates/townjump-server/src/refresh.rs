@@ -1,5 +1,6 @@
 // JS: `setInterval(..., 50 * 60 * 1000)` in holesail-server/index.js:start; related: start.rs, record.rs.
 // Record refresh every 50 minutes with the same value; an error goes to `Fatal`, the task ends.
+// Exception: a put that no DHT node answered is logged and retried on the next tick (record::publish).
 use crate::record;
 use std::sync::Arc;
 use std::time::Duration;
@@ -21,7 +22,7 @@ pub(crate) fn spawn<D: Dht>(
         loop {
             tokio::time::sleep(PERIOD).await;
             logger.debug(&format!("Refreshing DHT record: {data}"));
-            let put = record::put(&*dht, &key_pair, &data, &logger);
+            let put = record::publish(&*dht, &key_pair, &data, &logger);
             let Err(error) = put.await else {
                 continue;
             };

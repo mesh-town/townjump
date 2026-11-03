@@ -7,8 +7,6 @@ use townjump_dht::DhtError;
 
 /// Permits per release: with a margin so that waiting calls do not run out before all of them pass.
 const RELEASE_PERMITS: usize = 1 << 16;
-/// Error text of `mutable_put` from `failing_put_from`.
-const PUT_FAILED: &str = "put failed";
 
 /// Gate: calls wait until it is opened; without a gate they pass at once.
 #[derive(Default)]
@@ -41,7 +39,7 @@ pub(crate) struct Switches {
     listen_gate: Gate,
     put_gate: Gate,
     listen_error: Option<String>,
-    put_error_from: Option<usize>,
+    put_error_from: Option<(usize, String)>,
     puts: AtomicUsize,
 }
 
@@ -51,7 +49,7 @@ impl Switches {
             listen_gate: Gate::closed_if(config.hold_listen),
             put_gate: Gate::closed_if(config.hold_put),
             listen_error: config.listen_error.clone(),
-            put_error_from: config.put_error_from,
+            put_error_from: config.put_error_from.clone(),
             puts: AtomicUsize::new(0),
         }
     }
@@ -89,10 +87,10 @@ impl Switches {
     }
 
     fn put_failure(&self, call: usize) -> Result<(), DhtError> {
-        if self.put_error_from.is_some_and(|from| call >= from) {
-            return Err(DhtError::Backend(PUT_FAILED.to_string()));
+        match &self.put_error_from {
+            Some((from, text)) if call >= *from => Err(DhtError::Backend(text.clone())),
+            _ => Ok(()),
         }
-        Ok(())
     }
 }
 

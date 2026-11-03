@@ -26,7 +26,9 @@ pub fn map_error(e: HyperDhtError) -> DhtError {
         HyperDhtError::RelayAborted => coded("RELAY_ABORTED", "Relay aborted"),
         HyperDhtError::AlreadyListening => coded("ALREADY_LISTENING", "Already listening"),
         HyperDhtError::ServerClosed => DhtError::Backend("Server closed".to_string()),
-        HyperDhtError::NoNodesResponded => DhtError::Backend("Too few nodes responded".to_string()),
+        HyperDhtError::NoNodesResponded => {
+            DhtError::Backend(townjump_dht::NO_NODES_RESPONDED.to_string())
+        }
         other => DhtError::Backend(other.to_string()),
     }
 }

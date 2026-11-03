@@ -39,6 +39,25 @@ pub(crate) async fn put<D: Dht>(
     Ok(written)
 }
 
+/// `put` for the start and the refresh: a put that no DHT node answered is only logged
+/// (the server may run without internet); every other error is returned as is.
+pub(crate) async fn publish<D: Dht>(
+    dht: &D,
+    key_pair: &KeyPair,
+    data: &str,
+    logger: &Logger,
+) -> Result<(), ServerError> {
+    match put(dht, key_pair, data, logger).await {
+        Err(ServerError::Dht(e)) if e.is_no_nodes_responded() => {
+            logger.warn(
+                "DHT record not published: no DHT node responded (will retry on the next refresh)",
+            );
+            Ok(())
+        }
+        other => other.map(|_| ()),
+    }
+}
+
 fn next_seq(old: Option<&MutableRecord>, value: &[u8], logger: &Logger) -> Option<u64> {
     let Some(old) = old else {
         logger.debug("No existing DHT record found, creating new");
