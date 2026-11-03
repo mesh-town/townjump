@@ -1,0 +1,149 @@
+name: keenetic-feed
+
+# Builds the unsigned Entware feed for Keenetic routers from a published release and, on request, publishes
+# it to the Pages branch. Called from release.yml after the release exists; also runnable by hand
+# (publish defaults to false, so a manual run is a dry run).
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.7
+        type: string
+        required: true
+      pkg_release:
+        description: Package revision
+        type: string
+        default: "1"
+      publish:
+        description: Publish the feed to the Pages branch
+        type: boolean
+        default: false
+      strict:
+        description: Fail when a release archive for any target is missing
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag, for example v0.1.7
+        type: string
+        required: true
+      pkg_release:
+        description: Package revision
+        type: string
+        default: "1"
+      publish:
+        description: Publish the feed to the Pages branch
+        type: boolean
+        default: false
+      strict:
+        description: Fail when a release archive for any target is missing
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "packaging/keenetic/**"
+      - "packaging/openwrt/common/**"
+      - "scripts/dist/keenetic-build.sh"
+      - "scripts/dist-check/**"
+      - ".github/workflows/keenetic-feed.yml"
+  pull_request:
+    paths:
+      - "packaging/keenetic/**"
+      - "packaging/openwrt/common/**"
+      - "scripts/dist/keenetic-build.sh"
+      - "scripts/dist-check/**"
+      - ".github/workflows/keenetic-feed.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shell scripts
+        run: shellcheck scripts/dist/keenetic-build.sh
+      - name: Keenetic tests
+        env:
+          TOWNJUMP_PKG_REQUIRE_TOOLS: "1"
+        run: python3 -m unittest discover -s packaging/keenetic -t packaging/keenetic
+      - name: Shared code tests (the usign cases skip here)
+        run: python3 -m unittest discover -s packaging/openwrt/common -t packaging/openwrt/common
+      - name: Check and build script tests
+        working-directory: scripts/dist-check
+        env:
+          TOWNJUMP_PKG_REQUIRE_TOOLS: "1"
+        run: python3 -m unittest test_elf test_leak_check test_dist_build
+
+  build:
+    name: build feed
+    needs: test
+    if: inputs.tag != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      TAG: ${{ inputs.tag }}
+      PKG_RELEASE: ${{ inputs.pkg_release }}
+      STRICT: ${{ inputs.strict }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check inputs
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::tag '$TAG' is not vX.Y.Z"; exit 1; }
+          [[ "$PKG_RELEASE" =~ ^[1-9][0-9]*$ ]] || { echo "::error::pkg_release must be an integer > 0"; exit 1; }
+      - name: Fetch the tag
+        run: |
+          set -euo pipefail
+          git fetch --depth=1 origin "+refs/tags/$TAG:refs/tags/$TAG"
+          echo "SOURCE_DATE_EPOCH=$(git log -1 --format=%ct "$TAG")" >> "$GITHUB_ENV"
+      - name: Download release archives
+        run: |
+          set -euo pipefail
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir fetched \
+            --pattern 'townjump-*-linux-musl*.tar.gz' --pattern SHA256SUMS
+      - name: Build
+        run: |
+          set -euo pipefail
+          flag=()
+          if [ "$STRICT" = "true" ]; then flag=(--strict); fi
+          scripts/dist/keenetic-build.sh fetched out "${TAG#v}" "$PKG_RELEASE" "${flag[@]}"
+      - name: Metadata leak check
+        run: python3 scripts/dist-check/leak_check.py out/pages
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pages-keenetic
+          path: out/pages
+          if-no-files-found: error
+          include-hidden-files: true
+
+  publish:
+    name: publish feed
+    needs: build
+    if: inputs.publish
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: pages-keenetic
+          path: pages
+      - name: Publish
+        run: |
+          set -euo pipefail
+          # shellcheck source=/dev/null
+          . packaging/openwrt/common/site.env
+          url="${PAGES_GIT_URL:-https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git}"
+          packaging/openwrt/common/publish_pages.sh keenetic pages "$url" "$PAGES_BRANCH" "${TAG#v}"
