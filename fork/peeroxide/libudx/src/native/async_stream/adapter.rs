@@ -40,6 +40,15 @@ impl UdxAsyncStream {
         inner.stats()
     }
 
+    /// Sets the largest receive window this stream advertises (default 4 MiB, floor 64 KiB); see
+    /// [`crate::UdxStream::set_recv_window_max`].
+    pub fn set_recv_window_max(&self, bytes: u32) {
+        let mut inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if inner.set_recv_window_max(bytes) {
+            inner.send_window_update();
+        }
+    }
+
     /// A handle that keeps reporting the peer's current address after the stream is split or moved.
     pub fn peer(&self) -> crate::StreamPeer {
         crate::StreamPeer(Arc::clone(&self.inner))

@@ -112,6 +112,7 @@ impl StreamInner {
     /// The detached queue head: if needed an MTU probe, then into `outgoing` and pacing debit. Result — a packet and an address for the socket.
     fn send_one(&mut self, queued: QueuedPacket) -> (Vec<u8>, SocketAddr) {
         let mut packet = queued.packet;
+        stamp_window(&mut packet, self.advertised_window());
         let is_mtu_probe = self.mtu_probe_for(&mut packet);
         self.register_sent(queued.seq, packet.clone(), is_mtu_probe);
         self.note_route(queued.seq, queued.remote_addr);

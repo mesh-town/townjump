@@ -35,6 +35,8 @@ const ACK_PER_DATA: [(&str, &str); 9] = [
     ("ff01010005000000000040000600000000000000a6", "ff01000007000000000040000000000008000000"),
     ("ff01010005000000000040000200000000000000a2", "ff01000007000000000040000000000008000000"),
 ];
+/// Unique packets (one byte each) held by the receiver after each step of `ACK_PER_DATA`.
+const ACK_PER_DATA_QUEUED: [u32; 9] = [1, 2, 3, 4, 5, 6, 7, 8, 8];
 // jq: .ackPerData.deliveredInOrder — a0..a7
 const DELIVERED_IN_ORDER: [u8; 8] = [0xa0, 0xa1, 0xa2, 0xa3, 0xa4, 0xa5, 0xa6, 0xa7];
 
@@ -116,7 +118,16 @@ mod ack_per_data {
             for (step, (sent, expected)) in ACK_PER_DATA.iter().enumerate() {
                 let reply = when_sent(&link.peer, sent).await;
 
-                assert_eq!(&reply, expected, "step {step}, sent {sent}");
+                // the JS window is a constant 4 MiB (udx-native never counts unread bytes); ours is the maximum less
+                // the unique one-byte packets held so far (read or not yet read, in order or buffered)
+                let window = 0x40_0000u32 - ACK_PER_DATA_QUEUED[step];
+                let expected = format!(
+                    "{}{}{}",
+                    &expected[..16],
+                    hex(&window.to_le_bytes()),
+                    &expected[24..]
+                );
+                assert_eq!(reply, expected, "step {step}, sent {sent}");
             }
         })
         .await;

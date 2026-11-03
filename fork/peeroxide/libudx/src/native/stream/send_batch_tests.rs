@@ -311,3 +311,44 @@ mod unaddressed_head {
         assert_eq!(inner.take_send_batch().packets.len(), 2);
     }
 }
+
+// ── receive window of the peer and our own window in the header ─────────────
+
+mod windows {
+    use super::*;
+    use crate::native::stream::test_support::with_sent;
+    use std::time::Duration;
+
+    #[test]
+    fn retransmit_ignores_zero_window() {
+        // given: two lost packets and the peer window 0 (the reference retransmits regardless of it)
+        let mut inner = stream_inner();
+        inner.remote_addr = Some("127.0.0.1:9".parse().unwrap());
+        with_sent(&mut inner, 0, 2);
+        let far = Instant::now() + Duration::from_secs(3600);
+        inner.outgoing.mark_rto_lost(Duration::ZERO, far);
+        inner.send_rwnd = 0;
+        // when
+        let batch = inner.take_send_batch();
+        // then: both go out as retransmissions
+        assert_eq!((batch.packets.len(), batch.rtx), (2, 2));
+    }
+
+    #[test]
+    fn sent_and_resent_packets_carry_the_current_window() {
+        // given: a queued packet built with another window, then 700 unread bytes
+        let mut inner = stream_inner();
+        inner.remote_addr = Some("127.0.0.1:9".parse().unwrap());
+        queue_full(&mut inner, 1);
+        inner.note_unread(700);
+        // when: it is sent, then lost and resent after 300 more bytes arrived
+        let sent = inner.take_send_batch().packets.remove(0).0;
+        inner.note_unread(300);
+        let far = Instant::now() + Duration::from_secs(3600);
+        inner.outgoing.mark_rto_lost(Duration::ZERO, far);
+        let resent = inner.take_send_batch().packets.remove(0).0;
+        // then: each carries the window of its own moment
+        assert_eq!(sent[8..12], (DEFAULT_RWND - 700).to_le_bytes());
+        assert_eq!(resent[8..12], (DEFAULT_RWND - 1000).to_le_bytes());
+    }
+}

@@ -205,3 +205,84 @@ async fn run_bidirectional_interop_test() -> Result<(), Box<dyn std::error::Erro
     assert!(status.success(), "node process exited with: {status}");
     Ok(())
 }
+
+#[tokio::test]
+async fn js_sender_resumes_after_zero_window() {
+    let _ = tracing_subscriber::fmt::try_init();
+
+    with_timeout(Duration::from_secs(60), async {
+        run_zero_window_test()
+            .await
+            .expect("zero window interop failed");
+    })
+    .await;
+}
+
+/// Node sends 8 MiB, Rust does not read for 2 s (the window closes), then reads everything.
+async fn run_zero_window_test() -> Result<(), Box<dyn std::error::Error>> {
+    const SEND_SIZE: usize = 8 * 1024 * 1024;
+    let mut child = Command::new("node")
+        .arg(node_script_path("udx-large-transfer.js"))
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::inherit())
+        .spawn()?;
+    let mut stdin = child.stdin.take().expect("no stdin");
+    let mut reader = BufReader::new(child.stdout.take().expect("no stdout"));
+    let mut line = String::new();
+    reader.read_line(&mut line)?;
+    let info: serde_json::Value = serde_json::from_str(line.trim())?;
+    let node_port = info["port"].as_u64().expect("missing port") as u16;
+    let node_local_id = info["localId"].as_u64().expect("missing localId") as u32;
+    let node_remote_id = info["remoteId"].as_u64().expect("missing remoteId") as u32;
+
+    let runtime = create_runtime();
+    let socket = runtime.create_socket().await?;
+    socket.bind("127.0.0.1:0".parse::<SocketAddr>()?).await?;
+    let rust_port = socket.local_addr().await?.port();
+    let handshake = serde_json::json!({
+        "port": rust_port,
+        "mode": "send_and_receive",
+        "sendSize": SEND_SIZE
+    });
+    writeln!(stdin, "{handshake}")?;
+    drop(stdin);
+
+    let mut stream = runtime.create_stream(node_remote_id).await?;
+    let node_addr: SocketAddr = format!("127.0.0.1:{node_port}").parse()?;
+    stream.connect(&socket, node_local_id, node_addr).await?;
+    let mut ready_line = String::new();
+    reader.read_line(&mut ready_line)?;
+
+    // not reading: the queue may not outgrow the window (a megabyte of slack for packets in flight)
+    let mut peak = 0u64;
+    for _ in 0..40 {
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        peak = peak.max(stream.stats().recv_queued);
+    }
+    // our FIN goes out first, as in the other interop runs
+    stream.shutdown().await?;
+    let mut received = Vec::new();
+    while let Some(chunk) = stream.read().await? {
+        peak = peak.max(stream.stats().recv_queued);
+        received.extend_from_slice(&chunk);
+    }
+
+    let mut result_line = String::new();
+    reader.read_line(&mut result_line)?;
+    let result: serde_json::Value = serde_json::from_str(result_line.trim())?;
+    assert_eq!(received.len(), SEND_SIZE, "all bytes arrived");
+    let sent_hash = result["sentSha256"].as_str().expect("missing sentSha256");
+    assert_eq!(format!("{:x}", Sha256::digest(&received)), sent_hash);
+    assert!(
+        peak <= 4_194_304 + (1 << 20),
+        "queue peaked at {peak} bytes"
+    );
+
+    stream.destroy().await?;
+    socket.close().await?;
+    drop(runtime);
+    let status = child.wait()?;
+    assert!(status.success(), "node process exited with: {status}");
+    Ok(())
+}

@@ -66,7 +66,7 @@ pub(super) fn send_ack(inner: &StreamInner) {
         inner.remote_id,
         inner.next_send_seq(),
         inner.next_remote_seq,
-        DEFAULT_RWND,
+        inner.advertised_window(),
         &inner.sack_ranges(),
     );
     send_raw(inner, packet);

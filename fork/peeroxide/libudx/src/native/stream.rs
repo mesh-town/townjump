@@ -76,6 +76,7 @@ mod rack;
 mod receive;
 #[cfg(test)]
 mod recovery_tests;
+mod recv_window;
 #[cfg(test)]
 mod relay_leak_tests;
 mod relay_path;
@@ -108,6 +109,7 @@ pub use control::{RemoteChanged, StreamControl, StreamPeer};
 pub use handle::UdxStream;
 pub(crate) use inner::StreamInner;
 pub(crate) use outgoing::build_data_packet;
+use recv_window::stamp_window;
 pub use stats::UdxStats;
 pub(crate) use types::{IncomingPacket, PendingWrite, StreamEvent, StreamNotify};
 

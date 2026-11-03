@@ -52,7 +52,7 @@ impl StreamInner {
                 self.remote_id,
                 seq,
                 self.next_remote_seq,
-                DEFAULT_RWND,
+                self.advertised_window(),
                 payload,
             ),
         );

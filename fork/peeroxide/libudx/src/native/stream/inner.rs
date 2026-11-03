@@ -32,6 +32,12 @@ pub(crate) struct StreamInner {
     pub(super) recv_buf: BTreeMap<Seq, RecvdPacket>,
     /// The peer's END was delivered to the reader (JS `UDX_STREAM_ENDED_REMOTE`).
     pub(super) remote_ended: bool,
+    /// Largest window we advertise (`set_recv_window_max`; default `DEFAULT_RWND`).
+    pub(super) recv_rwnd_max: u32,
+    /// Bytes of `Data` handed to the reader's channel and not yet taken by the reader.
+    pub(super) unread: usize,
+    /// Payload bytes in `recv_buf` (out-of-order).
+    pub(super) recv_buf_bytes: usize,
 
     // ── RTT estimation (Jacobson/Karels, matching C libudx constants) ──
     pub(super) srtt: u32,

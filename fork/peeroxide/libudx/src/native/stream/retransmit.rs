@@ -37,9 +37,10 @@ impl StreamInner {
     /// One retransmission into `out`, pacing tokens debited (C `retransmit_packet` → `_send_packet`, 910-927, 663-682).
     fn retransmit_one(&mut self, seq: Seq, addr: SocketAddr, out: &mut Vec<(Vec<u8>, SocketAddr)>) {
         let route = self.outgoing.get(&seq).and_then(|p| p.remote_addr);
-        let Some(packet) = self.resend_seq(seq, Instant::now()) else {
+        let Some(mut packet) = self.resend_seq(seq, Instant::now()) else {
             return;
         };
+        stamp_window(&mut packet, self.advertised_window());
         self.congestion
             .pacing
             .try_consume(packet.len() as u32, Instant::now());
