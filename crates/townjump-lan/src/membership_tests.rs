@@ -67,3 +67,18 @@ async fn a_second_refresh_without_changes_keeps_the_membership() {
     r.refresh_interfaces();
     assert_eq!(r.joined_interfaces(), all);
 }
+
+#[tokio::test]
+async fn a_failed_join_is_not_counted_and_is_retried() {
+    let Some(all) = host_interfaces() else { return };
+    // TEST-NET-1: no interface of the host has this address, so the join fails.
+    let missing = Ipv4Addr::new(192, 0, 2, 1);
+    let (source, list) = switchable(vec![missing]);
+    let r = Responder::start_with(&cfg(28704), source).unwrap();
+    assert!(r.joined_interfaces().is_empty());
+    let mut both = vec![missing];
+    both.extend(ipv4_interfaces());
+    *list.lock().unwrap() = both;
+    r.refresh_interfaces();
+    assert_eq!(r.joined_interfaces(), all);
+}
