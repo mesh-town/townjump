@@ -126,5 +126,17 @@ FAKE_HTTP=500 sub 1.2.3
 case "$out" in *::error::*) ok "500: error annotation" ;; *) nok "500: error annotation" ;; esac
 [ ! -s "$FAKE_LOG" ] && ok "500: komac not called" || nok "500: komac not called"
 
+# metadata: one description phrase, landing page URLs, licence link stays on GitHub
+loc="$dir/MeshTown.Townjump.locale.en-US.yaml"
+landing=https://mesh-town.github.io/townjump/
+short="$(sed -n "s/^ShortDescription: '\(.*\)'$/\1/p" "$loc")"
+[ "$short" = "Single-binary Rust port of Holesail: share a local port over a peer-to-peer tunnel, reach it anywhere with one key. No server of your own." ] && [ "${#short}" -le 256 ] \
+  && ok "description_is_the_one_phrase" || nok "description_is_the_one_phrase"
+check "description_is_the_one_phrase: Description present" grep -q '^Description: ' "$loc"
+if grep -Eiq 'vpn|relay server' "$loc"; then nok "no_vpn_or_relay_server_words"; else ok "no_vpn_or_relay_server_words"; fi
+check "urls_point_to_landing: PackageUrl" grep -qx "PackageUrl: $landing" "$loc"
+check "urls_point_to_landing: PublisherUrl" grep -qx "PublisherUrl: $landing" "$loc"
+check "license_url_unchanged" grep -qx 'LicenseUrl: https://github.com/mesh-town/townjump/blob/main/LICENSE' "$loc"
+
 echo "1..$n"
 [ "$bad" = 0 ]

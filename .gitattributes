@@ -1,0 +1,4 @@
+# The landing page sources are not part of the release source archive.
+# The directory rule drops the tree; the glob makes the attribute visible for any path below it.
+site/ export-ignore
+site/** export-ignore
