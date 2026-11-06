@@ -32,6 +32,7 @@ pub struct UdxAsyncStream {
     pub(super) processor: Option<JoinHandle<()>>,
     pub(super) fin_queued: bool,
     pub(super) write_done: bool,
+    pub(super) read_stats: super::read::ReadPath,
 }
 
 impl UdxAsyncStream {
@@ -104,6 +105,7 @@ impl UdxAsyncStream {
             processor,
             fin_queued: false,
             write_done: false,
+            read_stats: Default::default(),
         }
     }
 }

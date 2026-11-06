@@ -45,6 +45,7 @@ impl StreamInner {
             mtu_max: MTU_MAX,
             udp: None,
             read_tx,
+            read_stats: Default::default(),
             close_tx,
             notify_tx: None,
             congestion: crate::native::congestion::CongestionController::new(

@@ -73,6 +73,7 @@ mod path;
 mod probe_loss_tests;
 mod processor_task;
 mod rack;
+mod read_stats;
 mod receive;
 #[cfg(test)]
 mod recovery_tests;

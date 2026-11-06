@@ -41,18 +41,25 @@ pub(super) fn handle_data_packet(
         send_ack(&guard);
         (events, guard.read_tx.clone())
     };
+    let mut delivered = 0u64;
     for event in events {
         let len = match &event {
             StreamEvent::Data(data) => data.len(),
             StreamEvent::End => 0,
         };
-        if read_tx.send(event).is_err() && len > 0 {
+        if read_tx.send(event).is_ok() {
+            delivered += len as u64;
+        } else if len > 0 {
             // the reader is gone: nobody will release these bytes
             inner
                 .lock()
                 .unwrap_or_else(|e| e.into_inner())
                 .release_read(len);
         }
+    }
+    if delivered > 0 {
+        let mut guard = inner.lock().unwrap_or_else(|e| e.into_inner());
+        guard.read_stats.record(delivered);
     }
     ControlFlow::Continue(())
 }
