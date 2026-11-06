@@ -51,6 +51,7 @@ pub(super) async fn native_testnet(size: usize) -> NativeTestnet {
         adaptive: false,
         nodes: Vec::new(),
         lan_discovery: false,
+        stream_limits: Default::default(),
     };
     NativeTestnet { factory, nodes }
 }

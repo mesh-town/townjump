@@ -37,6 +37,14 @@ impl Tunnels {
         alive.iter().for_each(|slot| slot.kill());
     }
 
+    /// The live slots, oldest first (for tests).
+    #[cfg(test)]
+    pub fn live(&self) -> Vec<Arc<Slot>> {
+        let slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
+        let alive = slots.iter().filter_map(Weak::upgrade);
+        alive.filter(|slot| !slot.is_killed()).collect()
+    }
+
     /// How many tunnels are still in the registry and not aborted (for tests).
     #[cfg(test)]
     pub fn open(&self) -> usize {

@@ -6,7 +6,7 @@ use crate::node::{LanSetup, Node};
 use crate::nodes::to_peers;
 use peeroxide_dht::hyperdht::HyperDhtConfig;
 use std::net::SocketAddrV4;
-use townjump_dht::{DhtError, DhtFactory};
+use townjump_dht::{DhtError, DhtFactory, StreamLimits};
 use townjump_keys::KeyPair;
 
 /// Creates DHT nodes on the peeroxide fork.
@@ -20,6 +20,8 @@ pub struct PeeroxideFactory {
     pub nodes: Vec<SocketAddrV4>,
     /// LAN discovery (multicast responder for listen, probe in connect); default `true`, `TOWNJUMP_LAN_DISCOVERY=0` — off.
     pub lan_discovery: bool,
+    /// Window limits of every UDX stream of the node (outgoing, incoming, relayed); default: libudx defaults.
+    pub stream_limits: StreamLimits,
 }
 
 impl Default for PeeroxideFactory {
@@ -29,6 +31,7 @@ impl Default for PeeroxideFactory {
             adaptive: true,
             nodes: Vec::new(),
             lan_discovery: true,
+            stream_limits: StreamLimits::default(),
         }
     }
 }
@@ -57,6 +60,7 @@ impl PeeroxideFactory {
             adaptive,
             nodes: Vec::new(),
             lan_discovery: adaptive_from_env(get(LAN_VAR).as_deref()),
+            stream_limits: StreamLimits::default(),
         }
     }
 }
@@ -79,7 +83,17 @@ impl PeeroxideFactory {
         let mut config = plan.config();
         config.dht.adaptive = self.adaptive;
         config.dht.nodes = to_peers(&self.nodes);
+        config.stream_limits = fork_limits(self.stream_limits);
         config
+    }
+}
+
+/// The fork has its own limits type (it does not depend on this workspace).
+fn fork_limits(limits: StreamLimits) -> peeroxide_dht::hyperdht::StreamLimits {
+    peeroxide_dht::hyperdht::StreamLimits {
+        recv_window_max: limits.recv_window_max,
+        send_window_max: limits.send_window_max,
+        write_high_watermark: limits.write_high_watermark,
     }
 }
 
