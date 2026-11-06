@@ -39,17 +39,16 @@ pub(super) fn handle_data_packet(
         }
         let events = guard.receive_data(header.seq, payload, recv_flags);
         send_ack(&guard);
+        // Counted under the lock already held; a send to a gone reader is counted too (nobody reads the stats then).
+        guard.read_stats.record(data_bytes(&events));
         (events, guard.read_tx.clone())
     };
-    let mut delivered = 0u64;
     for event in events {
         let len = match &event {
             StreamEvent::Data(data) => data.len(),
             StreamEvent::End => 0,
         };
-        if read_tx.send(event).is_ok() {
-            delivered += len as u64;
-        } else if len > 0 {
+        if read_tx.send(event).is_err() && len > 0 {
             // the reader is gone: nobody will release these bytes
             inner
                 .lock()
@@ -57,11 +56,17 @@ pub(super) fn handle_data_packet(
                 .release_read(len);
         }
     }
-    if delivered > 0 {
-        let mut guard = inner.lock().unwrap_or_else(|e| e.into_inner());
-        guard.read_stats.record(delivered);
-    }
     ControlFlow::Continue(())
+}
+
+fn data_bytes(events: &[StreamEvent]) -> u64 {
+    events
+        .iter()
+        .map(|e| match e {
+            StreamEvent::Data(data) => data.len() as u64,
+            StreamEvent::End => 0,
+        })
+        .sum()
 }
 
 impl StreamInner {
