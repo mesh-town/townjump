@@ -1,19 +1,21 @@
 #!/usr/bin/env bash
-# dry-run.sh [all|deb|openwrt|keenetic] [--assets DIR] [--allow-partial]
+# dry-run.sh [all|deb|dist|openwrt|keenetic] [--assets DIR] [--allow-partial]
 # Builds, checks and "publishes" the Linux package feeds on this machine; everything lives in target/dist-dry/ and
 # nothing leaves it (publishing goes to the local bare repositories target/dist-dry/{dist,openwrt,keenetic}.git). Archives come from
 # --assets or from local_assets.sh (needs CARGO_TARGET_DIR; the caller holds the machine lock). Throwaway keys only.
 # Checks per mode: builder, *_check.py and leak_check.py, a second build must give the same sha256 for .deb/.ipk/Packages,
+# dist: the direct-download tree of a fixture release (fake-release.sh, no cargo) is built, checked and published to the dist
+# repository keeping linux/debian; with deb done before, both publishing orders (dist then deb, deb then dist) must keep both.
 # deb: a third build with pkg-release 2 must leave both -1 and -2 in the published pool, then container.sh debian.
 # Publishing goes to three local bare repositories (dist, openwrt, keenetic) that mirror the three real ones.
 # Exit codes: 0 done, 1 failure, 2 bad arguments, 3 a part was skipped (unless --allow-partial); "skipped: <why>" is printed.
 set -euo pipefail
 
-usage() { echo "usage: dry-run.sh [all|deb|openwrt|keenetic] [--assets DIR] [--allow-partial]" >&2; exit 2; }
+usage() { echo "usage: dry-run.sh [all|deb|dist|openwrt|keenetic] [--assets DIR] [--allow-partial]" >&2; exit 2; }
 mode="all" assets="" partial_ok=0 seen_mode=0
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    all | deb | openwrt | keenetic) [ "$seen_mode" = 0 ] || usage; mode="$1"; seen_mode=1 ;;
+    all | deb | dist | openwrt | keenetic) [ "$seen_mode" = 0 ] || usage; mode="$1"; seen_mode=1 ;;
     --assets) [ "$#" -ge 2 ] || usage; assets="$2"; shift ;;
     --allow-partial) partial_ok=1 ;;
     *) usage ;;
@@ -105,7 +107,46 @@ run_deb() {
     printf '%s\n' "$pool" | grep -q "townjump_${rel}_amd64.deb" || fail "pool lacks townjump_${rel}_amd64.deb"
   done
   echo "pool keeps $V-1 and $V-2"
+  deb_done=1
   container_gate debian
+}
+
+dist_published=0 deb_done=0
+
+publish_dist_tree() { # <repo>
+  ( export PAGES_KEEP=linux/debian; publish "$1" - "$dry/out-dist" )
+}
+publish_debs() { # <repo>
+  publish "$1" linux/debian "$dry/out-deb/debs" --update "$root/scripts/dist/deb-update.sh"
+}
+
+# Both files of the dist repository must survive in the repository whatever was published last.
+dist_has_both() { # <repo>
+  local repo="$1" f
+  for f in macos/townjump-macos-aarch64.tar.gz linux/townjump-linux-x86_64.tar.gz windows/townjump.exe android/townjump-termux-aarch64.tar.gz \
+    linux/debian/dists/stable/InRelease; do
+    git -C "$dry/$repo.git" cat-file -e "$PAGES_BRANCH:$f" || fail "$repo: $f is missing after publishing both"
+  done
+}
+
+run_dist() {
+  echo "== dist"
+  "$here/../dist/fake-release.sh" "$V" "$dry/fake-release"
+  "$here/../dist/dist-tree.sh" "$dry/fake-release" "$dry/out-dist" "$V"
+  "$here/../dist/dist-tree.sh" "$dry/fake-release" "$dry/out-dist-b" "$V" > /dev/null
+  diff -r "$dry/out-dist" "$dry/out-dist-b" > /dev/null || fail "second dist tree differs from the first"
+  python3 "$here/dist_tree_check.py" "$dry/out-dist"
+  publish_dist_tree dist
+  dist_published=1
+  if [ "$deb_done" = 1 ]; then
+    publish_dist_tree dist-ab
+    publish_debs dist-ab
+    dist_has_both dist-ab
+    publish_debs dist-ba
+    publish_dist_tree dist-ba
+    dist_has_both dist-ba
+    echo "dist then deb and deb then dist keep both"
+  fi
 }
 
 run_keenetic() {
@@ -178,7 +219,10 @@ check_install_address() { # <repo> <site.env key>
 
 final_checks() {
   if [ -d "$dry/dist.git" ]; then
-    check_repo dist "linux/debian/dists/stable/InRelease .nojekyll"
+    local want=".nojekyll"
+    [ "$deb_done" != 1 ] || want="$want linux/debian/dists/stable/InRelease"
+    [ "$dist_published" != 1 ] || want="$want SHA256SUMS version.txt README.md macos/townjump-macos-x86_64.tar.gz linux/townjump-linux-mips.tar.gz android/townjump-termux-aarch64.tar.gz windows/townjump.exe windows/townjump-setup.exe"
+    check_repo dist "$want"
   fi
   if [ -d "$dry/openwrt.git" ]; then
     check_repo openwrt "install.sh .nojekyll README.md"
@@ -193,8 +237,9 @@ final_checks() {
 
 before="$(git -C "$root" status --porcelain)"
 mkdir -p "$dry"
-[ "$mode" != all ] || rm -rf "$dry/pages.git" "$dry/dist.git" "$dry/openwrt.git" "$dry/keenetic.git"
+[ "$mode" != all ] || rm -rf "$dry/pages.git" "$dry/dist.git" "$dry/dist-ab.git" "$dry/dist-ba.git" "$dry/openwrt.git" "$dry/keenetic.git"
 case "$mode" in
+  dist) ;;
   deb) make_assets "x86_64-unknown-linux-musl aarch64-unknown-linux-musl armv7-unknown-linux-musleabihf" ;;
   keenetic) make_assets "aarch64-unknown-linux-musl mipsel-unknown-linux-musl mips-unknown-linux-musl" ;;
   openwrt) make_assets "x86_64-unknown-linux-musl aarch64-unknown-linux-musl armv7-unknown-linux-musleabihf armv7-unknown-linux-musleabi mipsel-unknown-linux-musl mips-unknown-linux-musl" ;;
@@ -202,9 +247,10 @@ case "$mode" in
 esac
 case "$mode" in
   deb) run_deb ;;
+  dist) run_dist ;;
   keenetic) run_keenetic ;;
   openwrt) run_openwrt ;;
-  all) run_deb; run_openwrt; run_keenetic ;;
+  all) run_deb; run_dist; run_openwrt; run_keenetic ;;
 esac
 final_checks
 [ "$(git -C "$root" status --porcelain)" = "$before" ] || fail "the repository tree changed during the run"

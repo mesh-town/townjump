@@ -1,0 +1,72 @@
+name: dist
+
+# Builds the direct-download tree (files without versions, one folder per OS) from a published release and, on request,
+# publishes it to the Pages branch of the dist repository. The apt repository in linux/debian is kept. Called from
+# release.yml after the release exists; also runnable by hand (publish defaults to false, so a manual run is a dry run).
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version without the leading v, for example 0.1.7
+        type: string
+        required: true
+      publish:
+        description: Publish the tree to the Pages branch
+        type: boolean
+        default: false
+    secrets:
+      DIST_DEPLOY_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without the leading v, for example 0.1.7
+        type: string
+        required: true
+      publish:
+        description: Publish the tree to the Pages branch
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  tree:
+    name: direct files
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    concurrency:
+      group: townjump-dist-pages
+      cancel-in-progress: false
+    env:
+      VERSION: ${{ inputs.version }}
+      GH_TOKEN: ${{ github.token }}
+      DIST_DEPLOY_KEY: ${{ secrets.DIST_DEPLOY_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check inputs
+        run: |
+          set -euo pipefail
+          [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::version '$VERSION' is not X.Y.Z"; exit 1; }
+      - name: Download release assets
+        run: gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --dir assets
+      - name: Build the tree
+        run: scripts/dist/dist-tree.sh assets tree "$VERSION"
+      - name: Check the tree
+        run: python3 scripts/dist-check/dist_tree_check.py tree
+      - name: Publish
+        if: inputs.publish
+        run: |
+          set -euo pipefail
+          if [ -z "$DIST_DEPLOY_KEY" ]; then
+            echo "::notice::DIST_DEPLOY_KEY is not set: the direct files are not published"
+            exit 0
+          fi
+          # shellcheck source=/dev/null
+          . packaging/openwrt/common/site.env
+          (umask 077; printf '%s\n' "$DIST_DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key")
+          export DEPLOY_KEY_FILE="$RUNNER_TEMP/deploy-key" PAGES_KEEP=linux/debian
+          packaging/openwrt/common/publish_pages.sh - tree "$DIST_GIT_URL" "$PAGES_BRANCH" "$VERSION"

@@ -178,5 +178,39 @@ class WorkflowTests(unittest.TestCase):
         self.assertNotIn("secrets.", CONTAINER)
 
 
+class DistWorkflowTests(unittest.TestCase):
+    """dist.yml: direct files in the dist repository. Kept out of WORKFLOWS: it has one job, not test/build/publish."""
+
+    text = (DIR / "dist.yml").read_text()
+
+    def test_dist_shares_concurrency_group_with_deb(self):
+        block = job(self.text, "tree")
+        want = "    concurrency:\n      group: townjump-dist-pages\n      cancel-in-progress: false\n"
+        self.assertIn(want, block)
+        self.assertIn(want, job(text_of("deb"), "publish"))
+        self.assertIn("permissions:\n      contents: read", block)
+
+    def test_dist_publish_keeps_debian_dir(self):
+        self.assertRegex(self.text, r"PAGES_KEEP=linux/debian")
+        self.assertIn('publish_pages.sh - tree "$DIST_GIT_URL" "$PAGES_BRANCH" "$VERSION"', self.text)
+        self.assertIn("DEPLOY_KEY_FILE=", self.text)
+
+    def test_dist_skips_without_key(self):
+        pub = self.text.split("- name: Publish\n", 1)[1]
+        self.assertIn("        if: inputs.publish\n", pub)
+        self.assertIn('[ -z "$DIST_DEPLOY_KEY" ]', pub)
+        self.assertIn("::notice::", pub)
+        self.assertIn("exit 0", pub)
+        self.assertRegex(trigger_block(self.text, "workflow_call"), r"      DIST_DEPLOY_KEY:\n        required: false")
+        self.assertNotRegex(self.text, r"-----BEGIN|ghp_|github_pat_|gho_")
+
+    def test_dist_publish_default_false_on_dispatch(self):
+        for trig in ("workflow_call", "workflow_dispatch"):
+            block = input_block(self.text, trig, "publish")
+            self.assertIn("type: boolean", block)
+            self.assertIn("default: false", block)
+            self.assertIn("required: true", input_block(self.text, trig, "version"))
+
+
 if __name__ == "__main__":
     unittest.main()

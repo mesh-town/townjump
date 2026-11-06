@@ -32,7 +32,7 @@ fresh() { rm -rf "$work/rel"; "$fake" 1.2.3 "$work/rel" >/dev/null 2>&1; : >"$GH
 
 fresh
 lines="$(wc -l <"$work/rel/SHA256SUMS" | tr -d ' ')"
-expect "sums has 11 lines" 11 "$lines"
+expect "sums has 12 lines" 12 "$lines"
 rc bash -c "cd '$work/rel' && shasum -a 256 -c SHA256SUMS"
 expect "shasum -c passes" 0 "$RC"
 rc "$pub" check 1.2.3 "$work/rel"
@@ -74,6 +74,12 @@ grep -v 'townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz' "$work/rel/SHA256SUMS"
 rc "$pub" check 1.2.3 "$work/rel"
 expect "missing mipsel sums line fails" 1 "$RC"
 if grep -q 'townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz' "$work/err"; then ok "stderr names missing mipsel asset"; else nok "stderr names missing mipsel asset"; fi
+
+fresh
+rm "$work/rel/townjump-1.2.3-aarch64-linux-android.tar.gz"
+rc "$pub" release 1.2.3 "$work/rel"
+expect "release without android asset fails" 1 "$RC"
+if grep -q 'townjump-1.2.3-aarch64-linux-android.tar.gz' "$work/err"; then ok "release stderr names android asset"; else nok "release stderr names android asset"; fi
 
 fresh
 rm "$work/rel/townjump-1.2.3-mipsel-unknown-linux-musl.tar.gz"

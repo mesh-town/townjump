@@ -35,6 +35,7 @@ expected_assets() {
     armv7-unknown-linux-musleabi
     mipsel-unknown-linux-musl
     mips-unknown-linux-musl
+    aarch64-linux-android
     x86_64-pc-windows-msvc
   )
   for t in "${targets[@]}"; do
