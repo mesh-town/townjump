@@ -64,6 +64,20 @@ name=no_versions_in_file_names
 bad="$(cd "$work/tree" && find . -type f | grep -E '[0-9]+\.[0-9]+\.[0-9]+' || true)"
 check test -z "$bad"
 
+name=zip_without_exe_fails
+fresh
+z="townjump-$V-x86_64-pc-windows-msvc.zip"
+mkdir "$work/zipsrc"
+echo x >"$work/zipsrc/other.txt"
+rm "$work/rel/$z"
+(cd "$work/zipsrc" && zip -q "$work/rel/$z" other.txt)
+rm -rf "$work/zipsrc"
+sed "/$z/d" "$work/rel/SHA256SUMS" >"$work/sums.new"
+printf '%s  %s\n' "$(shasum -a 256 "$work/rel/$z" | cut -d' ' -f1)" "$z" >>"$work/sums.new"
+mv "$work/sums.new" "$work/rel/SHA256SUMS"
+rc "$tree" "$work/rel" "$work/tree" "$V"
+check bash -c "[ $RC = 1 ] && grep -q 'no townjump.exe' '$work/err'"
+
 name=unknown_arg_exit_2
 rc "$tree" "$work/rel" "$work/tree"
 a=$RC

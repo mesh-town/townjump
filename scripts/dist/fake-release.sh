@@ -42,7 +42,7 @@ for t in "${targets[@]}"; do
   if [[ "$t" == *windows* ]]; then
     printf 'MZ stub for %s\n' "$t" >"$d/townjump.exe"
   else
-    printf '#!/bin/sh\necho "Holesail CLI (stub)"\n' >"$d/townjump"
+    printf '#!/bin/sh\n# %s\necho "Holesail CLI (stub)"\n' "$t" >"$d/townjump"
     chmod 755 "$d/townjump"
   fi
   echo "stub license" >"$d/LICENSE"

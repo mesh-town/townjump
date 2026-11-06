@@ -9,6 +9,8 @@ on:
       - ".github/workflows/tap-bump.yml"
       - ".github/workflows/winget.yml"
       - ".github/workflows/check-dist.yml"
+      - ".github/workflows/**"
+      - "scripts/dist-check/**"
   push:
     branches: [main]
     paths:
@@ -18,6 +20,8 @@ on:
       - ".github/workflows/tap-bump.yml"
       - ".github/workflows/winget.yml"
       - ".github/workflows/check-dist.yml"
+      - ".github/workflows/**"
+      - "scripts/dist-check/**"
 
 permissions:
   contents: read
@@ -41,6 +45,8 @@ jobs:
             echo "== $t"
             "$t"
           done
+      - name: Workflow wiring tests
+        run: cd scripts/dist-check && python3 -m unittest test_workflows test_release_callers test_dist_tree_check
       - name: Key tooling tests (with usign)
         run: |
           set -euo pipefail
