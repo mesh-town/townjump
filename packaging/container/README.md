@@ -3,7 +3,7 @@
 `ghcr.io/mesh-town/townjump` holds the statically linked (musl) `townjump` binary and nothing else: no shell, no
 package manager, no CA certificates. Platforms: `linux/amd64`, `linux/arm64`, `linux/arm/v7`.
 
-Tags: `<version>` (for example `0.1.19`) and `latest`. They are pushed by the `container-image` workflow only for a
+Tags: `<version>` (for example `0.1.20`) and `latest`. They are pushed by the `container-image` workflow only for a
 `v*` tag.
 
 ## Run

@@ -4,7 +4,7 @@ The crates are not published on crates.io and the API is not stable; depend on t
 
 ```toml
 [dependencies]
-townjump = { git = "https://github.com/mesh-town/townjump", tag = "v0.1.19" }
+townjump = { git = "https://github.com/mesh-town/townjump", tag = "v0.1.20" }
 ```
 
 The crate `townjump` exposes the `Holesail` type, a port of the JavaScript `Holesail` class: `new`, `ready`, `info`,
