@@ -32,6 +32,23 @@ impl StreamInner {
         Some(double_rto(self.rto)) // rto itself does not grow
     }
 
+    /// `on_rto_fire` plus one debug line per firing that has something to retransmit.
+    pub(super) fn on_rto_fire_logged(&mut self, local_id: u32) -> Option<Duration> {
+        let fires = self.rto_fires;
+        let next = self.on_rto_fire();
+        if self.rto_fires != fires {
+            tracing::debug!(
+                local_id,
+                remote_addr = ?self.remote_addr,
+                rto_ms = self.rto,
+                timeouts = self.rto_timeouts,
+                unacked = self.outgoing.len(),
+                "stream rto fired"
+            );
+        }
+        next
+    }
+
     fn enter_rto_loss(&mut self) {
         self.congestion.on_rto();
         let Some(&Seq(max_seq)) = self.outgoing.keys().last() else {
@@ -113,3 +130,7 @@ mod tests;
 #[cfg(test)]
 #[path = "rto_loss_tests.rs"]
 mod rto_loss_tests;
+
+#[cfg(test)]
+#[path = "rto_log_tests.rs"]
+mod rto_log_tests;

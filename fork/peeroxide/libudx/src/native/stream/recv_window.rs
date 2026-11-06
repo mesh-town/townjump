@@ -30,6 +30,11 @@ impl StreamInner {
         (self.unread + self.recv_buf_bytes) as u64
     }
 
+    /// The largest window this stream advertises.
+    pub(crate) fn recv_window_max(&self) -> u32 {
+        self.recv_rwnd_max
+    }
+
     /// The window to put into the header of an outgoing packet.
     pub(super) fn advertised_window(&self) -> u32 {
         let queued = self.recv_queued().min(u64::from(u32::MAX)) as u32;

@@ -23,6 +23,7 @@ use crate::native::stream::{StreamEvent, StreamInner, WRITE_HIGH_WATERMARK};
 /// peer's reader fails with `ConnectionReset` (as `stream.destroy()` does in JS).
 pub struct UdxAsyncStream {
     pub(super) inner: Arc<Mutex<StreamInner>>,
+    pub(super) local_id: u32,
     pub(super) read_rx: mpsc::UnboundedReceiver<StreamEvent>,
     pub(super) read_buf: Vec<u8>,
     pub(super) read_pos: usize,
@@ -47,6 +48,17 @@ impl UdxAsyncStream {
         if inner.set_recv_window_max(bytes) {
             inner.send_window_update();
         }
+    }
+
+    /// Stream identifier in the socket table, the same value as [`crate::UdxStream::local_id`].
+    pub fn local_id(&self) -> u32 {
+        self.local_id
+    }
+
+    /// The largest receive window this stream advertises, as set by [`Self::set_recv_window_max`].
+    pub fn recv_window_max(&self) -> u32 {
+        let inner = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        inner.recv_window_max()
     }
 
     /// Sets the write threshold; see [`crate::UdxStream::set_write_high_watermark`].
@@ -79,9 +91,11 @@ impl UdxAsyncStream {
         inner: Arc<Mutex<StreamInner>>,
         read_rx: mpsc::UnboundedReceiver<StreamEvent>,
         processor: Option<JoinHandle<()>>,
+        local_id: u32,
     ) -> Self {
         Self {
             inner,
+            local_id,
             read_rx,
             read_buf: Vec::new(),
             read_pos: 0,
