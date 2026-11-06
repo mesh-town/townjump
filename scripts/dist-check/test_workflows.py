@@ -156,11 +156,14 @@ class WorkflowTests(unittest.TestCase):
     def test_container_push_only_on_tag_and_publish(self):
         block = job(CONTAINER, "image")
         cond = "inputs.publish && startsWith(github.ref, 'refs/tags/v')"
-        self.assertEqual(block.count("push: true"), 1)
-        for step in ("Log in to ghcr.io", "Build all platforms and push"):
-            m = re.search(rf"- name: {step}\n        if: \$\{{\{{ (.+) \}}\}}", block)
-            self.assertTrue(m, step)
-            self.assertEqual(m.group(1), cond)
+        m = re.search(r"- name: Log in to ghcr.io\n        if: \$\{\{ (.+) \}\}", block)
+        self.assertTrue(m)
+        self.assertEqual(m.group(1), cond)
+        step = re.search(r"- name: Build all platforms and push\n((?:        .*\n)+)", block).group(1)
+        self.assertNotRegex(step, r"^        if:")
+        self.assertEqual(step.count("push:"), 1)
+        self.assertIn("push: ${{ " + cond + " }}", step)
+        self.assertNotIn("push: true", block)
         self.assertEqual(trigger_block(CONTAINER, "workflow_dispatch").count("default: false"), 1)
 
     def test_container_has_run_check_before_push(self):

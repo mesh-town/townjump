@@ -79,13 +79,12 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ github.token }}
       - name: Build all platforms and push
-        if: ${{ inputs.publish && startsWith(github.ref, 'refs/tags/v') }}
         uses: docker/build-push-action@v6
         with:
           context: ctx
           file: packaging/container/Dockerfile
           platforms: linux/amd64,linux/arm64,linux/arm/v7
-          push: true
+          push: ${{ inputs.publish && startsWith(github.ref, 'refs/tags/v') }}
           build-args: VERSION=${{ inputs.version }}
           tags: |
             ${{ env.IMAGE }}:${{ inputs.version }}

@@ -1,5 +1,10 @@
 """Text-level tests of the package caller jobs in release.yml (stdlib only)."""
+import os
 import re
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -162,6 +167,50 @@ class ReleaseWiring(unittest.TestCase):
         matrix = re.findall(r"- target: (\S+)", job(release_text(), "build"))
         self.assertIn("aarch64-linux-android", listed)
         self.assertEqual(sorted(listed), sorted(matrix))
+
+    def check_tag_script(self):
+        block = job(release_text(), "check-tag")
+        m = re.search(r"- name: Compare tag and workspace version\n(?:        .*\n)*?        run: \|\n((?:          .*\n|\n)+)", block)
+        self.assertIsNotNone(m)
+        return "\n".join(line[10:] for line in m.group(1).splitlines())
+
+    @staticmethod
+    def gnu_sed_path(tmp):
+        """PATH whose sed is GNU sed (the script targets the Linux runner); a shim stands in on BSD sed."""
+        path = os.environ.get("PATH", "/usr/bin:/bin")
+        probe = subprocess.run(["sed", "--version"], capture_output=True, env={"PATH": path})
+        if probe.returncode == 0:
+            return path
+        real = shutil.which("sed")
+        shim = Path(tmp) / "bin"
+        shim.mkdir()
+        # BSD sed wants ';' before '}'; GNU sed does not, so the workflow script omits it
+        body = (f"#!{sys.executable}\nimport os, sys\n"
+                f"os.execv({real!r}, ['sed'] + [a[:-1] + ';}}' if a.endswith('p}}') else a for a in sys.argv[1:]])\n")
+        (shim / "sed").write_text(body)
+        (shim / "sed").chmod(0o755)
+        return f"{shim}:{path}"
+
+    def run_check_tag(self, ref_type, ref_name):
+        root = DIR.parent.parent
+        with tempfile.TemporaryDirectory() as tmp:
+            out = Path(tmp) / "output"
+            out.touch()
+            env = {"PATH": self.gnu_sed_path(tmp), "GITHUB_REF_TYPE": ref_type,
+                   "GITHUB_REF_NAME": ref_name, "GITHUB_OUTPUT": str(out)}
+            r = subprocess.run(["bash", "-c", self.check_tag_script()], cwd=root, env=env, capture_output=True, text=True)
+            return r.returncode, r.stderr, out.read_text()
+
+    def test_check_tag_script(self):
+        root = DIR.parent.parent
+        version = re.search(r'^\[workspace.package\]\n(?:.*\n)*?version *= *"([^"]+)"', (root / "Cargo.toml").read_text(), re.M).group(1)
+        rc, err, _ = self.run_check_tag("tag", "v0.0.0")
+        self.assertEqual(rc, 1)
+        self.assertIn("does not match", err)
+        for kind, name in (("tag", f"v{version}"), ("branch", "main")):
+            rc, err, out = self.run_check_tag(kind, name)
+            self.assertEqual(rc, 0, err)
+            self.assertEqual(out, f"version={version}\n")
 
 
 if __name__ == "__main__":

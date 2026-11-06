@@ -25,7 +25,7 @@ macOS (Apple silicon; use `x86_64` on Intel) and Linux (pick your architecture):
 
 Termux:
 
-    curl -fsSL https://mesh-town.github.io/townjump-dist/android/townjump-termux-aarch64.tar.gz | tar -xz
+    curl -fsSL https://mesh-town.github.io/townjump-dist/android/townjump-termux-aarch64.tar.gz | tar -xz --strip-components=1 -C "$PREFIX/bin" --wildcards '*/townjump'
 
 Windows: download `windows/townjump-setup.exe` and run it, or take `windows/townjump.exe` alone.
 

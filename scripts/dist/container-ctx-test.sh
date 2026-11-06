@@ -20,6 +20,13 @@ ok=1
 for d in amd64 arm64 armv7; do [ -f "$work/out/linux/$d/townjump" ] || ok=0; done
 if [ "$ok" = 1 ]; then pass ctx_has_three_platforms; else fail ctx_has_three_platforms; fi
 
+# ctx_maps_triples_to_platforms
+ok=1
+grep -q x86_64-unknown-linux-musl "$work/out/linux/amd64/townjump" || ok=0
+grep -q aarch64-unknown-linux-musl "$work/out/linux/arm64/townjump" || ok=0
+grep -q armv7-unknown-linux-musleabihf "$work/out/linux/armv7/townjump" || ok=0
+if [ "$ok" = 1 ]; then pass ctx_maps_triples_to_platforms; else fail ctx_maps_triples_to_platforms; fi
+
 # modes_are_0755
 ok=1
 for d in amd64 arm64 armv7; do
