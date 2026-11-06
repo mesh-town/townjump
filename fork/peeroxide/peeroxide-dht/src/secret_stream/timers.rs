@@ -160,10 +160,12 @@ impl<T: AsyncRead + AsyncWrite + Unpin> SecretStream<T> {
         }
     }
 
-    /// Best effort, like a write nobody waits for: what the transport does not take stays in `tx`.
+    /// Best effort, like a write nobody waits for: what the transport does not take stays in `tx`,
+    /// and no flush is requested (the empty frame only has to queue, as in the JS secret-stream).
     ///
-    /// The transport holds one waker per direction, so the poll runs with a waker that wakes both
-    /// this (reading) task and the one last seen polling the write side.
+    /// The transport holds one waker per direction and its write path may park on the ACK or the
+    /// window, so the poll runs with a waker that wakes both this (reading) task and the one last
+    /// seen polling the write side.
     fn send_keepalive(&mut self, cx: &mut Context<'_>) -> io::Result<()> {
         let Some(writer) = self.writer_waker.clone() else {
             return self.send_keepalive_with(cx);
@@ -180,7 +182,6 @@ impl<T: AsyncRead + AsyncWrite + Unpin> SecretStream<T> {
         let frame = encode_frame(&self.encrypt.next(&[])).map_err(io::Error::other)?;
         self.io.set_tx(frame);
         let _ = self.poll_drain_tx(cx);
-        let _ = Pin::new(&mut self.raw).poll_flush(cx);
         Ok(())
     }
 }

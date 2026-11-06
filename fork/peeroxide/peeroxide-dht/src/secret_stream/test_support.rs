@@ -1,5 +1,5 @@
 //! Test doubles: an in-memory transport that counts writes and flushes, can fail reads and can hold
-//! `flush` pending (an unacknowledged UDX write), and a ready pair of keyed `SecretStream`s over it.
+//! `flush` or `write` pending (an unacknowledged or window-blocked UDX write), and a ready pair of keyed `SecretStream`s over it.
 // JS: @hyperswarm/secret-stream/index.js
 
 use std::io;
@@ -23,6 +23,8 @@ pub(super) struct Probe {
     pub flushes: AtomicUsize,
     hold_flush: AtomicBool,
     flush_waker: Mutex<Option<Waker>>,
+    hold_write: AtomicBool,
+    write_waker: Mutex<Option<Waker>>,
 }
 
 impl Probe {
@@ -36,6 +38,24 @@ impl Probe {
     pub(super) fn release_flush(&self) {
         let mut slot = self.flush_waker.lock().expect("flush waker lock");
         self.hold_flush.store(false, Ordering::SeqCst);
+        if let Some(waker) = slot.take() {
+            waker.wake();
+        }
+    }
+}
+
+impl Probe {
+    /// From now on `poll_write` stays pending, like a UDX write over the full send window; its waker
+    /// goes to a slot of its own (`park_writer`).
+    pub(super) fn hold_write(&self) {
+        let _slot = self.write_waker.lock().expect("write waker lock");
+        self.hold_write.store(true, Ordering::SeqCst);
+    }
+
+    /// The window opens: the parked writer is woken and writes complete.
+    pub(super) fn release_write(&self) {
+        let mut slot = self.write_waker.lock().expect("write waker lock");
+        self.hold_write.store(false, Ordering::SeqCst);
         if let Some(waker) = slot.take() {
             waker.wake();
         }
@@ -88,6 +108,20 @@ impl AsyncWrite for TestIo {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         self.probe.writes.fetch_add(1, Ordering::SeqCst);
+        {
+            let mut slot = self.probe.write_waker.lock().expect("write waker lock");
+            if self.probe.hold_write.load(Ordering::SeqCst) {
+                *slot = Some(cx.waker().clone());
+                return Poll::Pending;
+            }
+        }
+        // UDX `poll_write` settles earlier writes through the same slot a held flush waits in.
+        {
+            let mut slot = self.probe.flush_waker.lock().expect("flush waker lock");
+            if self.probe.hold_flush.load(Ordering::SeqCst) {
+                *slot = Some(cx.waker().clone());
+            }
+        }
         Pin::new(&mut self.inner).poll_write(cx, buf)
     }
 
