@@ -1,0 +1,92 @@
+name: container-image
+
+# Builds the container image from the statically linked binaries of a release (linux/amd64, linux/arm64,
+# linux/arm/v7), runs it once, and pushes it to ghcr.io only for a v* tag with publish enabled.
+# Called from release.yml; also runnable by hand (publish defaults to false, so a manual run is a dry run).
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: Release version without the leading v, for example 0.1.7
+        type: string
+        required: true
+      publish:
+        description: Push the image to ghcr.io (only on a v* tag)
+        type: boolean
+        default: false
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Release version without the leading v, for example 0.1.7
+        type: string
+        required: true
+      publish:
+        description: Push the image to ghcr.io (only on a v* tag)
+        type: boolean
+        default: false
+
+jobs:
+  image:
+    name: build the container image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/mesh-town/townjump
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the version
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          if ! printf '%s' "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "version must look like 1.2.3" >&2
+            exit 1
+          fi
+      - name: Download the release binaries
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          mkdir -p assets
+          gh release download "v$VERSION" --repo "$GITHUB_REPOSITORY" --dir assets \
+            --pattern "townjump-$VERSION-*-linux-musl*.tar.gz" --pattern SHA256SUMS
+      - name: Build the context
+        env:
+          VERSION: ${{ inputs.version }}
+        run: scripts/dist/container-ctx.sh assets ctx "$VERSION"
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - name: Build for linux/amd64 and run it
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          set -euo pipefail
+          docker buildx build --platform linux/amd64 --load --build-arg "VERSION=$VERSION" \
+            --file packaging/container/Dockerfile --tag "townjump-check:$VERSION" ctx
+          out="$(docker run --rm "townjump-check:$VERSION" --version)"
+          echo "$out"
+          printf '%s' "$out" | grep -q townjump
+      - name: Log in to ghcr.io
+        if: ${{ inputs.publish && startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: Build all platforms and push
+        if: ${{ inputs.publish && startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/build-push-action@v6
+        with:
+          context: ctx
+          file: packaging/container/Dockerfile
+          platforms: linux/amd64,linux/arm64,linux/arm/v7
+          push: true
+          build-args: VERSION=${{ inputs.version }}
+          tags: |
+            ${{ env.IMAGE }}:${{ inputs.version }}
+            ${{ env.IMAGE }}:latest
