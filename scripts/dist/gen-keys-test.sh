@@ -22,8 +22,8 @@ usign_bin="${USIGN:-$(command -v usign || true)}"
 if [ -z "$usign_bin" ] || [ ! -x "$usign_bin" ]; then
   echo "# usign not found: every test needing it is skipped"
   for t in generates_all_files modes_are_private public_key_verifies_signature_apt public_key_verifies_signature_openwrt \
-    deploy_keys_are_distinct install_public_keys_places_files install_rejects_mismatched_pair \
-    no_private_material_in_repo_after_install; do skip "$t" "usign is not installed"; done
+    deploy_keys_are_distinct install_public_keys_places_files install_rejects_mismatched_pair install_rejects_mismatched_pair_apt \
+    install_rejects_mismatched_pair_apk force_regenerates_complete_set no_private_material_in_repo_after_install; do skip "$t" "usign is not installed"; done
   have_usign=false
 else
   have_usign=true
@@ -53,11 +53,11 @@ fi
 # A directory inside a repository is refused (and nothing is created there).
 mkdir "$work/repo" && git -C "$work/repo" init -q
 rc "$gen" "$work/repo/keys"
-if [ "$RC" = 1 ] && [ ! -e "$work/repo/keys" ]; then ok "refuses_dir_inside_repo"; else nok "refuses_dir_inside_repo (rc $RC)"; fi
+if [ "$RC" = 1 ] && [ ! -e "$work/repo/keys" ] && grep -q 'inside a git repository' "$work/err"; then ok "refuses_dir_inside_repo"; else nok "refuses_dir_inside_repo (rc $RC)"; fi
 
 mkdir "$work/full" && : >"$work/full/x"
 rc "$gen" "$work/full"
-if [ "$RC" = 1 ] && [ -f "$work/full/x" ] && [ "$(find "$work/full" -type f | wc -l | tr -d ' ')" = 1 ]; then ok "refuses_nonempty_without_force"; else nok "refuses_nonempty_without_force (rc $RC)"; fi
+if [ "$RC" = 1 ] && grep -q 'is not empty' "$work/err" && [ -f "$work/full/x" ] && [ "$(find "$work/full" -type f | wc -l | tr -d ' ')" = 1 ]; then ok "refuses_nonempty_without_force"; else nok "refuses_nonempty_without_force (rc $RC)"; fi
 
 rc "$gen" --bogus "$work/none"
 expect "unknown_arg_exit_2" 2 "$RC"
@@ -96,6 +96,25 @@ if $have_usign; then
   tree2="$work/tree2" && mkdir "$tree2"
   TOWNJUMP_KEYS_TREE="$tree2" rc "$inst" "$mixed"
   if [ "$RC" = 1 ] && [ ! -e "$tree2/packaging" ]; then ok "install_rejects_mismatched_pair"; else nok "install_rejects_mismatched_pair (rc $RC)"; fi
+
+  # The apt and apk public keys are checked against their secret keys too.
+  for pair in "apt:townjump.gpg" "apk:townjump-apk.pub"; do
+    kind="${pair%%:*}" f="${pair#*:}"
+    mixed="$work/mixed-$kind" && cp -R "$keys" "$mixed" && cp "$other/$f" "$mixed/$f"
+    treeX="$work/tree-$kind" && mkdir "$treeX"
+    TOWNJUMP_KEYS_TREE="$treeX" rc "$inst" "$mixed"
+    if [ "$RC" = 1 ] && [ ! -e "$treeX/packaging" ] && grep -q "$f does not match" "$work/err"; then
+      ok "install_rejects_mismatched_pair_$kind"; else nok "install_rejects_mismatched_pair_$kind (rc $RC)"; fi
+  done
+
+  # --force replaces the whole set without asking anything.
+  again="$work/again"
+  rc "$gen" "$again"
+  first_pub="$(cat "$again/deploy-dist.pub")"
+  set +e; "$gen" --force "$again" >"$work/out" 2>"$work/err" </dev/null; RC=$?; set -e
+  want="$(gpg --show-keys --with-colons "$again/townjump.gpg" | awk -F: '$1 == "fpr" { print $10; exit }')"
+  if [ "$RC" = 0 ] && grep -qx "gpg-fingerprint: $want" "$again/fingerprints.txt" \
+    && [ "$(cat "$again/deploy-dist.pub")" != "$first_pub" ]; then ok "force_regenerates_complete_set"; else nok "force_regenerates_complete_set (rc $RC)"; fi
 fi
 
 echo "1..$n"

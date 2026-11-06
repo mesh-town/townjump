@@ -212,5 +212,17 @@ class DistWorkflowTests(unittest.TestCase):
             self.assertIn("required: true", input_block(self.text, trig, "version"))
 
 
+class AptAddressTests(unittest.TestCase):
+    """The apt address is written in two places; both must carry the same subpath."""
+
+    def test_deb_publish_uses_linux_debian_subpath(self):
+        publish = job(text_of("deb"), "publish")
+        self.assertRegex(publish, r"publish_pages\.sh linux/debian ")
+
+    def test_deb_build_bases_url_on_linux_debian(self):
+        script = (DIR.parent.parent / "scripts" / "dist" / "deb-build.sh").read_text()
+        self.assertIn('--base-url "$DIST_PAGES_URL/linux/debian"', script)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -152,6 +152,7 @@ jobs:
           fi
           # shellcheck source=/dev/null
           . packaging/openwrt/common/site.env
+          trap 'rm -f "$RUNNER_TEMP/deploy-key"' EXIT
           (umask 077; printf '%s\n' "$KEENETIC_DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key")
           DEPLOY_KEY_FILE="$RUNNER_TEMP/deploy-key" \
             packaging/openwrt/common/publish_pages.sh - pages "$KEENETIC_GIT_URL" "$PAGES_BRANCH" "${TAG#v}"

@@ -67,6 +67,7 @@ jobs:
           fi
           # shellcheck source=/dev/null
           . packaging/openwrt/common/site.env
+          trap 'rm -f "$RUNNER_TEMP/deploy-key"' EXIT
           (umask 077; printf '%s\n' "$DIST_DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key")
           export DEPLOY_KEY_FILE="$RUNNER_TEMP/deploy-key" PAGES_KEEP=linux/debian
           packaging/openwrt/common/publish_pages.sh - tree "$DIST_GIT_URL" "$PAGES_BRANCH" "$VERSION"

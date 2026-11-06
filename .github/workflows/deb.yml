@@ -160,6 +160,7 @@ jobs:
           fi
           # shellcheck source=/dev/null
           . packaging/openwrt/common/site.env
+          trap 'rm -f "$RUNNER_TEMP/deploy-key"' EXIT
           (umask 077; printf '%s\n' "$DIST_DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key")
           (umask 077; printf '%s\n' "$APT_GPG_KEY" > "$RUNNER_TEMP/apt-key.asc")
           export TOWNJUMP_APT_KEY="$RUNNER_TEMP/apt-key.asc" DEPLOY_KEY_FILE="$RUNNER_TEMP/deploy-key"
