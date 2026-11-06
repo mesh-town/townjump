@@ -26,8 +26,11 @@ pub struct SecretStream<T> {
     pub(super) remote_public_key: [u8; 32],
     pub(super) handshake_hash: [u8; 64],
     pub(super) is_initiator: bool,
-    pub(super) io: IoState,
+    /// Boxed so that `SecretStream` (inside `PeerConnection`) does not outgrow the size lint.
+    pub(super) io: Box<IoState>,
     pub(super) timers: Timers,
+    /// Waker of the last write-side poll; keepalive wakes it too (see `fanout`).
+    pub(super) writer_waker: Option<std::task::Waker>,
 }
 
 impl<T: AsyncRead + AsyncWrite + Unpin + Send> SecretStream<T> {
@@ -133,8 +136,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> SecretStream<T> {
             remote_public_key: hr.remote_public_key,
             handshake_hash: hr.handshake_hash,
             is_initiator,
-            io: IoState::default(),
+            io: Box::default(),
             timers: Timers::new(),
+            writer_waker: None,
         })
     }
 
@@ -177,8 +181,9 @@ impl<T: AsyncRead + AsyncWrite + Unpin + Send> SecretStream<T> {
             remote_public_key,
             handshake_hash,
             is_initiator,
-            io: IoState::default(),
+            io: Box::default(),
             timers: Timers::new(),
+            writer_waker: None,
         })
     }
 

@@ -206,6 +206,18 @@ impl<T: AsyncRead + AsyncWrite + Unpin> AsyncRead for SecretStream<T> {
     }
 }
 
+impl<T> SecretStream<T> {
+    fn remember_writer(&mut self, cx: &Context<'_>) {
+        if !self
+            .writer_waker
+            .as_ref()
+            .is_some_and(|w| w.will_wake(cx.waker()))
+        {
+            self.writer_waker = Some(cx.waker().clone());
+        }
+    }
+}
+
 impl<T: AsyncRead + AsyncWrite + Unpin> AsyncWrite for SecretStream<T> {
     fn poll_write(
         self: Pin<&mut Self>,
@@ -213,6 +225,7 @@ impl<T: AsyncRead + AsyncWrite + Unpin> AsyncWrite for SecretStream<T> {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         let this = self.get_mut();
+        this.remember_writer(cx);
         ready!(this.poll_drain_tx(cx))?;
         if buf.is_empty() {
             return Poll::Ready(Ok(0));
@@ -229,12 +242,14 @@ impl<T: AsyncRead + AsyncWrite + Unpin> AsyncWrite for SecretStream<T> {
 
     fn poll_flush(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
+        this.remember_writer(cx);
         ready!(this.poll_drain_tx(cx))?;
         Pin::new(&mut this.raw).poll_flush(cx)
     }
 
     fn poll_shutdown(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
         let this = self.get_mut();
+        this.remember_writer(cx);
         this.timers.stop_keep_alive();
         ready!(this.poll_drain_tx(cx))?;
         Pin::new(&mut this.raw).poll_shutdown(cx)
