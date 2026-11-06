@@ -64,7 +64,7 @@ fi
 rm -rf "${out:?}/feed" "$out/pages"
 mkdir -p "$out"
 python3 "$root/packaging/openwrt/feed/build_feed.py" --fetched "$fetched" --out "$out/feed" --version "$version" \
-  --pkg-release "$pkgrel" --base-url "$PAGES_BASE_URL/openwrt" "${flags[@]}"
+  --pkg-release "$pkgrel" --base-url "$OPENWRT_PAGES_URL" "${flags[@]}"
 
 usign_bin="${USIGN:-$(command -v usign || true)}"
 pub="$out/feed/townjump-usign.pub"

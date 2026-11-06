@@ -4,7 +4,7 @@
 build_feed.py --out DIR --version X.Y.Z [--pkg-release N] --base-url URL --bin TRIPLE=PATH [...]
 Needs SOURCE_DATE_EPOCH in the environment.
 Layout: DIR/<entware dir>/townjump_<version>-rN_<Architecture>.ipk, Packages, Packages.gz; install.sh,
-index.html and .nojekyll in DIR.
+index.html, README.md and .nojekyll in DIR.
 Exit codes: 0 feed built, 2 bad invocation (arguments, missing SOURCE_DATE_EPOCH), 1 failure while writing.
 """
 import argparse
@@ -38,6 +38,19 @@ class UsageError(Exception):
 def arches() -> dict:
     """Rust target -> Entware feed directory, opkg Architecture, ELF machine; follows MIPS_ENABLED."""
     return {**_MIPS, **_BASE} if MIPS_ENABLED else dict(_BASE)
+
+
+README_TEXT = """# townjump Keenetic feed
+
+Entware package feed (.ipk) of townjump: a single-binary Rust port of Holesail that shares a local port over a
+peer-to-peer tunnel. This repository is generated; do not edit it by hand.
+
+Install on the router (Entware):
+
+    wget -O- {base}/install.sh | sh
+
+Releases, sources and documentation: https://github.com/mesh-town/townjump
+"""
 
 
 def render_install(base_url) -> str:
@@ -102,6 +115,7 @@ def write_root(out, dirs, base_url) -> None:
     (out / "install.sh").chmod(0o755)
     (out / ".nojekyll").write_text("")
     base = base_url.rstrip("/")
+    (out / "README.md").write_text(README_TEXT.format(base=base))
     (out / "index.html").write_text(
         "<!doctype html><meta charset=utf-8><title>townjump Keenetic feed</title>\n"
         f"<h1>townjump Keenetic feed</h1>\n<pre>wget -O- {base}/install.sh | sh</pre>\n"

@@ -64,8 +64,12 @@ def read_tar(gz: bytes, what: str):
 def parse_control(text: str) -> dict:
     fields = {}
     for line in text.splitlines():
+        if line.startswith(" ") and fields and line.strip():
+            last = list(fields)[-1]
+            fields[last] += "\n" + line
+            continue
         key, sep, value = line.partition(": ")
-        if not sep or line.startswith(" "):
+        if not sep:
             raise Rejected(f"unexpected control line: {line!r}")
         fields[key] = value
     return fields

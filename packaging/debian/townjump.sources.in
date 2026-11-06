@@ -1,5 +1,5 @@
 Types: deb
-URIs: @BASE@/apt
+URIs: @BASE@
 Suites: stable
 Components: main
 Architectures: @ARCH@

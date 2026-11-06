@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 SCRIPT = Path(__file__).resolve().parent / "publish_pages.sh"
-BRANCH = "gh-pages"
+BRANCH = "main"
 CLEAN_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_") and not k.startswith("TOWNJUMP_")}
 CLEAN_ENV.update(GIT_CONFIG_GLOBAL="/dev/null", GIT_CONFIG_SYSTEM="/dev/null")
 
@@ -35,11 +35,12 @@ class PublishPagesTest(unittest.TestCase):
         d.mkdir(exist_ok=True)
         return d
 
-    def publish(self, subdir, files, version="1.0.0", extra=(), hook=None, src=None):
+    def publish(self, subdir, files, version="1.0.0", extra=(), hook=None, src=None, env_extra=None, remote=None):
         env = dict(CLEAN_ENV)
+        env.update(env_extra or {})
         if hook:
             env["TOWNJUMP_PAGES_BEFORE_PUSH"] = hook
-        args = [str(SCRIPT), subdir, str(src or self.src(files)), self.remote, BRANCH, version, *extra]
+        args = [str(SCRIPT), subdir, str(src or self.src(files)), remote or self.remote, BRANCH, version, *extra]
         return subprocess.run(["bash", *args], capture_output=True, text=True, env=env)
 
     def head(self):
@@ -124,9 +125,71 @@ class PublishPagesTest(unittest.TestCase):
         self.assertEqual(res.returncode, 0, res.stderr)
         self.assertEqual(sorted(self.ls()), [".nojekyll", "keenetic/p.txt", "openwrt/mine.txt"])
 
-    def test_rejects_unknown_subdir(self):
-        self.assertEqual(self.publish("other", {"a": "1"}).returncode, 2)
+    def test_rejects_unsafe_subpath(self):
+        for bad in ("", "/abs", "..", "a/../b", "./a", "a//b", ".git", "a/"):
+            with self.subTest(sub=bad):
+                self.assertEqual(self.publish(bad, {"a": "1"}).returncode, 2)
         self.assertEqual(self.head(), "")
+
+    def test_whole_repo_replaces_everything(self):
+        self.assertEqual(self.publish("-", {"old.txt": "o", "d/x": "1"}).returncode, 0)
+        res = self.publish("-", {"new.txt": "n"}, version="1.0.1")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(sorted(self.ls()), [".nojekyll", "new.txt"])
+        self.assertEqual(git("rev-list", "--count", BRANCH, cwd=self.remote), "1")
+
+    def test_keep_paths_survive(self):
+        self.publish("linux/debian", {"dists/InRelease": "sig", "pool/a.deb": "a"})
+        self.publish("macos", {"x": "1"})
+        res = self.publish("-", {"README.md": "r"}, version="2", env_extra={"PAGES_KEEP": "linux/debian"})
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(sorted(self.ls()), [".nojekyll", "README.md", "linux/debian/dists/InRelease", "linux/debian/pool/a.deb"])
+
+    def test_keep_path_absent_in_old_tree_is_fine(self):
+        res = self.publish("-", {"README.md": "r"}, env_extra={"PAGES_KEEP": "linux/debian"})
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(sorted(self.ls()), [".nojekyll", "README.md"])
+
+    def test_nested_subpath_keeps_siblings(self):
+        self.publish("macos/x", {"m.txt": "mac"})
+        self.publish("linux/debian", {"pool/old.deb": "old"})
+        res = self.publish("linux/debian", {"pool/new.deb": "new"}, version="1.0.1")
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(self.show("macos/x/m.txt"), "mac")
+        self.assertEqual(self.ls("linux/debian"), ["pool/new.deb"])
+
+    def test_empty_remote_ok(self):
+        empty = str(self.tmp / "empty.git")
+        git("init", "-q", "--bare", empty)
+        for sub in ("-", "linux/debian"):
+            with self.subTest(sub=sub):
+                res = self.publish(sub, {"a": "1"}, remote=empty)
+                self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(git("rev-parse", "--verify", f"refs/heads/{BRANCH}", cwd=empty) != "", True)
+
+    def test_lease_miss_retries_once(self):
+        self.publish("keenetic", {"k": "1"})
+        res = self.publish("-", {"mine.txt": "m"}, hook=self.competitor_hook("peerdir", "p.txt"),
+                           env_extra={"PAGES_KEEP": "peerdir"})
+        self.assertEqual(res.returncode, 0, res.stderr)
+        self.assertEqual(res.stderr.count("retrying"), 1)
+        self.assertEqual(sorted(self.ls()), [".nojekyll", "mine.txt", "peerdir/p.txt"])
+
+    def test_deploy_key_sets_ssh_command(self):
+        fake = self.tmp / "bin"
+        fake.mkdir()
+        log = self.tmp / "ssh.log"
+        (fake / "ssh").write_text(f'#!/bin/sh\necho "$@" >> "{log}"\nexit 1\n')
+        (fake / "ssh").chmod(0o755)
+        key = self.tmp / "key"
+        key.write_text("not a key\n")
+        env = {"DEPLOY_KEY_FILE": str(key), "PATH": f"{fake}:{os.environ['PATH']}"}
+        res = self.publish("-", {"a": "1"}, env_extra=env, remote="git@github.invalid:mesh-town/x.git")
+        self.assertEqual(res.returncode, 1)
+        line = log.read_text()
+        self.assertIn(f"-i {key}", line)
+        self.assertIn("IdentitiesOnly=yes", line)
+        self.assertIn("StrictHostKeyChecking=accept-new", line)
 
     def test_rejects_empty_src(self):
         empty = self.tmp / "empty"
@@ -135,8 +198,12 @@ class PublishPagesTest(unittest.TestCase):
         self.assertEqual(self.publish("openwrt", {}, src=self.tmp / "absent").returncode, 2)
         self.assertEqual(self.head(), "")
 
-    def test_apt_requires_update(self):
-        self.assertEqual(self.publish("apt", {"a": "1"}).returncode, 2)
+    def test_whole_repo_mode_rejects_update(self):
+        upd = self.update_script('cp -R "$2/." "$1/"\n')
+        self.assertEqual(self.publish("-", {"a": "1"}, extra=upd).returncode, 2)
+
+    def test_keep_needs_whole_repo_mode(self):
+        self.assertEqual(self.publish("apt", {"a": "1"}, env_extra={"PAGES_KEEP": "x"}).returncode, 2)
 
     def test_wrong_argument_count(self):
         res = subprocess.run(["bash", str(SCRIPT), "openwrt"], capture_output=True, text=True, env=CLEAN_ENV)

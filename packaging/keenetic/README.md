@@ -3,8 +3,9 @@
 An unsigned `opkg` feed for routers that run Entware, built by `packaging/keenetic/build_feed.py`. The package holds
 `/opt/bin/townjump`, a static musl binary. It does not start anything.
 
-Base address: `https://mesh-town.github.io/townjump/keenetic`. Address is provisional until the first publication.
-No feed has been published yet; the commands below work after the first publication.
+Base address: `https://mesh-town.github.io/townjump-keenetic`. The feed is the whole content of the
+`mesh-town/townjump-keenetic` repository (`install.sh` in its root), published with the secret `KEENETIC_DEPLOY_KEY`;
+the repository is generated and not edited by hand.
 
 ## Architectures
 
@@ -21,7 +22,7 @@ The feed directory is named after the Entware architecture:
 Entware must be installed first (`/opt/bin/opkg`). In an SSH session on the router:
 
 ```sh
-wget -O- https://mesh-town.github.io/townjump/keenetic/install.sh | sh
+wget -O- https://mesh-town.github.io/townjump-keenetic/install.sh | sh
 ```
 
 The script takes the architecture from the `src/gz entware` line of `/opt/etc/opkg.conf`, checks that the feed has it,

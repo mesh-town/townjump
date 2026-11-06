@@ -93,7 +93,7 @@ class PoolTests(unittest.TestCase):
     def test_packages_entry_matches_deb(self):
         (path,) = self.stage({"amd64": ["0.1.7-1"]})
         text = apt_support.packages_index([path]).decode()
-        fields = dict(line.split(": ", 1) for line in text.splitlines())
+        fields = dict(line.split(": ", 1) for line in text.splitlines() if not line.startswith(" "))
         raw = path.read_bytes()
         self.assertEqual(fields["Package"], "townjump")
         self.assertEqual(fields["Version"], "0.1.7-1")

@@ -17,6 +17,7 @@ import fixtures  # noqa: E402
 
 DEB_PY = HERE / "deb.py"
 SDE = 1700000000
+APT_BASE = "https://mesh-town.github.io/townjump-dist/linux/debian"
 VERSION = "0.1.7-2"
 KEY = b"\x99\x01\x0d invented key bytes\n"
 LICENSE = b"licence text\n"
@@ -55,7 +56,7 @@ class Base(unittest.TestCase):
         self.keyring.write_bytes(KEY)
 
     def build(self, out="out", arch="amd64", keyring=False, version=VERSION):
-        extra = dict(keyring=self.keyring, base_url="https://example.invalid/pkg/") if keyring else {}
+        extra = dict(keyring=self.keyring, base_url=APT_BASE + "/") if keyring else {}
         path = deb.build_deb(self.binary, version, arch, self.tmp / out, self.license, self.readme, SDE, **extra)
         raw = path.read_bytes()
         ms = dict((h[:16].decode().strip(), b) for h, b in members(raw))
@@ -88,15 +89,18 @@ class DebTests(Base):
     def test_control_fields(self):
         self.build()
         text = self.cbodies["./control"].decode()
-        f = dict(line.split(": ", 1) for line in text.splitlines())
+        f = dict(line.split(": ", 1) for line in text.splitlines() if not line.startswith(" "))
         self.assertEqual(f["Package"], "townjump")
         self.assertEqual(f["Version"], VERSION)
         self.assertEqual(f["Architecture"], "amd64")
         self.assertEqual(f["Maintainer"], "Mesh Town <340663027+mesh-town@users.noreply.github.com>")
         self.assertEqual(f["Section"], "net")
-        self.assertEqual(f["Homepage"], "https://github.com/mesh-town/townjump")
-        self.assertEqual(f["Description"],
-                         "Holesail-compatible peer-to-peer tunnels: share a local port and reach it by key.")
+        self.assertEqual(f["Homepage"], "https://mesh-town.github.io/townjump/")
+        self.assertEqual(f["Description"], "Share a local port over a peer-to-peer tunnel with one key")
+        self.assertLessEqual(len(f["Description"]), 80)
+        self.assertIn("\n Single-binary Rust port of Holesail: share a local port over a peer-to-peer tunnel,\n"
+                      " reach it anywhere with one key. No server of your own.\n", text)
+        self.assertNotRegex(text.lower(), "v" + "pn|relay " + "server")
         total = len(self.binary.read_bytes()) + len(LICENSE) + len(README)
         self.assertEqual(f["Installed-Size"], str(-(-total // 1024)))
         self.assertNotIn("Depends", text)
@@ -109,7 +113,7 @@ class DebTests(Base):
     def test_keyring_adds_source_and_key(self):
         self.build(arch="arm64", keyring=True)
         src = self.dbodies["./etc/apt/sources.list.d/townjump.sources"].decode()
-        self.assertIn("URIs: https://example.invalid/pkg/apt\n", src)
+        self.assertIn("URIs: https://mesh-town.github.io/townjump-dist/linux/debian\n", src)
         self.assertIn("Architectures: arm64\n", src)
         self.assertIn("Signed-By: /usr/share/keyrings/townjump.gpg\n", src)
         self.assertEqual(self.dbodies["./usr/share/keyrings/townjump.gpg"], KEY)

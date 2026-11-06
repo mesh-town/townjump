@@ -63,7 +63,8 @@ class ReleaseCallers(unittest.TestCase):
             for key, value in given.items():
                 self.assertIn(key, secrets, f"{name}: undeclared secret {key}")
                 self.assertEqual(value, "${{ secrets.%s }}" % key, name)
-        self.assertEqual(sub_block(job(release_text(), "keenetic-feed"), "secrets", 4), {})
+        self.assertEqual(sub_block(job(release_text(), "keenetic-feed"), "secrets", 4),
+                         {"KEENETIC_DEPLOY_KEY": "${{ secrets.KEENETIC_DEPLOY_KEY }}"})
 
     def test_callers_publish_from_tag_and_new_targets_build_by_script(self):
         text = release_text()
@@ -82,10 +83,11 @@ class ReleaseCallers(unittest.TestCase):
         self.assertIn("ziglang==0.16.0", build)
         self.assertIn("--version 0.23.4", build)
 
-    def test_callers_have_write_permission(self):
+    def test_callers_only_read_the_release(self):
         for name in CALLERS:
             perms = sub_block(job(release_text(), name), "permissions", 4)
-            self.assertEqual(perms.get("contents"), "write", name)
+            self.assertEqual(perms.get("contents"), "read", name)
+            self.assertNotIn("contents: write", job(release_text(), name))
 
     def test_tap_and_winget_untouched(self):
         text = release_text()

@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # dry-run.sh [all|deb|openwrt|keenetic] [--assets DIR] [--allow-partial]
 # Builds, checks and "publishes" the Linux package feeds on this machine; everything lives in target/dist-dry/ and
-# nothing leaves it (publishing goes to the local bare repository target/dist-dry/pages.git). Archives come from
+# nothing leaves it (publishing goes to the local bare repositories target/dist-dry/{dist,openwrt,keenetic}.git). Archives come from
 # --assets or from local_assets.sh (needs CARGO_TARGET_DIR; the caller holds the machine lock). Throwaway keys only.
 # Checks per mode: builder, *_check.py and leak_check.py, a second build must give the same sha256 for .deb/.ipk/Packages,
 # deb: a third build with pkg-release 2 must leave both -1 and -2 in the published pool, then container.sh debian.
+# Publishing goes to three local bare repositories (dist, openwrt, keenetic) that mirror the three real ones.
 # Exit codes: 0 done, 1 failure, 2 bad arguments, 3 a part was skipped (unless --allow-partial); "skipped: <why>" is printed.
 set -euo pipefail
 
@@ -75,11 +76,14 @@ make_gpg_keys() {
   gpg --homedir "$gpghome" --batch --export > "$dry/keys/apt-public.gpg"
 }
 
-new_pages() { [ -d "$dry/pages.git" ] || git init -q --bare "$dry/pages.git"; }
-publish() { # <subdir> <src> [--update CMD]
-  local sub="$1" src="$2"
-  shift 2
-  "$root/packaging/openwrt/common/publish_pages.sh" "$sub" "$src" "file://$dry/pages.git" "$PAGES_BRANCH" "$V" "$@"
+new_pages() { # <repo>
+  [ -d "$dry/$1.git" ] || git init -q --bare -b "$PAGES_BRANCH" "$dry/$1.git"
+}
+publish() { # <repo:dist|openwrt|keenetic> <subpath|-> <src> [--update CMD]
+  local repo="$1" sub="$2" src="$3"
+  shift 3
+  new_pages "$repo"
+  "$root/packaging/openwrt/common/publish_pages.sh" "$sub" "$src" "file://$dry/$repo.git" "$PAGES_BRANCH" "$V" "$@"
 }
 
 run_deb() {
@@ -93,11 +97,10 @@ run_deb() {
   same_bytes "$dry/out-deb" "$dry/out-deb-b"
   python3 "$here/leak_check.py" "$dry/out-deb"
   python3 "$here/apt_check.py" "$dry/out-deb/apt" --pubkey "$TOWNJUMP_APT_PUBKEY"
-  new_pages
-  publish apt "$dry/out-deb/debs" --update "$root/scripts/dist/deb-update.sh"
+  publish dist linux/debian "$dry/out-deb/debs" --update "$root/scripts/dist/deb-update.sh"
   "$root/scripts/dist/deb-build.sh" "$assets" "$dry/out-deb-n2" "$V" 2 > /dev/null
-  publish apt "$dry/out-deb-n2/debs" --update "$root/scripts/dist/deb-update.sh"
-  pool="$(git -C "$dry/pages.git" ls-tree -r --name-only "$PAGES_BRANCH" -- apt/pool)"
+  publish dist linux/debian "$dry/out-deb-n2/debs" --update "$root/scripts/dist/deb-update.sh"
+  pool="$(git -C "$dry/dist.git" ls-tree -r --name-only "$PAGES_BRANCH" -- linux/debian/pool)"
   for rel in "$V-1" "$V-2"; do
     printf '%s\n' "$pool" | grep -q "townjump_${rel}_amd64.deb" || fail "pool lacks townjump_${rel}_amd64.deb"
   done
@@ -111,8 +114,7 @@ run_keenetic() {
   "$root/scripts/dist/keenetic-build.sh" "$assets" "$dry/out-keenetic-b" "$V" 1 --strict > /dev/null
   same_bytes "$dry/out-keenetic" "$dry/out-keenetic-b"
   python3 "$here/leak_check.py" "$dry/out-keenetic/pages"
-  new_pages
-  publish keenetic "$dry/out-keenetic/pages"
+  publish keenetic - "$dry/out-keenetic/pages"
 }
 
 # The feed builder needs usign, apk and root (fakeroot). Without them on the host (macOS) the build runs in a Linux container.
@@ -139,8 +141,7 @@ run_openwrt() {
   build_openwrt || return 0
   same_bytes "$dry/out-openwrt/pages" "$dry/out-openwrt-b/pages"
   python3 "$here/leak_check.py" "$dry/out-openwrt/pages"
-  new_pages
-  publish openwrt "$dry/out-openwrt/pages"
+  publish openwrt - "$dry/out-openwrt/pages"
   container_gate alpine
 }
 
@@ -152,21 +153,47 @@ container_gate() {
   esac
 }
 
+site_url() { sed -n "s/^$1=//p" "$root/packaging/openwrt/common/site.env"; }
+
+check_repo() { # <repo> <expected files, space separated>
+  local repo="$1" want="$2" n f
+  n="$(git -C "$dry/$repo.git" rev-list --count "$PAGES_BRANCH")"
+  [ "$n" = 1 ] || fail "$repo: $PAGES_BRANCH has $n commits, expected 1"
+  [ -z "$(git -C "$dry/$repo.git" log -1 --format=%P "$PAGES_BRANCH")" ] || fail "$repo: the Pages commit has a parent"
+  git -C "$dry/$repo.git" log -1 --format='%an <%ae> %ad' --date=iso "$PAGES_BRANCH" | grep -q 'Mesh Town .* +0000$' \
+    || fail "$repo: the Pages commit is not authored by Mesh Town at +0000"
+  for f in $want; do
+    git -C "$dry/$repo.git" cat-file -e "$PAGES_BRANCH:$f" || fail "$repo: $f is missing from the published tree"
+  done
+  echo "$repo tree: $(git -C "$dry/$repo.git" ls-tree --name-only "$PAGES_BRANCH" | tr '\n' ' ')"
+}
+
+check_install_address() { # <repo> <site.env key>
+  local want
+  want="$(site_url "$2")"
+  [ -n "$want" ] || fail "$2 is not set in site.env"
+  git -C "$dry/$1.git" show "$PAGES_BRANCH:install.sh" | grep -qF "$want" || fail "$1: install.sh does not carry $want"
+  git -C "$dry/$1.git" show "$PAGES_BRANCH:README.md" | grep -qF "$want" || fail "$1: README.md does not carry $want"
+}
+
 final_checks() {
-  [ -d "$dry/pages.git" ] || return 0
-  local n tree
-  n="$(git -C "$dry/pages.git" rev-list --count "$PAGES_BRANCH")"
-  [ "$n" = 1 ] || fail "$PAGES_BRANCH has $n commits, expected 1"
-  [ -z "$(git -C "$dry/pages.git" log -1 --format=%P "$PAGES_BRANCH")" ] || fail "the Pages commit has a parent"
-  git -C "$dry/pages.git" log -1 --format='%an <%ae> %ad' --date=iso "$PAGES_BRANCH" | grep -q 'Mesh Town .* +0000$' \
-    || fail "the Pages commit is not authored by Mesh Town at +0000"
-  tree="$(git -C "$dry/pages.git" ls-tree --name-only "$PAGES_BRANCH" | tr '\n' ' ')"
-  echo "pages tree: $tree"
+  if [ -d "$dry/dist.git" ]; then
+    check_repo dist "linux/debian/dists/stable/InRelease .nojekyll"
+  fi
+  if [ -d "$dry/openwrt.git" ]; then
+    check_repo openwrt "install.sh .nojekyll README.md"
+    check_install_address openwrt OPENWRT_PAGES_URL
+  fi
+  if [ -d "$dry/keenetic.git" ]; then
+    check_repo keenetic "install.sh .nojekyll README.md"
+    check_install_address keenetic KEENETIC_PAGES_URL
+  fi
+  return 0
 }
 
 before="$(git -C "$root" status --porcelain)"
 mkdir -p "$dry"
-[ "$mode" != all ] || rm -rf "$dry/pages.git"
+[ "$mode" != all ] || rm -rf "$dry/pages.git" "$dry/dist.git" "$dry/openwrt.git" "$dry/keenetic.git"
 case "$mode" in
   deb) make_assets "x86_64-unknown-linux-musl aarch64-unknown-linux-musl armv7-unknown-linux-musleabihf" ;;
   keenetic) make_assets "aarch64-unknown-linux-musl mipsel-unknown-linux-musl mips-unknown-linux-musl" ;;

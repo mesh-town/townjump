@@ -11,7 +11,10 @@ import tarfile
 from pathlib import Path
 
 NAME = "townjump"
-DESCRIPTION = "Holesail-compatible peer-to-peer tunnels: share a local port and reach it by key."
+DESCRIPTION = (
+    "Single-binary Rust port of Holesail: share a local port over a peer-to-peer tunnel, "
+    "reach it anywhere with one key. No server of your own."
+)
 MAINTAINER = "Mesh Town <340663027+mesh-town@users.noreply.github.com>"
 LICENSE = "AGPL-3.0-only"
 URL = "https://github.com/mesh-town/townjump"
