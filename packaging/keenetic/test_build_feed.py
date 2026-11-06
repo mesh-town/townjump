@@ -109,9 +109,13 @@ class BuildFeedTest(unittest.TestCase):
         self.assertEqual(code, 0, err)
         out = self.tmp / "feed"
         self.assertEqual(sorted(p.name for p in out.iterdir() if p.is_dir()), ["aarch64-k3.10", "mipssf-k3.4"])
-        self.assertEqual(sorted(p.name for p in out.iterdir() if p.is_file()), [".nojekyll", "index.html", "install.sh"])
+        self.assertEqual(sorted(p.name for p in out.iterdir() if p.is_file()), [".nojekyll", "README.md", "index.html", "install.sh"])
         self.assertTrue((out / "install.sh").stat().st_mode & stat.S_IXUSR)
         self.assertIn(f"{BASE}/install.sh", (out / "index.html").read_text())
+        readme = (out / "README.md").read_text()
+        self.assertIn(f"{BASE}/install.sh", readme)
+        self.assertIn("https://github.com/mesh-town/townjump", readme)
+        self.assertIn("do not edit", readme)
 
     def test_install_sh_base_substituted(self):
         self.run_main(self.args([AARCH64]))

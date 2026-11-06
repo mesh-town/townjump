@@ -72,9 +72,12 @@ class WorkflowTests(unittest.TestCase):
                 self.assertIn("default: false", block)
                 self.assertIn("required: true", input_block(text, trig, "tag"))
 
-    def test_no_concurrency_key(self):
+    def test_only_dist_publish_has_concurrency(self):
         for key, text in self.each():
-            self.assertNotRegex(text, r"(?m)^\s*concurrency:")
+            if key != "deb":
+                self.assertNotRegex(text, r"(?m)^\s*concurrency:")
+        self.assertIn("    concurrency:\n      group: townjump-dist-pages\n      cancel-in-progress: false\n",
+                      job(text_of("deb"), "publish"))
 
     def test_no_secret_literals(self):
         for key, text in self.each():
@@ -92,9 +95,25 @@ class WorkflowTests(unittest.TestCase):
             self.assertEqual(len(re.findall(r"runs-on: ubuntu-24\.04", text)), 3)
             want = TIMEOUTS.get(key, ("30", "30", "30"))
             self.assertEqual(re.findall(r"timeout-minutes: (\d+)", text), list(want))
-            self.assertIn("permissions:\n      contents: write", job(text, "publish"))
-            self.assertNotIn("contents: write", job(text, "build"))
-            self.assertNotIn("contents: write", job(text, "test"))
+            self.assertIn("permissions:\n      contents: read", job(text, "publish"))
+            self.assertNotIn("contents: write", text)
+
+    def test_each_feed_has_its_own_deploy_key(self):
+        keys = {"deb": "DIST_DEPLOY_KEY", "openwrt": "OPENWRT_DEPLOY_KEY", "keenetic": "KEENETIC_DEPLOY_KEY"}
+        for key, text in self.each():
+            secret = keys[key]
+            self.assertRegex(trigger_block(text, "workflow_call"), rf"      {secret}:\n        required: false")
+            pub = job(text, "publish")
+            self.assertIn(f"{secret}: ${{{{ secrets.{secret} }}}}", pub)
+            self.assertIn('[ -z "$%s" ]' % secret, pub)
+            self.assertIn("::notice::", pub)
+            self.assertIn("exit 0", pub)
+            self.assertIn('(umask 077; printf \'%s\\n\' "$' + secret + '" > "$RUNNER_TEMP/deploy-key")', pub)
+            for other in set(keys.values()) - {secret}:
+                self.assertNotIn(other, text)
+            self.assertNotIn("gh" + "-pages", text)
+            self.assertNotIn("PAGES_GIT" + "_URL", text)
+            self.assertNotIn("x-access-token", text)
 
     def test_tag_fetched_before_commit_time(self):
         for key, text in self.each():
@@ -110,11 +129,11 @@ class WorkflowTests(unittest.TestCase):
 
     def test_deb_declares_optional_signing_secret(self):
         block = trigger_block(text_of("deb"), "workflow_call")
-        self.assertRegex(block, r"secrets:\n      APT_GPG_KEY:\n        required: false")
+        self.assertRegex(block, r"secrets:\n      APT_GPG_KEY:\n        required: false\n      DIST_DEPLOY_KEY:\n        required: false")
 
     def test_openwrt_secrets_declared_not_required(self):
         block = trigger_block(text_of("openwrt"), "workflow_call")
-        for name in ("OPENWRT_USIGN_KEY", "OPENWRT_APK_KEY"):
+        for name in ("OPENWRT_USIGN_KEY", "OPENWRT_APK_KEY", "OPENWRT_DEPLOY_KEY"):
             self.assertRegex(block, rf"secrets:\n(?:      \w+:\n        required: false\n)*      {name}:\n        required: false")
 
     def test_openwrt_strict_input_and_fakeroot(self):

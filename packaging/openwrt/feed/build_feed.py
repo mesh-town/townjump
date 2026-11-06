@@ -35,15 +35,28 @@ class UsageError(Exception):
 
 
 def site_base_url() -> str:
-    """Feed base address: PAGES_BASE_URL from common/site.env plus /openwrt."""
+    """Feed base address: OPENWRT_PAGES_URL from common/site.env (the root of the OpenWrt Pages site)."""
     for line in (HERE.parent / "common" / "site.env").read_text().splitlines():
-        if line.startswith("PAGES_BASE_URL="):
-            return line.partition("=")[2].strip().rstrip("/") + "/openwrt"
-    raise UsageError("PAGES_BASE_URL is not set in common/site.env")
+        if line.startswith("OPENWRT_PAGES_URL="):
+            return line.partition("=")[2].strip().rstrip("/")
+    raise UsageError("OPENWRT_PAGES_URL is not set in common/site.env")
 
 
 def render_install(base_url) -> str:
     return (HERE / "install.sh.in").read_text().replace("@BASE@", base_url.rstrip("/"))
+
+
+README_TEXT = """# townjump OpenWrt feed
+
+Package feed (opkg .ipk and apk) of townjump: a single-binary Rust port of Holesail that shares a local port over a
+peer-to-peer tunnel. This repository is generated; do not edit it by hand.
+
+Install on the router:
+
+    wget -O- {base}/install.sh | sh
+
+Releases, sources and documentation: https://github.com/mesh-town/townjump
+"""
 
 
 def parse_args(argv):
@@ -158,6 +171,7 @@ def write_root(ctx, base_url) -> None:
     out = ctx["out"]
     (out / "install.sh").write_text(render_install(base_url))
     (out / "install.sh").chmod(0o755)
+    (out / "README.md").write_text(README_TEXT.format(base=base_url.rstrip("/")))
     for name in (keys.USIGN_PUB, keys.APK_PEM):
         if (ctx["pubdir"] / name).is_file():
             shutil.copy(ctx["pubdir"] / name, out / name)

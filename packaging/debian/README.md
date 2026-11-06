@@ -10,14 +10,15 @@ hard-float ARMv7 binary). The package contains:
 
 There is no service: townjump is started by hand (or by your own unit).
 
-Base address: `https://mesh-town.github.io/townjump`. Address is provisional until the first publication.
-No package has been published yet; the commands below work after the first publication.
+Base address: `https://mesh-town.github.io/townjump-dist/linux/debian`; the apt repository lives in the `linux/debian/`
+directory of the `mesh-town/townjump-dist` repository (published with the secret `DIST_DEPLOY_KEY`; the other files of
+that repository are left alone).
 
 ## Install
 
 ```sh
 arch="$(dpkg --print-architecture)"
-curl -fLO "https://mesh-town.github.io/townjump/apt/townjump_${arch}.deb"
+curl -fLO "https://mesh-town.github.io/townjump-dist/linux/debian/townjump_${arch}.deb"
 sudo apt install "./townjump_${arch}.deb"
 ```
 
@@ -49,5 +50,5 @@ townjump --help
 ## Signature and key
 
 The repository is signed with an OpenPGP key (ed25519). The public key is installed by the package into
-`/usr/share/keyrings/townjump.gpg` and is committed as `packaging/debian/keys/townjump.gpg` after the first publication.
+`/usr/share/keyrings/townjump.gpg` and is committed as `packaging/debian/keys/townjump.gpg`.
 Without the signing secret the workflow builds `.deb` files without the apt source and publishes nothing.

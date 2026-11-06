@@ -22,7 +22,12 @@ NAME = "townjump"
 ARCHES = ("amd64", "arm64", "armhf")
 MAINTAINER = "Mesh Town <340663027+mesh-town@users.noreply.github.com>"
 URL = "https://github.com/mesh-town/townjump"
-DESCRIPTION = "Holesail-compatible peer-to-peer tunnels: share a local port and reach it by key."
+HOMEPAGE = "https://mesh-town.github.io/townjump/"
+SHORT_DESCRIPTION = "Share a local port over a peer-to-peer tunnel with one key"
+LONG_DESCRIPTION = (
+    " Single-binary Rust port of Holesail: share a local port over a peer-to-peer tunnel,\n"
+    " reach it anywhere with one key. No server of your own.\n"
+)
 AR_MAGIC = b"!<arch>\n"
 VERSION_RE = re.compile(r"\d+\.\d+\.\d+-[1-9]\d*")
 
@@ -78,8 +83,8 @@ def _data_entries(files: dict):
 
 def _control(version: str, arch: str, installed_size: int) -> str:
     return (f"Package: {NAME}\nVersion: {version}\nArchitecture: {arch}\nMaintainer: {MAINTAINER}\n"
-            f"Installed-Size: {installed_size}\nSection: net\nPriority: optional\nHomepage: {URL}\n"
-            f"Description: {DESCRIPTION}\n")
+            f"Installed-Size: {installed_size}\nSection: net\nPriority: optional\nHomepage: {HOMEPAGE}\n"
+            f"Description: {SHORT_DESCRIPTION}\n{LONG_DESCRIPTION}")
 
 
 def _control_entries(files: dict, version: str, arch: str):

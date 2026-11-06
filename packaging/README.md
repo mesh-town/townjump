@@ -8,11 +8,6 @@ installer install the binaries of that release, they do not build from source.
 The Debian, OpenWrt and Keenetic feeds repack the static musl binaries of the
 release; they do not build from source.
 
-Unofficial Rust port of Holesail, not affiliated with Holesail / LIVEPORT.
-The installed command is called `townjump` (the npm package `holesail`
-installs `holesail`, so the names do not collide). The help text still says
-`holesail`, as in the original (the formula mentions it in `caveats`).
-
 ## Release
 
 Flow: tag, then the jobs of `.github/workflows/release.yml`, then the assets
@@ -33,8 +28,11 @@ with a `::notice::`, it does not fail the release):
 
 | Name | Kind | Meaning |
 |---|---|---|
-| `DIST_REPO` | variable | Repository that holds the release assets. Empty: the repository that runs the workflow. |
+| `DIST_REPO` | variable | Repository that holds the release assets. Empty: the repository that runs the workflow (the releases are read from the same repository the feeds are built in). |
 | `DIST_TOKEN` | secret | Token with write access to `DIST_REPO`. Required only when `DIST_REPO` is another repository (an error without it). |
+| `DIST_DEPLOY_KEY` | secret | SSH deploy key with write access to `mesh-town/townjump-dist`: the apt repository is published to `linux/debian/` there. Empty: the apt repository is not published. |
+| `OPENWRT_DEPLOY_KEY` | secret | SSH deploy key with write access to `mesh-town/townjump-openwrt`: the whole repository is replaced by the OpenWrt feed. Empty: not published. |
+| `KEENETIC_DEPLOY_KEY` | secret | SSH deploy key with write access to `mesh-town/townjump-keenetic`: the whole repository is replaced by the Keenetic feed. Empty: not published. |
 | `TAP_TOKEN` | secret | Token with write access to the Homebrew tap. Empty: the tap is not updated. |
 | `WINGET_TOKEN` | secret | Token for `komac` (a fork of `winget-pkgs` and pull requests). Empty: nothing is submitted. |
 
@@ -42,6 +40,20 @@ with a `::notice::`, it does not fail the release):
 Homebrew checks on every change under `packaging/`, `scripts/dist/` and the
 release workflows. New package jobs go after the marker comment at the end of
 `release.yml`; the list of release assets is one function in `publish.sh`.
+
+## Where the feeds live
+
+Three separate repositories, each with its own GitHub Pages site (branch `main`, root) and its own deploy key.
+The addresses are in `openwrt/common/site.env`.
+
+| Feed | Repository | Pages address | How it is replaced |
+|---|---|---|---|
+| apt | `mesh-town/townjump-dist` | `https://mesh-town.github.io/townjump-dist/linux/debian` | only `linux/debian/` (the rest of the repository stays) |
+| OpenWrt | `mesh-town/townjump-openwrt` | `https://mesh-town.github.io/townjump-openwrt` | the whole repository |
+| Keenetic | `mesh-town/townjump-keenetic` | `https://mesh-town.github.io/townjump-keenetic` | the whole repository |
+
+`openwrt/common/publish_pages.sh` does the push: one orphan commit per publication, a force push guarded by a lease,
+`.nojekyll`, an empty remote repository is fine. A feed repository is generated; nobody edits it by hand.
 
 ## Homebrew (own tap)
 
@@ -60,8 +72,7 @@ macOS architecture (arm64 or x86_64) and verifies it against
    `scripts/dist/brew-check.sh --install <dir> 1.2.3` (install, test, uninstall).
 4. Users: `brew install mesh-town/macos/townjump`.
 
-homebrew-core needs a repository older than 30 days with enough stars/forks;
-not before that.
+homebrew-core is not used: the formula lives in the own tap only.
 
 ## Windows installer
 
@@ -108,5 +119,4 @@ scripts/dist/winget.sh render <version> townjump-setup-<version>.exe <out>
 OpenWrt gets a signed package feed built without the SDK (`openwrt/feed/build_feed.py`, `.ipk` and `.apk`); see
 `openwrt/README.md`. Keenetic (Entware) has its own feed, see `keenetic/README.md`.
 
-The official `openwrt/packages` feed requires a real name and a non-private
-e-mail in `Author` and `Signed-off-by`, so the package stays in an own feed.
+The package is served from its own signed feed; it is not submitted to `openwrt/packages`.

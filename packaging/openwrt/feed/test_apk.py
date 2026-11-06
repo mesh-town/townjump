@@ -91,6 +91,7 @@ class PackageArguments(Case):
         line = self.mkpkg_line()
         for want in ("name:townjump", "version:0.2.7-r3", "license:AGPL-3.0-only", "origin:townjump",
                      "url:https://github.com/mesh-town/townjump",
+                     "Single-binary Rust port of Holesail: share a local port over a peer-to-peer tunnel",
                      "maintainer:Mesh Town <340663027+mesh-town@users.noreply.github.com>",
                      "--xattrs=no"):
             with self.subTest(want=want):

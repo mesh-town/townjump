@@ -18,7 +18,7 @@ SCRIPT = ff.HERE / "build_feed.py"
 EPOCH = "1700000000"
 VERSION = ff.VERSION
 FIVE = ["aarch64_cortex-a53", "aarch64_cortex-a72", "aarch64_cortex-a76", "aarch64_generic", "x86_64"]
-SITE_BASE = "https://mesh-town.github.io/townjump/openwrt"
+SITE_BASE = "https://mesh-town.github.io/townjump-openwrt"
 
 
 class Run:
@@ -85,6 +85,10 @@ class Layout(unittest.TestCase):
         text = install.read_text()
         self.assertNotIn("@BASE@", text)
         self.assertIn(SITE_BASE, text)
+        readme = (feed.out / "README.md").read_text()
+        self.assertIn(f"{SITE_BASE}/install.sh", readme)
+        self.assertIn("https://github.com/mesh-town/townjump", readme)
+        self.assertIn("do not edit", readme)
         self.assertEqual((feed.out / keys.USIGN_PUB).read_text(), "usign-public\n")
         self.assertEqual((feed.out / keys.APK_PEM).read_text(), "apk-public\n")
         self.assertFalse(list(feed.out.rglob("*.sec")), "a secret key must not be published")

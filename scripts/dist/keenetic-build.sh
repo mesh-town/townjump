@@ -33,6 +33,6 @@ while IFS= read -r line; do
   [ -n "$line" ] && bins+=(--bin "$line")
 done <<< "$listing"
 python3 "$root/packaging/keenetic/build_feed.py" --out "$out/feed" --version "$version" --pkg-release "$pkgrel" \
-  --base-url "$PAGES_BASE_URL/keenetic" "${bins[@]}"
+  --base-url "$KEENETIC_PAGES_URL" "${bins[@]}"
 python3 "$root/scripts/dist-check/ipk_check.py" "$out/feed" --unsigned
 cp -R "$out/feed" "$out/pages"

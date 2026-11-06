@@ -21,6 +21,8 @@ on:
     secrets:
       APT_GPG_KEY:
         required: false
+      DIST_DEPLOY_KEY:
+        required: false
   workflow_dispatch:
     inputs:
       tag:
@@ -135,11 +137,14 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
+    concurrency:
+      group: townjump-dist-pages
+      cancel-in-progress: false
     env:
       TAG: ${{ inputs.tag }}
-      GH_TOKEN: ${{ github.token }}
       APT_GPG_KEY: ${{ secrets.APT_GPG_KEY }}
+      DIST_DEPLOY_KEY: ${{ secrets.DIST_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -149,10 +154,14 @@ jobs:
       - name: Publish
         run: |
           set -euo pipefail
+          if [ -z "$DIST_DEPLOY_KEY" ]; then
+            echo "::notice::DIST_DEPLOY_KEY is not set: the apt repository is not published"
+            exit 0
+          fi
           # shellcheck source=/dev/null
           . packaging/openwrt/common/site.env
-          url="${PAGES_GIT_URL:-https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git}"
+          (umask 077; printf '%s\n' "$DIST_DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key")
           (umask 077; printf '%s\n' "$APT_GPG_KEY" > "$RUNNER_TEMP/apt-key.asc")
-          export TOWNJUMP_APT_KEY="$RUNNER_TEMP/apt-key.asc"
-          packaging/openwrt/common/publish_pages.sh apt debs "$url" "$PAGES_BRANCH" "${TAG#v}" \
+          export TOWNJUMP_APT_KEY="$RUNNER_TEMP/apt-key.asc" DEPLOY_KEY_FILE="$RUNNER_TEMP/deploy-key"
+          packaging/openwrt/common/publish_pages.sh linux/debian debs "$DIST_GIT_URL" "$PAGES_BRANCH" "${TAG#v}" \
             --update scripts/dist/deb-update.sh

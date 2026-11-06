@@ -7,8 +7,9 @@ A signed package feed built by `packaging/openwrt/feed/build_feed.py`, without t
 
 The package holds `/usr/bin/townjump`, a static musl binary. It does not start anything.
 
-Base address: `https://mesh-town.github.io/townjump/openwrt`. Address is provisional until the first publication.
-No feed has been published yet; the commands below work after the first publication.
+Base address: `https://mesh-town.github.io/townjump-openwrt`. The feed is the whole content of the
+`mesh-town/townjump-openwrt` repository (`install.sh` in its root), published with the secret `OPENWRT_DEPLOY_KEY`;
+the repository is generated and not edited by hand.
 
 ## Architectures
 
@@ -20,7 +21,7 @@ soft-float binary, the hard-float one only for the labels with an FPU in the nam
 ## Install
 
 ```sh
-wget -O- https://mesh-town.github.io/townjump/openwrt/install.sh | sh
+wget -O- https://mesh-town.github.io/townjump-openwrt/install.sh | sh
 ```
 
 The script reads `/etc/openwrt_release`, picks `apk` or `opkg`, checks that the feed carries the architecture, installs
@@ -31,7 +32,7 @@ the key, adds the feed and installs (or upgrades) `townjump`. `TOWNJUMP_FEED=<ad
 opkg (replace `<arch>` with `DISTRIB_ARCH`):
 
 ```sh
-B=https://mesh-town.github.io/townjump/openwrt
+B=https://mesh-town.github.io/townjump-openwrt
 wget -O /tmp/townjump-usign.pub "$B/townjump-usign.pub" && opkg-key add /tmp/townjump-usign.pub
 echo "src/gz townjump $B/opkg/<arch>" >> /etc/opkg/customfeeds.conf
 opkg update && opkg install townjump
@@ -40,7 +41,7 @@ opkg update && opkg install townjump
 apk:
 
 ```sh
-B=https://mesh-town.github.io/townjump/openwrt
+B=https://mesh-town.github.io/townjump-openwrt
 wget -O /etc/apk/keys/townjump.pem "$B/townjump-apk.pem"
 echo "$B/apk/<arch>/packages.adb" >> /etc/apk/repositories.d/customfeeds.list
 apk update && apk add townjump
@@ -67,4 +68,4 @@ init script; the arguments are those of `townjump --help`.
 `SOURCE_DATE_EPOCH` set and the signing keys in `OPENWRT_USIGN_SEC`, `OPENWRT_APK_SEC`, `OPENWRT_PUBKEYS`
 (`--ephemeral-keys` for a dry run). The apk part uses the real `apk mkpkg`/`mkndx` (`feed/tools.sh` builds the tools).
 Checks that do not use the builders: `scripts/dist-check/{ipk_check,adb_check}.py`. Public keys
-(`townjump-usign.pub`, `townjump-apk.pem`) are committed to `packaging/openwrt/keys/` after the first publication.
+(`townjump-usign.pub`, `townjump-apk.pem`) are committed to `packaging/openwrt/keys/`.

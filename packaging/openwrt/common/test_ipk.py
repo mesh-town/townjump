@@ -66,7 +66,9 @@ class IpkTest(unittest.TestCase):
         self.assertEqual(f["License"], "AGPL-3.0-only")
         self.assertEqual(f["URL"], "https://github.com/mesh-town/townjump")
         self.assertEqual(f["Installed-Size"], str(self.binary.stat().st_size))
-        self.assertIn("Holesail-compatible", f["Description"])
+        self.assertEqual(f["Description"], ipk.DESCRIPTION)
+        self.assertTrue(f["Description"].startswith("Single-binary Rust port of Holesail: share a local port"))
+        self.assertNotIn("v" + "pn", f["Description"].lower())
         self.assertNotIn("Depends", f)
 
     def test_dest_opt_bin_for_entware(self):

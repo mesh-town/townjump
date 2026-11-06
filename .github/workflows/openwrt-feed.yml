@@ -28,6 +28,8 @@ on:
         required: false
       OPENWRT_APK_KEY:
         required: false
+      OPENWRT_DEPLOY_KEY:
+        required: false
   workflow_dispatch:
     inputs:
       tag:
@@ -180,10 +182,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     permissions:
-      contents: write
+      contents: read
     env:
       TAG: ${{ inputs.tag }}
-      GH_TOKEN: ${{ github.token }}
+      OPENWRT_DEPLOY_KEY: ${{ secrets.OPENWRT_DEPLOY_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -193,7 +195,12 @@ jobs:
       - name: Publish
         run: |
           set -euo pipefail
+          if [ -z "$OPENWRT_DEPLOY_KEY" ]; then
+            echo "::notice::OPENWRT_DEPLOY_KEY is not set: the feed is not published"
+            exit 0
+          fi
           # shellcheck source=/dev/null
           . packaging/openwrt/common/site.env
-          url="${PAGES_GIT_URL:-https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git}"
-          packaging/openwrt/common/publish_pages.sh openwrt pages "$url" "$PAGES_BRANCH" "${TAG#v}"
+          (umask 077; printf '%s\n' "$OPENWRT_DEPLOY_KEY" > "$RUNNER_TEMP/deploy-key")
+          DEPLOY_KEY_FILE="$RUNNER_TEMP/deploy-key" \
+            packaging/openwrt/common/publish_pages.sh - pages "$OPENWRT_GIT_URL" "$PAGES_BRANCH" "${TAG#v}"

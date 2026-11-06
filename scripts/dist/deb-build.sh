@@ -51,7 +51,7 @@ for p in $pairs; do
   triple="${p%:*}" arch="${p#*:}"
   binary="$(printf '%s\n' "$listing" | sed -n "s|^$triple=||p")"
   args=(--binary "$binary" --arch "$arch" --version "$version-$pkgrel" --out "$out/debs" --license "$root/LICENSE" --readme "$root/README.md")
-  if [ -n "$pub" ]; then args+=(--keyring "$pub" --base-url "$PAGES_BASE_URL/apt"); fi
+  if [ -n "$pub" ]; then args+=(--keyring "$pub" --base-url "$DIST_PAGES_URL/linux/debian"); fi
   deb="$(python3 "$root/packaging/debian/deb.py" "${args[@]}")"
   python3 "$root/scripts/dist-check/deb_check.py" "$deb" --arch "$arch" --version "$version-$pkgrel"
 done
