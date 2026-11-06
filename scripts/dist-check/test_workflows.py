@@ -10,6 +10,7 @@ DIR = Path(__file__).resolve().parent.parent.parent / ".github" / "workflows"
 WORKFLOWS = {"deb": "deb.yml", "keenetic": "keenetic-feed.yml", "openwrt": "openwrt-feed.yml"}
 SIGNED_IF = "inputs.publish && needs.build.outputs['signed'] == 'true'"
 PUBLISH_IF = {"deb": SIGNED_IF, "keenetic": "inputs.publish", "openwrt": SIGNED_IF}
+CONTAINER = (DIR / "container-image.yml").read_text()  # not in WORKFLOWS: it has no apt/feed publish gate
 TIMEOUTS = {"openwrt": ("30", "60", "30")}
 
 
@@ -132,6 +133,30 @@ class WorkflowTests(unittest.TestCase):
         self.assertLess(build.index("umask 077"), build.index("usign.sec"))
         self.assertIn("--ephemeral-keys", build)
         self.assertIn("::notice::", build)
+
+    def test_container_push_only_on_tag_and_publish(self):
+        block = job(CONTAINER, "image")
+        cond = "inputs.publish && startsWith(github.ref, 'refs/tags/v')"
+        self.assertEqual(block.count("push: true"), 1)
+        for step in ("Log in to ghcr.io", "Build all platforms and push"):
+            m = re.search(rf"- name: {step}\n        if: \$\{{\{{ (.+) \}}\}}", block)
+            self.assertTrue(m, step)
+            self.assertEqual(m.group(1), cond)
+        self.assertEqual(trigger_block(CONTAINER, "workflow_dispatch").count("default: false"), 1)
+
+    def test_container_has_run_check_before_push(self):
+        block = job(CONTAINER, "image")
+        run = block.index("docker run --rm")
+        self.assertIn("--version", block[run:])
+        self.assertIn("--platform linux/amd64 --load", block)
+        self.assertLess(run, block.index("docker/login-action"))
+        self.assertLess(run, block.index("docker/build-push-action"))
+        self.assertIn("linux/amd64,linux/arm64,linux/arm/v7", block)
+
+    def test_container_permissions(self):
+        block = job(CONTAINER, "image")
+        self.assertRegex(block, r"permissions:\n      contents: read\n      packages: write\n")
+        self.assertNotIn("secrets.", CONTAINER)
 
 
 if __name__ == "__main__":
