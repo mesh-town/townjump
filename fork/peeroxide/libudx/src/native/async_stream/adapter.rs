@@ -33,6 +33,7 @@ pub struct UdxAsyncStream {
     pub(super) fin_queued: bool,
     pub(super) write_done: bool,
     pub(super) read_stats: super::read::ReadPath,
+    pub(super) write_stats: super::write::WritePath,
 }
 
 impl UdxAsyncStream {
@@ -106,6 +107,7 @@ impl UdxAsyncStream {
             fin_queued: false,
             write_done: false,
             read_stats: Default::default(),
+            write_stats: Default::default(),
         }
     }
 }

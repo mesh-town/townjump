@@ -129,6 +129,34 @@ impl UdxAsyncStream {
     }
 }
 
+/// Writer-side state, logged when the adapter is dropped.
+#[derive(Default)]
+pub(super) struct WritePath {
+    /// Whether the last `poll_write`, `poll_flush` or `poll_shutdown` returned `Pending`.
+    last_pending: bool,
+    last_poll: Option<Instant>,
+}
+
+impl WritePath {
+    fn note<T>(&mut self, polled: Poll<T>) -> Poll<T> {
+        self.last_poll = Some(Instant::now());
+        self.last_pending = polled.is_pending();
+        polled
+    }
+}
+
+impl UdxAsyncStream {
+    /// One `debug` line with the state of the write path.
+    pub(super) fn log_write_stats(&self) {
+        tracing::debug!(
+            local_id = self.local_id,
+            last_write_pending = self.write_stats.last_pending,
+            write_poll_ms_ago = ?self.write_stats.last_poll.map(|t| t.elapsed().as_millis() as u64),
+            "stream write stats"
+        );
+    }
+}
+
 impl AsyncWrite for UdxAsyncStream {
     fn poll_write(
         mut self: Pin<&mut Self>,
@@ -136,6 +164,26 @@ impl AsyncWrite for UdxAsyncStream {
         buf: &[u8],
     ) -> Poll<io::Result<usize>> {
         let this = &mut *self;
+        let polled = this.write_inner(cx, buf);
+        this.write_stats.note(polled)
+    }
+
+    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = &mut *self;
+        let polled = this.in_flight.poll_settle(cx);
+        this.write_stats.note(polled)
+    }
+
+    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = &mut *self;
+        let polled = this.shutdown_inner(cx);
+        this.write_stats.note(polled)
+    }
+}
+
+impl UdxAsyncStream {
+    fn write_inner(&mut self, cx: &mut Context<'_>, buf: &[u8]) -> Poll<io::Result<usize>> {
+        let this = self;
         if this.fin_queued {
             return Poll::Ready(Err(io::Error::new(
                 io::ErrorKind::BrokenPipe,
@@ -157,12 +205,8 @@ impl AsyncWrite for UdxAsyncStream {
         Poll::Ready(Ok(n))
     }
 
-    fn poll_flush(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        self.in_flight.poll_settle(cx)
-    }
-
-    fn poll_shutdown(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
-        let this = &mut *self;
+    fn shutdown_inner(&mut self, cx: &mut Context<'_>) -> Poll<io::Result<()>> {
+        let this = self;
         if !this.fin_queued {
             if !this.is_connected() {
                 return Poll::Ready(Ok(()));
@@ -187,3 +231,7 @@ impl AsyncWrite for UdxAsyncStream {
 #[cfg(test)]
 #[path = "write_tests.rs"]
 mod tests;
+
+#[cfg(test)]
+#[path = "write_stats_tests.rs"]
+mod write_stats_tests;
