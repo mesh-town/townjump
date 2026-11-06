@@ -24,6 +24,7 @@ done
 if [ -z "$dir" ]; then usage; exit 2; fi
 
 # The directory must not be inside a git repository (look at the nearest existing ancestor).
+case "$dir" in /*) ;; *) dir="$PWD/$dir" ;; esac
 probe="$dir"
 while [ ! -d "$probe" ]; do
   parent="$(dirname "$probe")"
@@ -31,8 +32,13 @@ while [ ! -d "$probe" ]; do
   probe="$parent"
 done
 if git -C "$probe" rev-parse --git-dir >/dev/null 2>&1; then
-  echo "gen-keys.sh: '$dir' is inside a git repository; secret keys must live outside any repository" >&2
-  exit 1
+  # Inside a repository only when git ignores every secret file name there (a private config repository).
+  abs="$(cd "$probe" && pwd -P)${dir#"$probe"}"
+  for f in townjump-apt.sec.asc townjump-usign.sec townjump-apk.sec deploy-dist deploy-openwrt deploy-keenetic; do
+    git -C "$probe" check-ignore -q -- "$abs/$f" && continue
+    echo "gen-keys.sh: '$dir' is inside a git repository that does not ignore it; secret keys must live outside any repository or in an ignored path" >&2
+    exit 1
+  done
 fi
 if [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ] && ! $force; then
   echo "gen-keys.sh: '$dir' is not empty (use --force to overwrite)" >&2

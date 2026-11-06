@@ -1,7 +1,7 @@
 # Publication keys
 
 Everything that is signed or pushed during a release uses keys generated once by `scripts/dist/gen-keys.sh <dir>`.
-The directory must be outside any git repository; the script refuses otherwise. Secret keys are kept only there and in
+The directory must be outside any git repository, or inside one that git ignores for every secret file name; the script refuses otherwise. Secret keys are kept only there and in
 GitHub Actions secrets, never in this tree.
 
 | Purpose | Format | Secret (file in the key directory) | Public half in this tree |
