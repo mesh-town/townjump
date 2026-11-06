@@ -11,6 +11,9 @@ pub(crate) struct ReadStats {
 
 impl ReadStats {
     pub(crate) fn record(&mut self, bytes: u64) {
+        if bytes == 0 {
+            return;
+        }
         self.delivered += bytes;
         self.last_delivery = Some(Instant::now());
     }
