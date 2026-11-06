@@ -37,7 +37,10 @@ double fminimum_num(double a, double b) {
   return a < b ? a : b;
 }
 CSRC
-zig cc -target arm-linux-musleabi -Os -c "$dir/shim.c" -o "$dir/shim.o" >&2
+# CI installs zig with pip (ziglang), which puts no zig binary on PATH; cargo-zigbuild finds it the same way.
+zig=(zig)
+command -v zig >/dev/null 2>&1 || zig=(python3 -m ziglang)
+"${zig[@]}" cc -target arm-linux-musleabi -Os -c "$dir/shim.c" -o "$dir/shim.o" >&2
 rustup target add "$target" >&2
 (cd "$root" && RUSTFLAGS="-C link-arg=$dir/shim.o ${RUSTFLAGS:-}" cargo zigbuild --release --locked -p townjump --target "$target" >&2)
 [ -f "$CARGO_TARGET_DIR/$target/release/townjump" ] || { echo "armv7-soft-build.sh: no binary for $target" >&2; exit 1; }
