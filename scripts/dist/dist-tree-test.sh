@@ -61,7 +61,7 @@ name=version_txt_and_readme_have_version
 check bash -c "[ \"\$(cat '$work/tree/version.txt')\" = $V ] && grep -q '$V' '$work/tree/README.md' && ! grep -q '@VERSION@' '$work/tree/README.md'"
 
 name=no_versions_in_file_names
-bad="$(cd "$work/tree" && find . -type f | grep -E '[0-9]+\.[0-9]+\.[0-9]+' || true)"
+bad="$(cd "$work/tree" || exit 1; find . -type f | grep -E '[0-9]+\.[0-9]+\.[0-9]+' || true)"
 check test -z "$bad"
 
 name=zip_without_exe_fails
