@@ -39,7 +39,7 @@ reach your service.
 | System | Command or file |
 |---|---|
 | macOS | `brew install mesh-town/macos/townjump`, or an archive from the [release](https://github.com/mesh-town/townjump/releases/latest) |
-| Windows | `winget install MeshTown.Townjump`, or `townjump-setup-<version>.exe` from the release |
+| Windows | `townjump-setup-<version>.exe` from the release (a winget package is under review) |
 | Linux | static archives for x86_64, aarch64, armv7 and MIPS from the release |
 | Debian, Ubuntu | `townjump_<arch>.deb` from <https://mesh-town.github.io/townjump-dist/linux/debian/>, then `sudo apt install ./townjump_<arch>.deb`; updates come with `apt upgrade` |
 | OpenWrt 24.10 / 25.12 | `wget -O- https://mesh-town.github.io/townjump-openwrt/install.sh \| sh` |

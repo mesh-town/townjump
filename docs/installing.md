@@ -44,16 +44,12 @@ On macOS, a downloaded unsigned binary may be quarantined by Gatekeeper; remove 
 
 ## Windows
 
-```
-winget install MeshTown.Townjump
-```
-
-Alternatively run the installer `townjump-setup-<version>.exe` from the release; it is listed in `SHA256SUMS`. It
+Run the installer `townjump-setup-<version>.exe` from the release; it is listed in `SHA256SUMS`. It
 needs administrator rights (Windows asks for them) and 64-bit Windows. It installs `townjump.exe` into
 `C:\Program Files\Townjump` and adds that directory to the system `PATH`; open a new terminal window afterwards.
-`townjump-setup-<version>.exe /S` installs silently. To update, run a newer installer (or `winget upgrade
-MeshTown.Townjump`). To remove, use "Apps" (Installed apps) in the Windows settings or run `uninstall.exe` in the
-installation directory. The installer is not signed, so SmartScreen may show a warning: choose "More info", then
+`townjump-setup-<version>.exe /S` installs silently. To update, run a newer installer. A winget package
+(`MeshTown.Townjump`) is under review; once it is accepted, `winget install MeshTown.Townjump` works too. To remove,
+use "Apps" (Installed apps) in the Windows settings or run `uninstall.exe` in the installation directory. The installer is not signed, so SmartScreen may show a warning: choose "More info", then
 "Run anyway", after checking the file against `SHA256SUMS`.
 
 ## Debian and Ubuntu
@@ -87,7 +83,7 @@ Download `townjump-termux-aarch64.tar.gz` from the release or from
 <https://mesh-town.github.io/townjump-dist/android/>, unpack it and put `townjump` into `$PREFIX/bin`:
 
 ```sh
-tar -xzf townjump-termux-aarch64.tar.gz
+tar -xzf townjump-termux-aarch64.tar.gz --strip-components=1 --wildcards '*/townjump'
 install -m 755 townjump "$PREFIX/bin/townjump"
 ```
 
