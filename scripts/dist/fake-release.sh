@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build a fixture release directory: fake-release.sh <version> <out>
-# Creates 6 target archives, the source tarball, a setup stub and SHA256SUMS.
+# Creates the target archives (one per target), the source tarball, a setup stub and SHA256SUMS.
 # Exit codes: 2 usage / bad version, 1 other failure, 0 success.
 set -euo pipefail
 
@@ -31,6 +31,7 @@ targets=(
   armv7-unknown-linux-musleabi
   mipsel-unknown-linux-musl
   mips-unknown-linux-musl
+  aarch64-linux-android
   x86_64-pc-windows-msvc
 )
 

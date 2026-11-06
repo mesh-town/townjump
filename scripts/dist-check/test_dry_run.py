@@ -1,4 +1,5 @@
 """Argument and exit-code checks of dry-run.sh and container.sh (no builds)."""
+import os
 import subprocess
 import tempfile
 import unittest
@@ -34,6 +35,52 @@ class DryRunArguments(unittest.TestCase):
         text = (HERE.parent / "dist" / "armv7-soft-build.sh").read_text()
         self.assertIn("fmaximum_num", text)
         self.assertIn("fminimum_num", text)
+
+
+DIST = HERE.parent / "dist"
+PAGES = HERE.parent.parent / "packaging" / "openwrt" / "common" / "publish_pages.sh"
+
+
+class DistAndDebKeepEachOther(unittest.TestCase):
+    """publish_pages.sh into one local bare repository, in both orders: the dist tree replaces everything but
+    linux/debian, the apt part replaces only linux/debian."""
+
+    def setUp(self):
+        self._tmp = tempfile.TemporaryDirectory()
+        self.tmp = Path(self._tmp.name)
+        self.addCleanup(self._tmp.cleanup)
+        subprocess.run(["bash", str(DIST / "fake-release.sh"), "1.2.3", str(self.tmp / "rel")], check=True, capture_output=True)
+        subprocess.run(["bash", str(DIST / "dist-tree.sh"), str(self.tmp / "rel"), str(self.tmp / "tree"), "1.2.3"], check=True,
+                       capture_output=True)
+        deb = self.tmp / "deb"
+        (deb / "dists" / "stable").mkdir(parents=True)
+        (deb / "dists" / "stable" / "InRelease").write_text("stub\n")
+        self.repo = self.tmp / "dist.git"
+        subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(self.repo)], check=True)
+
+    def publish(self, sub, src, keep=""):
+        env = {**os.environ, "PAGES_KEEP": keep}
+        subprocess.run(["sh", str(PAGES), sub, str(src), f"file://{self.repo}", "main", "1.2.3"], check=True, capture_output=True, env=env)
+
+    def files(self):
+        out = subprocess.run(["git", "-C", str(self.repo), "ls-tree", "-r", "--name-only", "main"], check=True, capture_output=True, text=True)
+        return set(out.stdout.split())
+
+    def assert_both(self):
+        files = self.files()
+        for f in ("macos/townjump-macos-aarch64.tar.gz", "linux/townjump-linux-x86_64.tar.gz", "android/townjump-termux-aarch64.tar.gz",
+                  "windows/townjump.exe", "linux/debian/dists/stable/InRelease"):
+            self.assertIn(f, files)
+
+    def test_dist_then_deb_keeps_both(self):
+        self.publish("-", self.tmp / "tree", keep="linux/debian")
+        self.publish("linux/debian", self.tmp / "deb")
+        self.assert_both()
+
+    def test_deb_then_dist_keeps_both(self):
+        self.publish("linux/debian", self.tmp / "deb")
+        self.publish("-", self.tmp / "tree", keep="linux/debian")
+        self.assert_both()
 
 
 if __name__ == "__main__":
