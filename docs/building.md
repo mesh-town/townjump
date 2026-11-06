@@ -34,5 +34,10 @@ cargo test --workspace --locked
 ## Cross-compiling
 
 Release binaries for Linux (musl) are built with [`cargo-zigbuild`](https://github.com/rust-cross/cargo-zigbuild);
-see `.github/workflows/release.yml` for the exact targets and commands. 32-bit MIPS targets are not supported:
-the code uses `AtomicU64`.
+see `.github/workflows/release.yml` for the exact targets and commands. The release profile uses `lto = "fat"` and
+`strip`.
+
+- **ARMv7 without FPU** (`armv7-unknown-linux-musleabi`): `scripts/dist/armv7-soft-build.sh`.
+- **MIPS and MIPSEL** (`mips-unknown-linux-musl`, `mipsel-unknown-linux-musl`): tier 3 targets, built with a nightly
+  toolchain and `build-std`; see `scripts/mips/build.sh`. The code uses `portable-atomic` where MIPS lacks
+  64-bit atomics.

@@ -60,6 +60,11 @@ node testvectors/gen/all.mjs        # about 90 seconds; network only on 127.0.0.
 
 Needs the same JavaScript tree as above. The run is deterministic: two runs give byte-identical files.
 
+## LAN discovery tests
+
+`lan_race_tests` start a JavaScript Holesail network and fail without the npm tree prepared for the interop tests
+(`.tmp/npm-holesail`, see the section above). If they fail at start, look there first.
+
 ## Running binaries through a wrapper
 
 If your system requires a wrapper to start freshly built binaries, set the `TOWNJUMP_RUN_WRAPPER` variable to the
