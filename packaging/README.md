@@ -11,7 +11,8 @@ release; they do not build from source.
 ## Release
 
 Flow: tag, then the jobs of `.github/workflows/release.yml`, then the assets
-of the GitHub release, then the tap and winget jobs.
+of the GitHub release, then, in this order of declaration, `tap`, `winget`,
+`deb`, `openwrt-feed`, `keenetic-feed`, `dist` and `container-image`.
 
 1. Set the same `version` in `Cargo.toml` and `CHANGELOG.md`, commit.
 2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
@@ -22,6 +23,22 @@ of the GitHub release, then the tap and winget jobs.
    of assets and creates the release (`scripts/dist/publish.sh`).
 5. `tap` and `winget` (reusable workflows `tap-bump.yml`, `winget.yml`) run
    after `publish`; both can also be started by hand with a version.
+6. `deb`, `openwrt-feed`, `keenetic-feed`, `dist` (direct downloads) and
+   `container-image` run after `publish` as well; they do not wait for each
+   other (concurrency groups and the lease on the target branch keep pushes in order).
+
+Targets: macOS (arm64, x86_64), Linux musl (x86_64, aarch64, armv7 hard and
+soft float, mipsel, mips), Android (`aarch64-linux-android`, bionic build with
+a pinned NDK, for Termux) and Windows (`x86_64-pc-windows-msvc`).
+
+Dry run: start `release` by hand (`workflow_dispatch`, input `publish` is
+`false` by default). It reads the version from `Cargo.toml`, builds every
+target (including MIPS, armv7 and the MSVC build) and the Windows installer.
+It does not create a release and runs none of the publishing jobs (`publish`,
+`tap`, `winget`, `deb`, `openwrt-feed`, `keenetic-feed`, `dist`,
+`container-image`): they run only for a `v*` tag, and for a manual run only
+with `publish` enabled. The Android binary is not executed there (foreign
+architecture); only its ELF header is checked.
 
 Settings (repository variable and secrets; an empty secret skips the step
 with a `::notice::`, it does not fail the release):
