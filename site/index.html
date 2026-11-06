@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>townjump - share a local port with anyone who has the key</title>
+<meta name="description" content="townjump is a single-binary Rust port of Holesail: share one TCP or UDP port with anyone who has the key, through NAT, with no server of your own.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="canonical" href="https://mesh-town.github.io/townjump/">
+<script>document.documentElement.className = "js";</script>
+<link rel="stylesheet" href="assets/css/site.css">
+</head>
+<body>
+<a class="skip-link" href="#main">Skip to content</a>
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="favicon.svg" alt="" width="28" height="28"><span>townjump</span></a>
+    <nav class="site-nav" aria-label="Main">
+      <ul>
+        <li><a href="#how-it-works">How it works</a></li>
+        <li><a href="#install">Install</a></li>
+        <li><a href="https://github.com/mesh-town/townjump/tree/main/docs">Docs</a></li>
+        <li><a href="https://github.com/mesh-town/townjump">GitHub</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+<main id="main" tabindex="-1">
+
+<section id="top">
+  <div class="wrap hero-grid">
+    <div>
+      <h1>Share a local port with anyone who has the key</h1>
+      <p class="lead">townjump opens a direct, encrypted connection between two machines behind their routers and forwards one TCP or UDP port over it. No account. One static binary; works with the original Holesail.</p>
+      <ul class="chips">
+        <li>No port forwarding</li>
+        <li>No server</li>
+        <li>No Node.js</li>
+      </ul>
+      <div class="buttons">
+        <a class="btn primary" href="#install">Install</a>
+        <a class="btn" href="#how-it-works">See how it works</a>
+      </div>
+      <p class="meta">Free and open source (AGPL-3.0). macOS, Windows, Linux, OpenWrt and Keenetic routers, Termux, Docker.</p>
+    </div>
+    <div class="term" role="img" aria-label="Terminal: townjump --live 3000 prints a key; townjump with that key serves the port on 127.0.0.1:8989">
+<pre aria-hidden="true"><code><span class="c"># on the machine with the service</span>
+<span class="k">$</span> townjump --live 3000
+  hs://s000&hellip;   <span class="c"># the key</span>
+
+<span class="c"># on the other machine</span>
+<span class="k">$</span> townjump hs://s000&hellip;
+  http://127.0.0.1:8989</code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="differs">
+  <div class="wrap cols">
+    <div>
+      <h2>What you do not have to do</h2>
+      <ul class="plain">
+        <li><strong>Open a port.</strong> The two sides find each other in the public DHT and punch through NAT.</li>
+        <li><strong>Run a server.</strong> Data goes directly between the peers; DHT nodes only help them meet.</li>
+        <li><strong>Install Node.js.</strong> On routers it is a package.</li>
+        <li><strong>Create an account.</strong> Whoever has the key can connect.</li>
+        <li><strong>Learn new commands</strong> if you use Holesail. Same options, same <code>hs://</code> keys.</li>
+      </ul>
+    </div>
+    <div class="not">
+      <h2>Not the tool if you need</h2>
+      <ul class="plain">
+        <li>Many devices and ports with names and a member list: that is <a href="https://github.com/mesh-town">Mesh Town</a>, built on townjump.</li>
+        <li>A whole subnet: townjump forwards one port.</li>
+        <li>Holesail 3.x keys: only the 2.4.4 protocol.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <p class="note" data-os-note aria-live="polite"></p>
+    <div class="tabs" data-os-tabs hidden>
+      <button type="button" data-os-tab="macos" aria-selected="true">macOS</button>
+      <button type="button" data-os-tab="windows" aria-selected="false">Windows</button>
+      <button type="button" data-os-tab="linux" aria-selected="false">Linux</button>
+      <button type="button" data-os-tab="android" aria-selected="false">Android</button>
+      <button type="button" data-os-tab="router" aria-selected="false">Router</button>
+      <button type="button" data-os-tab="docker" aria-selected="false">Docker</button>
+    </div>
+
+    <div class="os-panel" data-os-panel="macos">
+      <h3>macOS</h3>
+      <div data-var-group="macos">
+        <div class="tabs small" data-var-tabs hidden>
+          <button type="button" data-var-tab="brew">Homebrew</button>
+          <button type="button" data-var-tab="download">Download</button>
+        </div>
+        <div class="var-panel" data-var-panel="brew">
+          <h4>Homebrew</h4>
+          <pre class="cmd"><code>brew install mesh-town/macos/townjump</code></pre>
+        </div>
+        <div class="var-panel" data-var-panel="download">
+          <h4>Download</h4>
+          <pre class="cmd"><code>curl -fLO https://mesh-town.github.io/townjump-dist/macos/townjump-macos-aarch64.tar.gz
+tar -xzf townjump-macos-aarch64.tar.gz
+xattr -d com.apple.quarantine townjump</code></pre>
+          <p class="note">Intel: <code>townjump-macos-x86_64.tar.gz</code>.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="os-panel" data-os-panel="windows">
+      <h3>Windows</h3>
+      <p><a href="https://mesh-town.github.io/townjump-dist/windows/townjump-setup.exe">Download townjump-setup.exe</a>. If SmartScreen warns, choose More info, then Run anyway. The installer adds townjump to PATH.</p>
+    </div>
+
+    <div class="os-panel" data-os-panel="linux">
+      <h3>Linux</h3>
+      <div data-var-group="linux">
+        <div class="tabs small" data-var-tabs hidden>
+          <button type="button" data-var-tab="deb">Debian / Ubuntu</button>
+          <button type="button" data-var-tab="other">Other Linux</button>
+        </div>
+        <div class="var-panel" data-var-panel="deb">
+          <h4>Debian / Ubuntu</h4>
+          <pre class="cmd"><code>arch="$(dpkg --print-architecture)"
+curl -fLO "https://mesh-town.github.io/townjump-dist/linux/debian/townjump_${arch}.deb"
+sudo apt install "./townjump_${arch}.deb"</code></pre>
+        </div>
+        <div class="var-panel" data-var-panel="other">
+          <h4>Other Linux</h4>
+          <pre class="cmd"><code>curl -fLO https://mesh-town.github.io/townjump-dist/linux/townjump-linux-$(uname -m).tar.gz
+tar -xzf townjump-linux-$(uname -m).tar.gz</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="os-panel" data-os-panel="android">
+      <h3>Android</h3>
+      <p>In Termux:</p>
+      <pre class="cmd"><code>curl -fLO https://mesh-town.github.io/townjump-dist/android/townjump-termux-aarch64.tar.gz
+tar -xzf townjump-termux-aarch64.tar.gz
+mv townjump $PREFIX/bin/</code></pre>
+    </div>
+
+    <div class="os-panel" data-os-panel="router">
+      <h3>Router</h3>
+      <div data-var-group="router">
+        <div class="tabs small" data-var-tabs hidden>
+          <button type="button" data-var-tab="openwrt">OpenWrt</button>
+          <button type="button" data-var-tab="keenetic">Keenetic</button>
+        </div>
+        <div class="var-panel" data-var-panel="openwrt">
+          <h4>OpenWrt</h4>
+          <pre class="cmd"><code>wget -O- https://mesh-town.github.io/townjump-openwrt/install.sh | sh</code></pre>
+        </div>
+        <div class="var-panel" data-var-panel="keenetic">
+          <h4>Keenetic</h4>
+          <pre class="cmd"><code>wget -O- https://mesh-town.github.io/townjump-keenetic/install.sh | sh</code></pre>
+        </div>
+      </div>
+      <p class="note">The package installs <code>/usr/bin/townjump</code> and starts nothing; run it from an init script of your own.</p>
+    </div>
+
+    <div class="os-panel" data-os-panel="docker">
+      <h3>Docker</h3>
+      <pre class="cmd"><code>docker run --rm ghcr.io/mesh-town/townjump:latest --help</code></pre>
+    </div>
+
+    <p class="note">Then: <code>townjump --live 3000</code> on one side, <code>townjump &lt;key&gt;</code> on the other. Verify downloads against <code>SHA256SUMS</code> of the <a href="https://github.com/mesh-town/townjump/releases">release</a>. All channels, updates and removal: <a href="https://github.com/mesh-town/townjump/blob/main/docs/installing.md">docs/installing.md</a>.</p>
+  </div>
+</section>
+
+<section id="how-it-works">
+  <div class="wrap">
+    <h2>How it works</h2>
+    <div class="diagram">
+      <svg class="wide" viewBox="0 0 720 280" role="img" aria-labelledby="dw-t">
+        <title id="dw-t">The server machine and the client machine, each behind NAT, meet through the DHT and then talk directly, encrypted.</title>
+        <rect class="d-dht" x="250" y="10" width="220" height="56" rx="12"/>
+        <text class="d-t" x="360" y="34" text-anchor="middle">DHT</text>
+        <text class="d-s" x="360" y="54" text-anchor="middle">peers meet here</text>
+        <path class="d-meet" d="M256 170 L290 66"/>
+        <path class="d-meet" d="M466 170 L430 66"/>
+        <rect class="d-box" x="10" y="170" width="200" height="90" rx="12"/>
+        <text class="d-t" x="110" y="204" text-anchor="middle">Server machine</text>
+        <text class="d-m" x="110" y="232" text-anchor="middle">--live 3000</text>
+        <rect class="d-nat" x="226" y="170" width="60" height="90" rx="8"/>
+        <text class="d-s" x="256" y="220" text-anchor="middle">NAT</text>
+        <rect class="d-nat" x="436" y="170" width="60" height="90" rx="8"/>
+        <text class="d-s" x="466" y="220" text-anchor="middle">NAT</text>
+        <rect class="d-box" x="512" y="170" width="198" height="90" rx="12"/>
+        <text class="d-t" x="611" y="204" text-anchor="middle">Client machine</text>
+        <text class="d-m" x="611" y="232" text-anchor="middle">127.0.0.1:8989</text>
+        <path class="d-line" d="M290 215 L420 215"/>
+        <polygon class="d-arrow" points="432,215 418,207 418,223"/>
+        <polygon class="d-arrow" points="284,215 298,207 298,223"/>
+        <text class="d-s" x="361" y="204" text-anchor="middle">direct</text>
+        <text class="d-s" x="361" y="240" text-anchor="middle">encrypted</text>
+      </svg>
+      <svg class="narrow" viewBox="0 0 300 380" role="img" aria-labelledby="dn-t">
+        <title id="dn-t">The server machine and the client machine, each behind NAT, meet through the DHT and then talk directly, encrypted.</title>
+        <rect class="d-box" x="10" y="10" width="190" height="80" rx="12"/>
+        <text class="d-t" x="105" y="43" text-anchor="middle">Server machine</text>
+        <text class="d-m" x="105" y="68" text-anchor="middle">--live 3000</text>
+        <rect class="d-nat" x="10" y="100" width="190" height="34" rx="8"/>
+        <text class="d-s" x="105" y="122" text-anchor="middle">NAT</text>
+        <path class="d-line" d="M105 144 L105 226"/>
+        <polygon class="d-arrow" points="105,236 97,222 113,222"/>
+        <polygon class="d-arrow" points="105,142 97,156 113,156"/>
+        <text class="d-s" x="115" y="182" text-anchor="start">direct, encrypted</text>
+        <rect class="d-nat" x="10" y="246" width="190" height="34" rx="8"/>
+        <text class="d-s" x="105" y="268" text-anchor="middle">NAT</text>
+        <rect class="d-box" x="10" y="290" width="190" height="80" rx="12"/>
+        <text class="d-t" x="105" y="323" text-anchor="middle">Client machine</text>
+        <text class="d-m" x="105" y="348" text-anchor="middle">127.0.0.1:8989</text>
+        <rect class="d-dht" x="220" y="160" width="76" height="56" rx="12"/>
+        <text class="d-t" x="258" y="184" text-anchor="middle">DHT</text>
+        <text class="d-s" x="258" y="204" text-anchor="middle">meet</text>
+        <path class="d-meet" d="M200 117 L258 117 L258 160"/>
+        <path class="d-meet" d="M200 263 L258 263 L258 216"/>
+      </svg>
+    </div>
+    <ol class="steps">
+      <li>The server derives a key pair from the secret in the key and announces its public key in the DHT.</li>
+      <li>The client derives the same public key, finds the server through DHT nodes, and the two punch a hole through their NATs over UDP.</li>
+      <li>Data flows directly in an end-to-end encrypted Noise stream over UDX, a reliable transport on UDP. If the hole punch fails, a DHT relay node carries the stream until a direct path works.</li>
+      <li>The client listens on <code>127.0.0.1:8989</code> and forwards every connection to the server's port.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="compat">
+  <div class="wrap">
+    <h2>Works with Holesail</h2>
+    <p>townjump is an independent port of Holesail 2.4.4, not affiliated with Holesail or Liveport. A townjump server serves JavaScript clients and the other way round, over TCP and UDP, with private and public keys. The command line and help text are those of <code>holesail</code>, so existing scripts keep working. The binary is named <code>townjump</code>, so it installs next to the npm package. <a href="https://github.com/mesh-town/townjump/blob/main/docs/compatibility.md">Differences</a>.</p>
+  </div>
+</section>
+
+<section id="library">
+  <div class="wrap">
+    <h2>Use it from Rust</h2>
+    <p>The crates <code>townjump</code>, <code>townjump-client</code>, <code>townjump-server</code> and <code>townjump-dht</code> expose a <code>Holesail</code> facade. Depend on a git tag; the API is not stable and the crates are not on crates.io. See <a href="https://github.com/mesh-town/townjump/blob/main/docs/library.md">docs/library.md</a>.</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <h2>FAQ</h2>
+    <details><summary>Is the key a password?</summary><p>A private key (<code>hs://s000&hellip;</code>) is the secret. A public key (<code>--public</code>) can be published and anyone can connect, so protect the service itself.</p></details>
+    <details><summary>Does it work behind a mobile operator's NAT?</summary><p>Usually. Where hole punching fails, a DHT relay node carries the stream; if both sides change ports per connection, it may not connect.</p></details>
+    <details><summary>Does it reconnect by itself?</summary><p>No, like Holesail: restart the client. <code>--key</code> keeps a server's key across restarts.</p></details>
+    <details><summary>Can I share a folder?</summary><p><code>townjump --filemanager &lt;dir&gt;</code> serves a web file manager; use <code>--safe-mode</code> and a password.</p></details>
+  </div>
+</section>
+
+</main>
+<footer class="site-footer">
+  <div class="wrap">
+    <ul>
+      <li><a href="https://github.com/mesh-town/townjump">Source</a></li>
+      <li><a href="https://github.com/mesh-town/townjump/tree/main/docs">Docs</a></li>
+      <li><a href="https://github.com/mesh-town/townjump/releases">Releases</a></li>
+      <li><a href="https://github.com/mesh-town/townjump/blob/main/LICENSE">AGPL-3.0-only</a></li>
+    </ul>
+    <p>Mesh Town is built on townjump. townjump is not affiliated with Holesail or Liveport.</p>
+  </div>
+</footer>
+<script src="assets/js/site.js" defer></script>
+<script src="assets/js/variants.js" defer></script>
+<script src="assets/js/copy.js" defer></script>
+</body>
+</html>
