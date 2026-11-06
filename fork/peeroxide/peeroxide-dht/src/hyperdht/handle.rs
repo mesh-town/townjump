@@ -13,6 +13,7 @@ use crate::router::{ForwardEntry, Router};
 use crate::rpc::DhtHandle;
 
 use super::Freeze;
+use super::limits::StreamLimits;
 use super::relay_cache::RelayCache;
 use super::reuse::Reuse;
 use super::types::{HyperDhtError, ServerEvent};
@@ -40,6 +41,8 @@ pub struct HyperDhtHandle {
     pub(super) freezers: Arc<Mutex<Vec<mpsc::UnboundedSender<Freeze>>>>,
     /// Held sockets and routes shared by client and server.
     pub(crate) reuse: Reuse,
+    /// Applied to every UDX stream the node turns into a connection.
+    pub(crate) limits: StreamLimits,
 }
 
 impl HyperDhtHandle {

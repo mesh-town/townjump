@@ -10,6 +10,7 @@ use super::connect_lan::LanRewrite;
 #[cfg(doc)]
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
+use super::limits::StreamLimits;
 use super::relay::{HolepunchFilter, RelayAddress, RelayAsk, RelayThrough};
 
 /// Configuration used by the server-side handshake and holepunch handler.
@@ -108,6 +109,8 @@ pub struct HyperDhtConfig {
     pub dht: DhtConfig,
     /// Persistent storage settings for stored records.
     pub persistent: PersistentConfig,
+    /// Limits applied to every UDX stream of the node; default: libudx defaults.
+    pub stream_limits: StreamLimits,
 }
 
 impl HyperDhtConfig {
@@ -123,6 +126,7 @@ impl HyperDhtConfig {
                 ..DhtConfig::default()
             },
             persistent: PersistentConfig::default(),
+            stream_limits: StreamLimits::default(),
         }
     }
 }

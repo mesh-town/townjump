@@ -104,7 +104,7 @@ impl HyperDhtHandle {
             udx_socket: None,
         };
         let lease = self.reuse.lease(&via.socket);
-        let mut conn = establish_on_stream(&direct, via.stream, via.socket).await?;
+        let mut conn = establish_on_stream(&direct, via.stream, via.socket, self.limits).await?;
         if let Some(lease) = lease {
             conn.hold(lease);
         }

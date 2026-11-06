@@ -17,7 +17,7 @@ use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
 use super::lan_pick::{local_v4_nets, pick_direct_address};
 use super::relay::client_role;
-use super::stream::establish_stream_with_socket;
+use super::stream::establish_stream_limited;
 use super::types::HyperDhtError;
 
 /// Matches Node.js `isBogon` from the `bogon` package — returns true for
@@ -234,7 +234,8 @@ impl HyperDhtHandle {
                 self.spawn_background_relay(key_pair, runtime, role, local_stream_id, keep_alive);
             }
             let shared = self.server_socket().await?;
-            let conn = establish_stream_with_socket(&direct, runtime, shared.clone()).await?;
+            let conn =
+                establish_stream_limited(&direct, runtime, shared.clone(), self.limits).await?;
             // The route on the node's own socket: nothing to hold, so no lease.
             if let Some(socket) = shared.filter(|_| reusable) {
                 self.reuse
@@ -254,6 +255,7 @@ impl HyperDhtHandle {
             server_address: hs_result.server_address.clone(),
             local_stream_id,
             lan,
+            limits: self.limits,
         };
         let Some(role) = role else {
             let hp_result = self

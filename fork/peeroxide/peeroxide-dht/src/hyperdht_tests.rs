@@ -95,6 +95,7 @@ async fn spawn_and_destroy() {
             ..DhtConfig::default()
         },
         persistent: PersistentConfig::default(),
+        stream_limits: Default::default(),
     };
     let (join, handle, _server_rx) = spawn(&runtime, config).await.expect("spawn");
     handle.destroy().await.expect("destroy");
@@ -111,6 +112,7 @@ async fn wire_stats_starts_at_zero_and_is_addressable() {
             ..DhtConfig::default()
         },
         persistent: PersistentConfig::default(),
+        stream_limits: Default::default(),
     };
     let (join, handle, _rx) = spawn(&runtime, config).await.expect("spawn");
     let (sent, received) = handle.wire_stats();

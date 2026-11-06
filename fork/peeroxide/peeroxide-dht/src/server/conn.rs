@@ -14,7 +14,7 @@ use tokio::time::timeout;
 use super::actor::Internal;
 use super::punch::PunchState;
 use super::relay::RelayAttempt;
-use crate::hyperdht::{HyperDhtError, PeerConnection, Reuse};
+use crate::hyperdht::{HyperDhtError, PeerConnection, Reuse, StreamLimits};
 use crate::hyperdht_messages::NoisePayload;
 use crate::messages::Ipv4Peer;
 use crate::noise_wrap::NoiseWrapResult;
@@ -40,6 +40,8 @@ pub(super) struct Pending {
     pub(super) keep: Option<Reuse>,
     /// The relay pairing in progress, when the handshake named a relay.
     pub(super) relay: Option<RelayAttempt>,
+    /// Limits for the UDX stream once it becomes a connection.
+    pub(super) limits: StreamLimits,
 }
 
 /// True while the puzzle task still holds its stop receiver.
@@ -97,6 +99,7 @@ pub(super) async fn finish(p: Pending, addr: SocketAddr, tx: mpsc::Sender<PeerCo
         remote_udx_id,
         punch,
         keep,
+        limits,
         ..
     } = p;
     // Decided before the puzzle is destroyed: only a punch socket may be held.
@@ -107,7 +110,7 @@ pub(super) async fn finish(p: Pending, addr: SocketAddr, tx: mpsc::Sender<PeerCo
     if let Some(punch) = punch {
         punch.destroy();
     }
-    let Some(session) = session(stream, &noise).await else {
+    let Some(session) = session(stream, &noise, limits).await else {
         return;
     };
     let key = noise.remote_public_key;
@@ -131,8 +134,10 @@ pub(super) async fn finish(p: Pending, addr: SocketAddr, tx: mpsc::Sender<PeerCo
 pub(super) async fn session(
     stream: UdxStream,
     noise: &NoiseWrapResult,
+    limits: StreamLimits,
 ) -> Option<SecretStream<UdxAsyncStream>> {
     let raw = stream.into_async_stream();
+    limits.apply(&raw);
     let (tx, rx, hash, key) = (
         noise.tx,
         noise.rx,

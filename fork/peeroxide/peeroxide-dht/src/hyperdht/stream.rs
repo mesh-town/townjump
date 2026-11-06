@@ -11,6 +11,7 @@ use crate::secret_stream::SecretStream;
 use super::connection::{ConnectResult, PeerConnection};
 #[cfg(doc)]
 use super::handle::HyperDhtHandle;
+use super::limits::StreamLimits;
 use super::types::HyperDhtError;
 
 // ── Errors ────────────────────────────────────────────────────────────────────
@@ -60,6 +61,16 @@ pub async fn establish_stream_with_socket(
     runtime: &UdxRuntime,
     shared_socket: Option<UdxSocket>,
 ) -> Result<PeerConnection, HyperDhtError> {
+    establish_stream_limited(result, runtime, shared_socket, StreamLimits::default()).await
+}
+
+/// [`establish_stream_with_socket`] with the node's stream limits applied to the new stream.
+pub(super) async fn establish_stream_limited(
+    result: &ConnectResult,
+    runtime: &UdxRuntime,
+    shared_socket: Option<UdxSocket>,
+    limits: StreamLimits,
+) -> Result<PeerConnection, HyperDhtError> {
     udx_target(result)?; // rejected before the socket is created
     let socket = if let Some(s) = shared_socket {
         s
@@ -69,7 +80,7 @@ pub async fn establish_stream_with_socket(
         s
     };
     let stream = runtime.create_stream(result.local_stream_id).await?;
-    establish_on_stream(result, stream, socket).await
+    establish_on_stream(result, stream, socket, limits).await
 }
 
 /// Remote UDX stream id and server address of a finished handshake.
@@ -99,6 +110,7 @@ pub(super) async fn establish_on_stream(
     result: &ConnectResult,
     stream: UdxStream,
     socket: UdxSocket,
+    limits: StreamLimits,
 ) -> Result<PeerConnection, HyperDhtError> {
     let (remote_id, addr) = udx_target(result)?;
     tracing::debug!(
@@ -111,6 +123,7 @@ pub(super) async fn establish_on_stream(
     stream.connect(&socket, remote_id, addr).await?;
 
     let async_stream = stream.into_async_stream();
+    limits.apply(&async_stream);
     let ss = SecretStream::from_session(
         result.noise.is_initiator,
         async_stream,
