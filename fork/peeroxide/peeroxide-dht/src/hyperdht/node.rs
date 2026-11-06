@@ -40,6 +40,7 @@ pub async fn spawn(
 > {
     let (dht_join, dht_handle) = crate::rpc::spawn(runtime, config.dht).await?;
     let persistent_config = config.persistent;
+    let limits = config.stream_limits;
 
     let request_rx = dht_handle
         .subscribe_requests()
@@ -90,6 +91,7 @@ pub async fn spawn(
         relay_cache: Arc::new(Mutex::new(RelayCache::default())),
         freezers: Arc::new(Mutex::new(Vec::new())),
         reuse,
+        limits,
     };
     Ok((join, handle, server_rx))
 }

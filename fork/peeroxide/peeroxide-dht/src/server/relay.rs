@@ -192,7 +192,7 @@ async fn serve_relayed(
     };
     let link = Upgrade::spawn(control, session, direct);
     let mut path = link.path();
-    let secret = conn::session(p.stream, &p.noise).await?;
+    let secret = conn::session(p.stream, &p.noise, p.limits).await?;
     let key = p.noise.remote_public_key;
     let mut conn = PeerConnection::with_remote_addr(secret, key, relay_addr, socket, None);
     conn.set_relay(link);

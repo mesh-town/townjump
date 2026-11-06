@@ -15,10 +15,11 @@ use super::config::ConnectOpts;
 use super::connection::{ConnectResult, PeerConnection};
 use super::handle::HyperDhtHandle;
 use super::keypair::KeyPair;
+use super::limits::StreamLimits;
 use super::relay::{
     AbortOnDrop, RelayLink, RelayPaired, RelayRole, Upgrade, addresses_for, pair_via_relay,
 };
-use super::stream::{establish_on_stream, establish_stream_with_socket};
+use super::stream::{establish_on_stream, establish_stream_limited};
 use super::types::HyperDhtError;
 
 /// What the race gives back: a connection over the relay, or a punched path plus the stream
@@ -42,6 +43,8 @@ pub(super) struct PunchCtx {
     pub local_stream_id: u32,
     /// Private candidates probed next to the punch rounds; empty off the shared-address path.
     pub lan: Vec<Ipv4Peer>,
+    /// Limits for the stream that runs over the relay.
+    pub limits: StreamLimits,
 }
 
 type PunchTask = AbortOnDrop<Result<ConnectResult, HyperDhtError>>;
@@ -77,9 +80,9 @@ impl HyperDhtHandle {
                         s
                     }
                 };
-                establish_on_stream(hp_result, stream, socket).await?
+                establish_on_stream(hp_result, stream, socket, self.limits).await?
             }
-            None => establish_stream_with_socket(hp_result, runtime, shared).await?,
+            None => establish_stream_limited(hp_result, runtime, shared, self.limits).await?,
         };
         // Only the punch socket is held; the node's fallback socket is not (no hold, no route).
         if let Some(socket) = hp_result.udx_socket.as_ref().filter(|_| reusable)
@@ -222,9 +225,11 @@ async fn over_relay(
     stream.connect(&socket, remote_id, relay_addr).await?;
     let control = stream.control();
     let nw = &ctx.nw_result;
+    let raw = stream.into_async_stream();
+    ctx.limits.apply(&raw);
     let ss = SecretStream::from_session(
         nw.is_initiator,
-        stream.into_async_stream(),
+        raw,
         nw.tx,
         nw.rx,
         nw.handshake_hash,

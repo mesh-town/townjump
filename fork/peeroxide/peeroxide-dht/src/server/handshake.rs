@@ -246,6 +246,7 @@ async fn wire(
         punch: prep.punch.take(),
         keep,
         relay,
+        limits: st.dht.limits,
     };
     let via = reply_from_puncher(plan).then(|| pending.socket.clone());
     Ok(Built {
