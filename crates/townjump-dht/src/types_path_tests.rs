@@ -28,3 +28,12 @@ fn connection_with_relay_path_follows_the_sender() {
     assert!(!after);
     assert_eq!(*conn.relay_path().unwrap().borrow(), RelayPath::Direct);
 }
+
+#[test]
+fn connection_local_stream_id_roundtrip() {
+    let fresh = connection();
+    let tagged = connection().with_local_stream_id(Some(42));
+
+    assert_eq!(fresh.local_stream_id(), None);
+    assert_eq!(tagged.local_stream_id(), Some(42));
+}

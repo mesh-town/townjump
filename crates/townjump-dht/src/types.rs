@@ -19,6 +19,7 @@ pub struct DhtConnection {
     /// JS: `destroy()` tears down a real stream and sends `close`; a fake stream does not send `close`.
     reports_close_on_drop: bool,
     remote_addr: Option<SocketAddr>,
+    local_stream_id: Option<u32>,
     rtt_probe: Option<RttProbe>,
     relay_path: Option<watch::Receiver<RelayPath>>,
 }
@@ -31,6 +32,7 @@ impl DhtConnection {
             stream,
             reports_close_on_drop: true,
             remote_addr: None,
+            local_stream_id: None,
             rtt_probe: None,
             relay_path: None,
         }
@@ -49,6 +51,19 @@ impl DhtConnection {
     /// not guaranteed). Through a blind relay: the relay's address. `None` for backends without addresses.
     pub fn remote_addr(&self) -> Option<SocketAddr> {
         self.remote_addr
+    }
+
+    /// Sets the id reported by [`DhtConnection::local_stream_id`].
+    #[must_use]
+    pub fn with_local_stream_id(mut self, id: Option<u32>) -> Self {
+        self.local_stream_id = id;
+        self
+    }
+
+    /// Id of this side's transport stream, the same id the transport prints in its log lines (for example the
+    /// retransmission timeout lines). `None` for backends without such ids.
+    pub fn local_stream_id(&self) -> Option<u32> {
+        self.local_stream_id
     }
 
     /// Attaches the probe read by [`DhtConnection::rtt`].
@@ -107,6 +122,7 @@ impl fmt::Debug for DhtConnection {
         f.debug_struct("DhtConnection")
             .field("remote_public_key", &self.remote_public_key)
             .field("remote_addr", &self.remote_addr)
+            .field("local_stream_id", &self.local_stream_id)
             .field(
                 "relay_path",
                 &self.relay_path.as_ref().map(|rx| *rx.borrow()),
