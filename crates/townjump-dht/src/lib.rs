@@ -3,6 +3,7 @@
 pub mod duplex;
 pub mod error;
 pub mod incoming;
+pub mod limits;
 pub mod mode;
 pub mod relay;
 pub mod traits;
@@ -11,6 +12,7 @@ pub mod types;
 pub use duplex::Duplex;
 pub use error::{DhtError, NO_NODES_RESPONDED};
 pub use incoming::Incoming;
+pub use limits::StreamLimits;
 pub use mode::NodeMode;
 pub use relay::{HolepunchFilter, HolepunchInfo, RelayAddress, RelayPath, RelayThrough};
 pub use townjump_keys::KeyPair;
