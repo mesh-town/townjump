@@ -44,7 +44,7 @@ async fn write_stats_are_logged_on_drop() {
     writer.write_all(&[7u8; 1000]).await.expect("write");
     let mut got = [0u8; 1000];
     reader.read_exact(&mut got).await.expect("read");
-    // Other tests hit this callsite without a subscriber; drop any cached "disabled" verdict.
+    // Other tests hit this callsite without a subscriber; drop any cached "disabled" state.
     tracing::callsite::rebuild_interest_cache();
     drop(writer);
 
