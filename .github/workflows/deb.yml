@@ -69,7 +69,7 @@ jobs:
         run: python3 -m unittest discover -s packaging/debian -t packaging/debian
       - name: Check and build script tests
         working-directory: scripts/dist-check
-        run: python3 -m unittest test_apt_check test_deb_check test_elf test_leak_check test_dist_build
+        run: python3 -m unittest test_apt_check test_deb_check test_elf test_leak_check test_dist_build.DebBuildTests
 
   build:
     name: build packages

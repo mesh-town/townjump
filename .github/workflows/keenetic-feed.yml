@@ -78,7 +78,7 @@ jobs:
         working-directory: scripts/dist-check
         env:
           TOWNJUMP_PKG_REQUIRE_TOOLS: "1"
-        run: python3 -m unittest test_elf test_leak_check test_dist_build
+        run: python3 -m unittest test_elf test_leak_check test_dist_build.KeeneticBuildTests
 
   build:
     name: build feed
