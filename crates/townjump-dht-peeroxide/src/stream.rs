@@ -68,10 +68,12 @@ pub fn wrap_connection(conn: PeerConnection) -> DhtConnection {
 pub(crate) fn wrap_slot(slot: Arc<Slot>) -> DhtConnection {
     let remote_public_key = slot.remote_public_key;
     let remote_addr = slot.remote_addr;
+    let local_stream_id = slot.local_stream_id;
     let weak = Arc::downgrade(&slot);
     let probe: RttProbe = Arc::new(move || weak.upgrade()?.rtt());
     DhtConnection::new(remote_public_key, Box::new(PeerStream { slot }))
         .with_remote_addr(remote_addr)
+        .with_local_stream_id(Some(local_stream_id))
         .with_rtt_probe(probe)
 }
 

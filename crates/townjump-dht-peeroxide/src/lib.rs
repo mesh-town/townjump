@@ -39,4 +39,6 @@ mod nodes_live_tests;
 #[cfg(test)]
 mod opts_tests;
 #[cfg(test)]
+mod stream_limits_live_tests;
+#[cfg(test)]
 mod tunnel_live_tests;

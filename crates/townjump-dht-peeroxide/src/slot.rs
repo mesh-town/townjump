@@ -34,13 +34,17 @@ pub(crate) struct Slot {
     wakers: Mutex<Wakers>,
     pub remote_public_key: [u8; 32],
     pub remote_addr: Option<SocketAddr>,
+    /// Id of our UDX stream (the one in the transport's log lines).
+    pub local_stream_id: u32,
 }
 
 impl Slot {
     /// Enables the 5 s keepalive explicitly, not relying on the fork default. Needs a tokio runtime.
     pub fn new(mut conn: PeerConnection) -> Slot {
         conn.stream.set_keep_alive(KEEP_ALIVE);
+        let local_stream_id = conn.stream.get_ref().local_id();
         Slot {
+            local_stream_id,
             remote_public_key: conn.remote_public_key,
             remote_addr: conn.remote_addr,
             conn: Mutex::new(Some(conn)),
@@ -57,6 +61,13 @@ impl Slot {
         let guard = lock(&self.conn);
         let srtt_ms = guard.as_ref()?.stream.get_ref().stats().srtt_ms;
         (srtt_ms != 0).then(|| Duration::from_millis(u64::from(srtt_ms)))
+    }
+
+    /// The receive window limit of the live stream; `None` after `kill`.
+    #[cfg(test)]
+    pub fn recv_window_max(&self) -> Option<u32> {
+        let guard = lock(&self.conn);
+        Some(guard.as_ref()?.stream.get_ref().recv_window_max())
     }
 
     /// Polls the stream under the slot lock; after an abort — `ConnectionAborted`. The lock is held until the Waker is recorded,
