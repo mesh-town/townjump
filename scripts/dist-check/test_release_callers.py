@@ -79,7 +79,7 @@ class ReleaseCallers(unittest.TestCase):
         self.assertIn("      - name: Build (zigbuild)\n        if: matrix.zig && !matrix.mips && !matrix.soft\n", build)
         self.assertIn("      - name: Build (mips)\n        if: matrix.mips\n", build)
         self.assertIn('run: scripts/mips/build.sh "${{ matrix.target }}"', build)
-        self.assertRegex(build, r'if \[ "\$\{\{ matrix.mips \}\}" != "true" \]; then\n\s+rustup target add')
+        self.assertRegex(build, r'if \[ "\$\{\{ matrix.mips \}\}" != "true" \] && \[ "\$\{\{ matrix.android \}\}" != "true" \]; then\n\s+rustup target add')
         self.assertIn("ziglang==0.16.0", build)
         self.assertIn("--version 0.23.4", build)
 
@@ -96,6 +96,72 @@ class ReleaseCallers(unittest.TestCase):
             self.assertIn(f"{secret}: ${{{{ secrets.{secret} }}}}", block)
         self.assertEqual(len(re.findall(r"secrets\.(?:TAP_TOKEN|WINGET_TOKEN)", text)), 2)
         self.assertNotIn("Package jobs: add new ones here", text)
+
+
+GATE = "startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.publish)"
+PUBLISHING = ["publish", "tap", "winget", "deb", "openwrt-feed", "keenetic-feed", "dist", "container-image"]
+
+
+def if_of(block):
+    m = re.search(r"^    if: (.+)$", block, re.M)
+    return m.group(1).strip() if m else None
+
+
+class ReleaseWiring(unittest.TestCase):
+    def test_release_builds_android_target(self):
+        build = job(release_text(), "build")
+        self.assertRegex(build, r"- target: aarch64-linux-android\n\s+os: ubuntu-24.04\n\s+zig: false\n\s+android: true")
+        self.assertIn("rustup target add --toolchain \"$toolchain\" aarch64-linux-android", build)
+        self.assertIn("cargo build --release --locked -p townjump --target aarch64-linux-android", build)
+        for var in ("CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER", "CC_aarch64_linux_android", "AR_aarch64_linux_android"):
+            self.assertIn(var, build)
+        self.assertIn("aarch64-linux-android24-clang", build)
+        self.assertIn("llvm-ar", build)
+        self.assertIn("/system/bin/linker64", build)
+
+    def test_release_ndk_version_pinned(self):
+        build = job(release_text(), "build")
+        versions = set(re.findall(r"ndk[;/](\d+\.\d+\.\d+)", build))
+        self.assertEqual(versions, {"28.2.13676358"})
+
+    def test_release_dist_caller_passes_deploy_key(self):
+        block = job(release_text(), "dist")
+        self.assertIn("uses: ./.github/workflows/dist.yml", block)
+        self.assertEqual(sub_block(block, "secrets", 4), {"DIST_DEPLOY_KEY": "${{ secrets.DIST_DEPLOY_KEY }}"})
+        given = sub_block(block, "with", 4)
+        self.assertEqual(given.get("version"), "${{ needs.check-tag.outputs.version }}")
+        self.assertEqual(given.get("publish"), "true")
+        self.assertIn("needs: [check-tag, publish]", block)
+
+    def test_release_container_permissions(self):
+        block = job(release_text(), "container-image")
+        self.assertIn("uses: ./.github/workflows/container-image.yml", block)
+        self.assertEqual(sub_block(block, "permissions", 4), {"contents": "read", "packages": "write"})
+        given = sub_block(block, "with", 4)
+        self.assertEqual(given.get("publish"), "true")
+        self.assertEqual(given.get("version"), "${{ needs.check-tag.outputs.version }}")
+
+    def test_release_dispatch_default_is_dry(self):
+        text = release_text()
+        m = re.search(r"^  workflow_dispatch:\n(.*?)(?=^\S)", text, re.S | re.M)
+        self.assertIsNotNone(m)
+        body = m.group(1)
+        self.assertRegex(body, r"publish:\n(?:\s+.*\n)*?\s+type: boolean\n(?:\s+.*\n)*?\s+default: false")
+        self.assertNotIn("version:", body)  # the version comes from Cargo.toml, not from an input
+
+    def test_publish_jobs_skip_on_dry_dispatch(self):
+        text = release_text()
+        for name in PUBLISHING:
+            self.assertEqual(if_of(job(text, name)), GATE, name)
+        for name in ("check-tag", "build", "windows-installer"):
+            self.assertIsNone(if_of(job(text, name)), name)
+
+    def test_expected_assets_include_android(self):
+        script = (DIR.parent.parent / "scripts" / "dist" / "publish.sh").read_text()
+        listed = re.search(r"local targets=\(\n(.*?)\n  \)", script, re.S).group(1).split()
+        matrix = re.findall(r"- target: (\S+)", job(release_text(), "build"))
+        self.assertIn("aarch64-linux-android", listed)
+        self.assertEqual(sorted(listed), sorted(matrix))
 
 
 if __name__ == "__main__":
