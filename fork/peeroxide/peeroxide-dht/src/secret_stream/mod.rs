@@ -19,11 +19,14 @@
 // JS: @hyperswarm/secret-stream/index.js
 
 mod error;
+mod fanout;
 mod frame;
 mod framed;
 mod io;
 #[cfg(test)]
 mod keepalive_tests;
+#[cfg(test)]
+mod keepalive_waker_tests;
 #[cfg(test)]
 mod lazy_header_tests;
 mod session;

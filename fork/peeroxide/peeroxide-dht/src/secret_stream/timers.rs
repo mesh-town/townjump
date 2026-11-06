@@ -13,6 +13,7 @@ use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio::time::{Instant, Sleep};
 
+use super::fanout::Fanout;
 use super::frame::encode_frame;
 use super::session::SecretStream;
 
@@ -160,7 +161,18 @@ impl<T: AsyncRead + AsyncWrite + Unpin> SecretStream<T> {
     }
 
     /// Best effort, like a write nobody waits for: what the transport does not take stays in `tx`.
+    ///
+    /// The transport holds one waker per direction, so the poll runs with a waker that wakes both
+    /// this (reading) task and the one last seen polling the write side.
     fn send_keepalive(&mut self, cx: &mut Context<'_>) -> io::Result<()> {
+        let Some(writer) = self.writer_waker.clone() else {
+            return self.send_keepalive_with(cx);
+        };
+        let waker = Fanout::waker(cx.waker(), &writer);
+        self.send_keepalive_with(&mut Context::from_waker(&waker))
+    }
+
+    fn send_keepalive_with(&mut self, cx: &mut Context<'_>) -> io::Result<()> {
         // A frame `poll_write` has not finished is traffic already, and no second one fits in `tx`.
         let Poll::Ready(Ok(())) = self.poll_drain_tx(cx) else {
             return Ok(());
