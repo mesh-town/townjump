@@ -121,6 +121,7 @@ fn send_best_effort(udp: Arc<UdpSocket>, bytes: Vec<u8>, addr: SocketAddr) {
 /// ends the drain at `drain_limit`; otherwise (or without a runtime) — direct DESTROY and `abort()` of the processor.
 impl Drop for UdxAsyncStream {
     fn drop(&mut self) {
+        self.log_read_stats();
         let Some(processor) = self.processor.take() else {
             self.notify_shutdown();
             return;

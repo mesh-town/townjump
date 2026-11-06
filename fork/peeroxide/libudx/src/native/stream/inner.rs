@@ -76,6 +76,7 @@ pub(crate) struct StreamInner {
     // ── IO ──
     pub(crate) udp: Option<Arc<tokio::net::UdpSocket>>,
     pub(crate) read_tx: mpsc::UnboundedSender<StreamEvent>,
+    pub(crate) read_stats: super::read_stats::ReadStats,
     pub(super) close_tx: Option<oneshot::Sender<()>>,
     pub(crate) notify_tx: Option<mpsc::UnboundedSender<StreamNotify>>,
 
