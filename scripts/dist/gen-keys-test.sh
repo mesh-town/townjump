@@ -22,7 +22,7 @@ usign_bin="${USIGN:-$(command -v usign || true)}"
 if [ -z "$usign_bin" ] || [ ! -x "$usign_bin" ]; then
   echo "# usign not found: every test needing it is skipped"
   for t in generates_all_files modes_are_private public_key_verifies_signature_apt public_key_verifies_signature_openwrt \
-    deploy_keys_are_distinct install_public_keys_places_files install_rejects_mismatched_pair install_rejects_mismatched_pair_apt \
+    deploy_keys_are_distinct allows_ignored_dir_inside_repo install_public_keys_places_files install_rejects_mismatched_pair install_rejects_mismatched_pair_apt \
     install_rejects_mismatched_pair_apk force_regenerates_complete_set no_private_material_in_repo_after_install; do skip "$t" "usign is not installed"; done
   have_usign=false
 else
@@ -54,6 +54,16 @@ fi
 mkdir "$work/repo" && git -C "$work/repo" init -q
 rc "$gen" "$work/repo/keys"
 if [ "$RC" = 1 ] && [ ! -e "$work/repo/keys" ] && grep -q 'inside a git repository' "$work/err"; then ok "refuses_dir_inside_repo"; else nok "refuses_dir_inside_repo (rc $RC)"; fi
+
+# A repository that ignores only some of the secret names is refused; one that ignores the whole key path is accepted.
+mkdir "$work/repo2" && git -C "$work/repo2" init -q && printf 'keys/deploy-dist\n' >"$work/repo2/.gitignore"
+rc "$gen" "$work/repo2/keys"
+if [ "$RC" = 1 ] && [ ! -e "$work/repo2/keys" ] && grep -q 'does not ignore it' "$work/err"; then ok "refuses_partly_ignored_dir_inside_repo"; else nok "refuses_partly_ignored_dir_inside_repo (rc $RC)"; fi
+if $have_usign; then
+  mkdir "$work/repo3" && git -C "$work/repo3" init -q && printf 'keys/\n' >"$work/repo3/.gitignore"
+  set +e; (cd "$work/repo3" && "$gen" keys >"$work/out" 2>"$work/err"); RC=$?; set -e
+  if [ "$RC" = 0 ] && [ -s "$work/repo3/keys/deploy-dist" ] && [ "$(git -C "$work/repo3" status --porcelain)" = "?? .gitignore" ]; then ok "allows_ignored_dir_inside_repo"; else nok "allows_ignored_dir_inside_repo (rc $RC)"; fi
+fi
 
 mkdir "$work/full" && : >"$work/full/x"
 rc "$gen" "$work/full"
