@@ -62,10 +62,11 @@ impl UdxStream {
                 Arc::clone(&self.inner),
                 mpsc::unbounded_channel().1,
                 None,
+                self.local_id,
             );
         };
         let inner = Arc::clone(&self.inner);
-        super::async_stream::UdxAsyncStream::new(inner, read_rx, processor)
+        super::async_stream::UdxAsyncStream::new(inner, read_rx, processor, self.local_id)
     }
 
     /// Current effective MTU in bytes: the IP packet size, not UDP data.

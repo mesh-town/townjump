@@ -254,7 +254,10 @@ pub(super) async fn process_incoming(
             }
 
             _ = &mut timers.rto => {
-                let next = inner.lock().unwrap_or_else(|e| e.into_inner()).on_rto_fire();
+                let next = inner
+                    .lock()
+                    .unwrap_or_else(|e| e.into_inner())
+                    .on_rto_fire_logged(local_id);
                 let Some(next) = next else {
                     let guard = inner.lock().unwrap_or_else(|e| e.into_inner());
                     log_rto_failure(&guard, local_id, shutting_down, started.elapsed());
