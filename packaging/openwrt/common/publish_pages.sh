@@ -31,6 +31,7 @@ safe_path() {
   case "$1" in "" | /* | . | .. | ../* | */.. | */../* | ./* | */./* | */. | */ | *//* | .git | .git/* | */.git | */.git/*) return 1 ;; esac
 }
 keep="${PAGES_KEEP:-}"
+set -f # the keep list is split on spaces only, never expanded as a glob
 if [ "$subdir" = "-" ]; then
   [ -z "$update" ] || usage
   for k in $keep; do safe_path "$k" || usage; done
@@ -44,7 +45,7 @@ if [ ! -d "$src" ] || [ -z "$(ls -A "$src")" ]; then
 fi
 case "$src" in /*) ;; *) src="$PWD/$src" ;; esac
 if [ -n "${DEPLOY_KEY_FILE:-}" ]; then
-  export GIT_SSH_COMMAND="ssh -i $DEPLOY_KEY_FILE -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+  export GIT_SSH_COMMAND="ssh -i '$DEPLOY_KEY_FILE' -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 fi
 
 work="$(mktemp -d)"

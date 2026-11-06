@@ -88,6 +88,27 @@ publish() { # <repo:dist|openwrt|keenetic> <subpath|-> <src> [--update CMD]
   "$root/packaging/openwrt/common/publish_pages.sh" "$sub" "$src" "file://$dry/$repo.git" "$PAGES_BRANCH" "$V" "$@"
 }
 
+# The apt source shipped inside the amd64 package must point at the address the dist repository serves it from.
+check_apt_address() { # <debs dir>
+  local want uris
+  want="$(site_url DIST_PAGES_URL)/linux/debian"
+  uris="$(python3 -I - "$here" "$1/townjump_${V}-1_amd64.deb" <<'PY'
+import sys
+from pathlib import Path
+sys.path.insert(0, sys.argv[1])
+import deb_check
+members = dict(deb_check.parse_ar(Path(sys.argv[2]).read_bytes()))
+for m, body in deb_check.read_tar(members["data.tar.gz"], "data.tar.gz"):
+    if m.name.endswith("etc/apt/sources.list.d/townjump.sources"):
+        for line in body.decode().splitlines():
+            if line.startswith("URIs:"):
+                print(line.split(":", 1)[1].strip())
+PY
+)"
+  [ "$uris" = "$want" ] || fail "townjump.sources has URIs '$uris', want '$want'"
+  echo "apt source address: $uris"
+}
+
 run_deb() {
   echo "== deb"
   make_gpg_keys
@@ -99,6 +120,7 @@ run_deb() {
   same_bytes "$dry/out-deb" "$dry/out-deb-b"
   python3 "$here/leak_check.py" "$dry/out-deb"
   python3 "$here/apt_check.py" "$dry/out-deb/apt" --pubkey "$TOWNJUMP_APT_PUBKEY"
+  check_apt_address "$dry/out-deb/debs"
   publish dist linux/debian "$dry/out-deb/debs" --update "$root/scripts/dist/deb-update.sh"
   "$root/scripts/dist/deb-build.sh" "$assets" "$dry/out-deb-n2" "$V" 2 > /dev/null
   publish dist linux/debian "$dry/out-deb-n2/debs" --update "$root/scripts/dist/deb-update.sh"

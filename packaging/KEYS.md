@@ -21,7 +21,8 @@ armored), `townjump-apt.rev` (a revocation certificate) and `fingerprints.txt`.
 scripts/dist/install-public-keys.sh <key-dir>
 ```
 
-The script first signs test data with every secret key and verifies it with the matching public key; one mismatch aborts
+The script first checks every public key against its secret key: for apt and OpenWrt it signs test data with the secret key and
+verifies it with the public one, for apk it compares the public key derived from the secret key. One mismatch aborts
 it before anything is copied. Then it places the three public files above. Commit them; the builders read them from there.
 
 ## Check a fingerprint

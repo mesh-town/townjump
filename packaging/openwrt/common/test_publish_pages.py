@@ -126,10 +126,20 @@ class PublishPagesTest(unittest.TestCase):
         self.assertEqual(sorted(self.ls()), [".nojekyll", "keenetic/p.txt", "openwrt/mine.txt"])
 
     def test_rejects_unsafe_subpath(self):
-        for bad in ("", "/abs", "..", "a/../b", "./a", "a//b", ".git", "a/"):
+        for bad in (
+            "", "/abs", "..", "a/../b", "./a", "a//b", ".git", "a/",
+            "../a", "../../a", ".", "a/..", "a/./b", "a/.", ".git/x", "a/.git", "a/.git/x",
+        ):
             with self.subTest(sub=bad):
                 self.assertEqual(self.publish(bad, {"a": "1"}).returncode, 2)
         self.assertEqual(self.head(), "")
+
+    def test_keep_rejects_unsafe_path(self):
+        for bad in ("../a", "/abs", ".git"):
+            with self.subTest(keep=bad):
+                res = self.publish("-", {"a": "1"}, env_extra={"PAGES_KEEP": bad})
+                self.assertEqual(res.returncode, 2)
+                self.assertEqual(self.head(), "")
 
     def test_whole_repo_replaces_everything(self):
         self.assertEqual(self.publish("-", {"old.txt": "o", "d/x": "1"}).returncode, 0)

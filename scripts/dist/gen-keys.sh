@@ -23,15 +23,6 @@ for a in "$@"; do
 done
 if [ -z "$dir" ]; then usage; exit 2; fi
 
-usign_bin="${USIGN:-$(command -v usign || true)}"
-missing=""
-for t in gpg openssl ssh-keygen; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
-{ [ -n "$usign_bin" ] && [ -x "$usign_bin" ]; } || missing="$missing usign"
-if [ -n "$missing" ]; then
-  echo "gen-keys.sh: required tools not found:$missing (usign: set USIGN=<path> or build it with packaging/openwrt/feed/tools.sh)" >&2
-  exit 1
-fi
-
 # The directory must not be inside a git repository (look at the nearest existing ancestor).
 probe="$dir"
 while [ ! -d "$probe" ]; do
@@ -48,10 +39,27 @@ if [ -d "$dir" ] && [ -n "$(ls -A "$dir")" ] && ! $force; then
   exit 1
 fi
 
+usign_bin="${USIGN:-$(command -v usign || true)}"
+missing=""
+for t in gpg openssl ssh-keygen; do command -v "$t" >/dev/null 2>&1 || missing="$missing $t"; done
+{ [ -n "$usign_bin" ] && [ -x "$usign_bin" ]; } || missing="$missing usign"
+if [ -n "$missing" ]; then
+  echo "gen-keys.sh: required tools not found:$missing (usign: set USIGN=<path> or build it with packaging/openwrt/feed/tools.sh)" >&2
+  exit 1
+fi
+
 umask 077
 mkdir -p "$dir"
 chmod 700 "$dir"
 dir="$(cd "$dir" && pwd)"
+if $force; then
+  # Remove only the files of a previous set, so ssh-keygen does not stop to ask about overwriting.
+  rm -f "$dir"/townjump-apt.sec.asc "$dir"/townjump.gpg "$dir"/townjump.asc "$dir"/townjump-apt.rev \
+    "$dir"/townjump-usign.sec "$dir"/townjump-usign.pub "$dir"/townjump-apk.sec "$dir"/townjump-apk.pub \
+    "$dir"/deploy-dist "$dir"/deploy-dist.pub "$dir"/deploy-openwrt "$dir"/deploy-openwrt.pub \
+    "$dir"/deploy-keenetic "$dir"/deploy-keenetic.pub "$dir"/fingerprints.txt
+fi
+
 work="$(mktemp -d /tmp/townjump-keys.XXXXXX)"
 trap 'gpgconf --homedir "$work/gnupg" --kill all >/dev/null 2>&1 || true; rm -rf "$work"' EXIT
 

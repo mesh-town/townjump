@@ -41,6 +41,12 @@ jobs:
             echo "== $t"
             "$t"
           done
+      - name: Key tooling tests (with usign)
+        run: |
+          set -euo pipefail
+          sudo apt-get install -y gcc meson ninja-build pkg-config libssl-dev zlib1g-dev libzstd-dev fakeroot
+          packaging/openwrt/feed/tools.sh "$RUNNER_TEMP/tools"
+          USIGN="$RUNNER_TEMP/tools/bin/usign" TOWNJUMP_PKG_REQUIRE_TOOLS=1 scripts/dist/gen-keys-test.sh
       - name: PATH entry tests
         run: pwsh -NoProfile -NonInteractive -File packaging/windows/path-entry.tests.ps1
       - name: Winget manifests against the schema
