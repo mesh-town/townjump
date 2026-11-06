@@ -105,7 +105,7 @@
         <div class="var-panel" data-var-panel="download">
           <h4>Download</h4>
           <pre class="cmd"><code>curl -fLO https://mesh-town.github.io/townjump-dist/macos/townjump-macos-aarch64.tar.gz
-tar -xzf townjump-macos-aarch64.tar.gz
+tar -xzf townjump-macos-aarch64.tar.gz --strip-components=1 '*/townjump'
 xattr -d com.apple.quarantine townjump</code></pre>
           <p class="note">Intel: <code>townjump-macos-x86_64.tar.gz</code>.</p>
         </div>
@@ -133,7 +133,7 @@ sudo apt install "./townjump_${arch}.deb"</code></pre>
         <div class="var-panel" data-var-panel="other">
           <h4>Other Linux</h4>
           <pre class="cmd"><code>curl -fLO https://mesh-town.github.io/townjump-dist/linux/townjump-linux-$(uname -m).tar.gz
-tar -xzf townjump-linux-$(uname -m).tar.gz</code></pre>
+tar -xzf townjump-linux-$(uname -m).tar.gz --strip-components=1 --wildcards '*/townjump'</code></pre>
         </div>
       </div>
     </div>
@@ -142,7 +142,7 @@ tar -xzf townjump-linux-$(uname -m).tar.gz</code></pre>
       <h3>Android</h3>
       <p>In Termux:</p>
       <pre class="cmd"><code>curl -fLO https://mesh-town.github.io/townjump-dist/android/townjump-termux-aarch64.tar.gz
-tar -xzf townjump-termux-aarch64.tar.gz
+tar -xzf townjump-termux-aarch64.tar.gz --strip-components=1 --wildcards '*/townjump'
 mv townjump $PREFIX/bin/</code></pre>
     </div>
 
