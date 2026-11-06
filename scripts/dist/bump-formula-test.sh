@@ -145,5 +145,11 @@ rc=0
 check "formula with 2 urls refused" test "$rc" = 1
 check "formula with 2 urls unchanged" unchanged
 
+# metadata
+desc="$(sed -n 's/^  desc "\(.*\)"$/\1/p' "$orig")"
+check "homepage_is_landing" grep -qx '  homepage "https://mesh-town.github.io/townjump/"' "$orig"
+check "desc_within_80_chars" test -n "$desc" -a "${#desc}" -le 80
+check "desc_has_no_vpn_word" test -z "$(printf '%s' "$desc" | grep -Ei 'vpn|relay server' || true)"
+
 [ "$fails" -eq 0 ] || { echo "# $fails failed"; exit 1; }
 echo "# all passed"

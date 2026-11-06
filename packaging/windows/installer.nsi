@@ -22,7 +22,7 @@
 
 !define APP "Townjump"
 !define UNINST_KEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\Townjump"
-!define HOME_URL "https://github.com/mesh-town/townjump"
+!define HOME_URL "https://mesh-town.github.io/townjump/"
 
 Unicode true
 Name "${APP}"

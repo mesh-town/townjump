@@ -1,6 +1,6 @@
 class Townjump < Formula
-  desc "Unofficial Rust port of Holesail: peer-to-peer TCP/UDP tunnels over HyperDHT"
-  homepage "https://github.com/mesh-town/townjump"
+  desc "Share a local port over a peer-to-peer tunnel; Rust port of Holesail"
+  homepage "https://mesh-town.github.io/townjump/"
   # The checksum list of the release pins the archives below.
   url "https://github.com/mesh-town/townjump/releases/download/v0.1.7/SHA256SUMS"
   # placeholder hash
