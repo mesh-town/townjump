@@ -27,6 +27,9 @@ pub use relay::{PeeroxideRelay, RelayStats};
 pub use relay_opts::{NatKind, RelayOpts, RelayReachability};
 pub use server::PeeroxideServer;
 
+/// Install a process-wide hook that creates the UDP sockets of the UDX layer.
+pub use libudx::set_bind_hook;
+
 #[cfg(test)]
 mod js_peer_support_tests;
 #[cfg(test)]

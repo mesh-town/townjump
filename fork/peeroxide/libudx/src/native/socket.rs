@@ -10,6 +10,18 @@ use tokio::sync::mpsc;
 
 use crate::error::{Result, UdxError};
 
+/// Function that creates the bound UDP socket for a given local address.
+pub type BindHook = fn(SocketAddr) -> std::io::Result<std::net::UdpSocket>;
+
+static BIND_HOOK: OnceLock<BindHook> = OnceLock::new();
+
+/// Install a process-wide hook used by `UdxSocket::bind` to create the UDP
+/// socket. Without a hook the socket is created by `tokio` as usual.
+/// Returns `false` if a hook was already installed (the first one stays).
+pub fn set_bind_hook(hook: BindHook) -> bool {
+    BIND_HOOK.set(hook).is_ok()
+}
+
 /// The reference's `UDX_DEFAULT_SNDBUF_SIZE`: the SO_SNDBUF size requested right after bind.
 const SNDBUF_SIZE: usize = 212_992;
 
@@ -142,7 +154,14 @@ impl UdxSocket {
 
     /// Bind the socket to a local address. Returns an error if already bound.
     pub async fn bind(&self, addr: SocketAddr) -> Result<()> {
-        let socket = tokio::net::UdpSocket::bind(addr).await?;
+        let socket = match BIND_HOOK.get() {
+            Some(hook) => {
+                let std_socket = hook(addr)?;
+                std_socket.set_nonblocking(true)?;
+                tokio::net::UdpSocket::from_std(std_socket)?
+            }
+            None => tokio::net::UdpSocket::bind(addr).await?,
+        };
         configure_buffers(&socket)?;
         configure_dontfrag(&socket, addr.is_ipv6());
         self.inner

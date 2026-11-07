@@ -63,6 +63,6 @@ mod native;
 
 pub use native::async_stream::UdxAsyncStream;
 pub use native::runtime::{RuntimeHandle, UdxRuntime};
-pub use native::socket::{Datagram, UdxSocket};
+pub use native::socket::{BindHook, Datagram, UdxSocket, set_bind_hook};
 pub use native::stream::UdxStream;
 pub use native::stream::{RemoteChanged, StreamControl, StreamPeer, UdxStats};
