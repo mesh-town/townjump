@@ -158,3 +158,5 @@ stable; depend on them through git. Crates, relay options and an example: [docs/
 [AGPL-3.0-only](LICENSE). `fork/peeroxide` keeps its own licenses (MIT OR Apache-2.0, see the license files in the
 fork); the logo and file-manager page resources come from livefiles 1.1.0 (GPLv3). See
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+Contributions are accepted under Apache-2.0, see [CONTRIBUTING.md](CONTRIBUTING.md).
