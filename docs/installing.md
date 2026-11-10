@@ -111,6 +111,17 @@ Entware must be installed first. Run the script again to upgrade.
 
 Details, architectures, removal and the build: `packaging/keenetic/README.md`.
 
+## npm
+
+```
+npm install -g townjump
+npx townjump --live 3000
+```
+
+Needs Node.js 18 or newer. The `townjump` package pulls in the prebuilt binary for your platform as an optional
+dependency (`@mesh-town/townjump-<os>-<cpu>`: macOS arm64/x64, Linux x64/arm64/armv7, Windows x64, Android arm64);
+do not install with `--omit=optional`. Update: `npm update -g townjump`. Remove: `npm uninstall -g townjump`.
+
 ## From source
 
 ```
