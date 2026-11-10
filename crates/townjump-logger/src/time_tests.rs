@@ -13,6 +13,15 @@ fn epoch_and_known_instants() {
         iso_from_millis(1_709_251_199_999),
         "2024-02-29T23:59:59.999Z"
     );
+    // 2100 is not a leap year: the century rule must apply
+    assert_eq!(
+        iso_from_millis(4_107_542_399_999),
+        "2100-02-28T23:59:59.999Z"
+    );
+    assert_eq!(
+        iso_from_millis(4_107_542_400_000),
+        "2100-03-01T00:00:00.000Z"
+    );
 }
 
 #[test]

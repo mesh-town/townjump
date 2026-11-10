@@ -15,7 +15,10 @@ fn hash_of_abc_and_empty() {
 #[test]
 fn hash_is_over_utf8_bytes_untrimmed() {
     assert_ne!(sha256_seed(" abc"), sha256_seed("abc"));
-    assert_eq!(sha256_seed("κ"), sha256_seed("\u{3ba}"));
+    assert_eq!(
+        hex::encode(sha256_seed("\u{3ba}")),
+        "fc7b6472d73316615fc4e39f5ef7a0326c59a2fb8b10d9e80d2d5ad48f0ec698"
+    );
 }
 
 #[test]
