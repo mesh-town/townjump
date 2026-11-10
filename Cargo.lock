@@ -894,7 +894,6 @@ name = "townjump-logger"
 version = "0.1.20"
 dependencies = [
  "tokio",
- "townjump-testkit",
 ]
 
 [[package]]

@@ -13,8 +13,5 @@ description = "The debug log and the channel for unhandled errors."
 [dependencies]
 tokio.workspace = true
 
-[dev-dependencies]
-townjump-testkit.workspace = true
-
 [lints]
 workspace = true

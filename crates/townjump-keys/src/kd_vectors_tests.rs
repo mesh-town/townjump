@@ -1,3 +1,5 @@
+#![allow(dead_code)] // helpers shared by several test modules; not every module uses all of them
+
 // Keys test helpers: records of `holesail/key-derivation.json` (84 records, 10 errors), rows of `holesail-cli/keyderivation-vectors.json`
 // and the randomness `00 01 … 1f`.
 use serde::Deserialize;
