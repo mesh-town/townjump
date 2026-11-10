@@ -17,6 +17,12 @@ This project is licensed under AGPL-3.0-only (see `LICENSE`). It includes or der
 - Used for: `crates/townjump-filemanager/src/page/logo.txt` and the resources of the file manager web page, which the
   `--filemanager` mode serves in the same form as the JavaScript implementation.
 
+## Independent implementations
+
+The `townjump-keys` crate (except its z-base-32 module, which is based on the MIT-licensed `z32` package) and the
+`townjump-logger` crate are an independent implementation based on the behavioral specification in `docs/spec/`,
+written without access to any other implementation.
+
 ## Reference implementation (not included)
 
 The JavaScript Holesail 2.4.4 and its dependencies are the behavioural reference. They are not part of this
