@@ -46,6 +46,7 @@ reach your service.
 | Keenetic (Entware) | `wget -O- https://mesh-town.github.io/townjump-keenetic/install.sh \| sh` |
 | Docker | `docker run --rm -it ghcr.io/mesh-town/townjump:latest --live 3000` |
 | Android (Termux) | `townjump-termux-aarch64.tar.gz` from <https://mesh-town.github.io/townjump-dist/android/> |
+| npm | `npm install -g townjump` or `npx townjump --live 3000` (needs Node.js 18+) |
 | From source | `cargo install --locked --path crates/townjump` (Rust 1.94+) |
 
 Verify downloads against `SHA256SUMS` of the release. All channels, updates and removal:

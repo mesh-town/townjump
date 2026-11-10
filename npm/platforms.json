@@ -1,0 +1,9 @@
+{
+  "darwin-arm64": { "target": "aarch64-apple-darwin", "os": "darwin", "cpu": "arm64", "archive": "tar.gz" },
+  "darwin-x64": { "target": "x86_64-apple-darwin", "os": "darwin", "cpu": "x64", "archive": "tar.gz" },
+  "linux-x64": { "target": "x86_64-unknown-linux-musl", "os": "linux", "cpu": "x64", "archive": "tar.gz" },
+  "linux-arm64": { "target": "aarch64-unknown-linux-musl", "os": "linux", "cpu": "arm64", "archive": "tar.gz" },
+  "linux-arm": { "target": "armv7-unknown-linux-musleabihf", "os": "linux", "cpu": "arm", "archive": "tar.gz" },
+  "win32-x64": { "target": "x86_64-pc-windows-msvc", "os": "win32", "cpu": "x64", "archive": "zip", "exe": "townjump.exe" },
+  "android-arm64": { "target": "aarch64-linux-android", "os": "android", "cpu": "arm64", "archive": "tar.gz" }
+}
