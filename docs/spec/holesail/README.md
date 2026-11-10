@@ -24,6 +24,7 @@ This document is self-contained: the rules are written out in full, and code cit
 |---|---|
 | [cli.md](cli.md) | flags, argv parsing, order of checks and dispatch, error texts, exit codes, banner, help text, `--lookup`, `--log` |
 | [connection-string.md](connection-string.md) | the `hs://…` format, parsing, key pair derivation (server and client), private/public modes, vectors |
+| [keys-and-log.md](keys-and-log.md) | observable behavior of the keys and logger crates: seed hash, URL parse and format, server and client keys, log line format and levels, the fatal-error channel |
 | [server.md](server.md) | `holesail-server`: startup, order of DHT calls, the firewall predicate, connection accounting, pause, destruction |
 | [client.md](client.md) | `holesail-client`: constructor, `connect`, the local listen address, `ping`, destruction |
 | [pipe.md](pipe.md) | TCP piping and framed UDP (frame format, close semantics, counters) |
