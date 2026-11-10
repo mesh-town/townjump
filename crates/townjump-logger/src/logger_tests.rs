@@ -97,6 +97,29 @@ fn line_format_and_routing() {
     assert!(e.contains("[WARN]") && e.contains("[ERROR]") && !e.contains("[INFO]"));
 }
 
+fn now_millis() -> u64 {
+    let d = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap();
+    u64::try_from(d.as_millis()).unwrap()
+}
+
+#[test]
+fn line_time_is_current_utc() {
+    let (l, o, _) = setup(Some(1.0));
+    let before = crate::time::iso_from_millis(now_millis());
+    l.info("x");
+    let after = crate::time::iso_from_millis(now_millis());
+    let out = text(&o);
+    let rest = out.strip_prefix("\x1b[90m").unwrap();
+    let (time, _) = rest.split_once("\x1b[0m ").unwrap();
+    // fixed-width ISO strings compare in time order
+    assert!(
+        before.as_str() <= time && time <= after.as_str(),
+        "{before} {time} {after}"
+    );
+}
+
 #[test]
 fn message_is_verbatim() {
     let (l, o, _) = setup(Some(0.0));
