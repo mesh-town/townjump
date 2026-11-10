@@ -29,6 +29,11 @@ Code copied from other projects must carry a license compatible with both Apache
 (MIT, BSD, Apache-2.0, ISC, Zlib and similar). Name its source in the pull request so it can be listed in
 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Code under GPL, LGPL or AGPL cannot be accepted.
 
+The `townjump-keys` crate (except the z-base-32 module, which is based on the MIT-licensed `z32` package) and the
+`townjump-logger` crate are independent implementations written from the behavioral specification in
+[docs/spec/](docs/spec/), without access to any other implementation. Contributions to them must keep that
+property: write from the specification, not from other code.
+
 Two parts of the tree keep their own licenses and follow them rather than the rule above:
 
 - `fork/peeroxide/` is MIT OR Apache-2.0; changes there are contributed under the same terms.
