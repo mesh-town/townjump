@@ -1,0 +1,23 @@
+{
+  "name": "townjump",
+  "version": "0.0.0",
+  "description": "Share a local TCP or UDP service through the HyperDHT network, compatible with Holesail",
+  "license": "AGPL-3.0-only",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mesh-town/townjump.git"
+  },
+  "homepage": "https://mesh-town.github.io/townjump/",
+  "bin": {
+    "townjump": "bin/townjump.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "files": [
+    "bin/townjump.js",
+    "platforms.json",
+    "LICENSE",
+    "README.md"
+  ]
+}
