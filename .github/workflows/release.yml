@@ -250,6 +250,49 @@ jobs:
     secrets:
       TAP_TOKEN: ${{ secrets.TAP_TOKEN }}
 
+  npm:
+    name: npm
+    needs: [check-tag, publish]
+    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.publish)
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      VERSION: ${{ needs.check-tag.outputs.version }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      # Trusted publishing (OIDC, no token) needs npm 11.5.1 or newer.
+      - name: Update npm
+        run: npm install -g npm@latest
+      - name: Download release assets
+        run: gh release download "v${VERSION}" --repo "${GITHUB_REPOSITORY}" --dir npm-assets
+      - name: Build packages
+        run: node npm/build.mjs "$VERSION" npm-assets npm-out
+      - name: Publish
+        run: |
+          set -euo pipefail
+          # Platform packages first, the main package last; a version that is already in the
+          # registry is skipped, so rerunning the job is safe.
+          dirs=()
+          for path in npm-out/*/; do
+            dir=$(basename "$path")
+            if [ "$dir" != townjump ]; then dirs+=("$dir"); fi
+          done
+          for dir in "${dirs[@]}" townjump; do
+            name=$(node -p "require('./npm-out/$dir/package.json').name")
+            if npm view "${name}@${VERSION}" version >/dev/null 2>&1; then
+              echo "${name}@${VERSION} is already published, skipping"
+              continue
+            fi
+            (cd "npm-out/$dir" && npm publish --access public --provenance)
+          done
+
   winget:
     name: winget
     needs: [check-tag, publish]
