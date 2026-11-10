@@ -1,9 +1,7 @@
-// JS: z32 1.1.0 (`index.js`: encode, decode), alphabet `ybndrfg8ejkmcpqxot1uwisza345h769`.
-// Related: error.rs (`KeysError::InvalidCharacter`), url.rs and client_identity.rs (consumers).
 use crate::error::KeysError;
 
 const ALPHABET: &[u8; 32] = b"ybndrfg8ejkmcpqxot1uwisza345h769";
-/// Bytes for a tail of `r` characters (`r = len % 8`): as in JS, not `ceil(5r/8)`.
+/// Bytes for a tail of `r` characters (`r = len % 8`), not `ceil(5r/8)`.
 const TAIL_BYTES: [usize; 8] = [0, 1, 1, 2, 2, 3, 4, 4];
 
 /// z-base-32 without padding.
@@ -36,7 +34,7 @@ pub fn decode(s: &str) -> Result<Vec<u8>, KeysError> {
     let mut out = Vec::with_capacity(want);
     let (mut acc, mut bits) = (0u32, 0u32);
     let quintets = utf16_positions(s).map(|(position, ch)| quintet(ch, position));
-    // as in JS: the tail is padded with zero quintets up to the needed number of bytes
+    // the tail is padded with zero quintets up to the needed number of bytes
     for q in quintets.chain(std::iter::repeat_with(|| Ok(0))) {
         if out.len() == want {
             break;
@@ -52,7 +50,7 @@ pub fn decode(s: &str) -> Result<Vec<u8>, KeysError> {
     Ok(out)
 }
 
-/// Characters with an index in UTF-16 code units, like `s[i]` in JS.
+/// Characters with an index in UTF-16 code units, by UTF-16 position.
 fn utf16_positions(s: &str) -> impl Iterator<Item = (usize, char)> + '_ {
     s.chars().scan(0, |pos, ch| {
         let at = *pos;

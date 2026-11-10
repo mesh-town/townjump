@@ -1,5 +1,5 @@
 // Tests for `KeysError`: the text and fields of a `z32.decode` error are checked against `error.message` of the key-derivation.json records.
-// No crate function returns `KeysError::SeedBytes` (JS: `--lookup` without a value, hyperdht layer), so there are no tests.
+// No crate function returns `KeysError::SeedBytes`, so there are no tests.
 use super::*;
 use crate::kd_vectors::records;
 use crate::z32;

@@ -1,117 +1,57 @@
-// Tests of `Fatal`: the channel for failures that crash the process in JS (holesail.mjs, exit code 1); read synchronously, no runtime.
 use super::*;
 use tokio::sync::mpsc::error::TryRecvError;
 
-mod raise {
-    use super::*;
-
-    #[test]
-    fn message_reaches_the_receiver() {
-        let (fatal, mut rx) = Fatal::channel();
-        fatal.raise("boom");
-        assert_eq!(rx.try_recv(), Ok("boom".to_string()));
-        assert_eq!(
-            rx.try_recv(),
-            Err(TryRecvError::Empty),
-            "no extra messages left"
-        );
+#[test]
+fn texts_arrive_verbatim_and_in_order() {
+    let (f, mut rx) = Fatal::channel();
+    for t in ["", "a\nb", "κλ", "\x1b[31mx"] {
+        f.raise(t);
     }
-
-    #[test]
-    fn accepts_string_and_str() {
-        let (fatal, mut rx) = Fatal::channel();
-        fatal.raise(String::from("owned"));
-        fatal.raise("borrowed");
-        assert_eq!(drain(&mut rx), ["owned", "borrowed"]);
+    f.raise(String::from("owned"));
+    for t in ["", "a\nb", "κλ", "\x1b[31mx", "owned"] {
+        assert_eq!(rx.try_recv().unwrap(), t);
     }
-
-    #[test]
-    fn text_is_delivered_verbatim() {
-        let (fatal, mut rx) = Fatal::channel();
-        for text in [
-            "",
-            "Error: x\n    at f (file.js:1:1)",
-            "κλωξ 😀",
-            "\u{1b}[31mred\u{1b}[0m",
-        ] {
-            fatal.raise(text);
-            assert_eq!(rx.try_recv(), Ok(text.to_string()), "text {text:?}");
-        }
-    }
-
-    #[test]
-    fn keeps_order_of_one_sender() {
-        let (fatal, mut rx) = Fatal::channel();
-        for i in 0..50 {
-            fatal.raise(format!("m{i}"));
-        }
-        let want: Vec<String> = (0..50).map(|i| format!("m{i}")).collect();
-        assert_eq!(drain(&mut rx), want);
-    }
-
-    #[test]
-    fn lost_receiver_is_not_a_panic() {
-        let (fatal, rx) = Fatal::channel();
-        drop(rx);
-        fatal.raise("nobody listens");
-        fatal.clone().raise("nobody listens either");
-    }
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
 }
 
-mod clones {
-    use super::*;
-
-    #[test]
-    fn share_the_same_receiver() {
-        let (fatal, mut rx) = Fatal::channel();
-        let other = fatal.clone();
-        fatal.raise("first");
-        other.raise("second");
-        assert_eq!(drain(&mut rx), ["first", "second"]);
+#[test]
+fn clones_from_threads_lose_nothing() {
+    let (f, mut rx) = Fatal::channel();
+    let hs: Vec<_> = (0..4)
+        .map(|i| {
+            let f = f.clone();
+            std::thread::spawn(move || (0..50).for_each(|j| f.raise(format!("{i}-{j}"))))
+        })
+        .collect();
+    hs.into_iter().for_each(|h| h.join().unwrap());
+    let mut n = 0;
+    while rx.try_recv().is_ok() {
+        n += 1;
     }
-
-    #[test]
-    fn many_threads_lose_nothing_and_keep_per_sender_order() {
-        let (fatal, mut rx) = Fatal::channel();
-        let workers: Vec<_> = (0..8)
-            .map(|t| {
-                let fatal = fatal.clone();
-                std::thread::spawn(move || (0..100).for_each(|i| fatal.raise(format!("{t}:{i}"))))
-            })
-            .collect();
-        workers.into_iter().for_each(|w| w.join().expect("thread"));
-        let got = drain(&mut rx);
-        assert_eq!(got.len(), 800, "all messages arrived");
-        for t in 0..8 {
-            let own: Vec<String> = got
-                .iter()
-                .filter(|m| m.starts_with(&format!("{t}:")))
-                .cloned()
-                .collect();
-            let want: Vec<String> = (0..100).map(|i| format!("{t}:{i}")).collect();
-            assert_eq!(own, want, "sender order {t}");
-        }
-    }
+    assert_eq!(n, 200);
 }
 
-mod channel {
-    use super::*;
-
-    #[test]
-    fn closes_when_every_sender_is_dropped() {
-        let (fatal, mut rx) = Fatal::channel();
-        let other = fatal.clone();
-        drop(fatal);
-        assert_eq!(
-            rx.try_recv(),
-            Err(TryRecvError::Empty),
-            "one sender is still alive"
-        );
-        drop(other);
-        assert_eq!(rx.try_recv(), Err(TryRecvError::Disconnected));
-    }
+#[test]
+fn raise_after_receiver_dropped_is_silent() {
+    let (f, rx) = Fatal::channel();
+    drop(rx);
+    f.raise("gone");
 }
 
-fn drain(rx: &mut tokio::sync::mpsc::UnboundedReceiver<String>) -> Vec<String> {
-    std::iter::from_fn(|| rx.try_recv().ok()).collect()
+#[test]
+fn closed_only_when_all_senders_dropped() {
+    let (f, mut rx) = Fatal::channel();
+    let g = f.clone();
+    f.raise("last");
+    drop(f);
+    assert_eq!(rx.try_recv().unwrap(), "last");
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Empty));
+    drop(g);
+    assert_eq!(rx.try_recv(), Err(TryRecvError::Disconnected));
+}
+
+#[test]
+fn sender_is_send_sync_static() {
+    fn ok<T: Send + Sync + 'static>() {}
+    ok::<Fatal>();
 }

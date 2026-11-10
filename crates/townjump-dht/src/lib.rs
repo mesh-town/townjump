@@ -1,4 +1,4 @@
-// JS: `hyperdht` calls from holesail-server/index.js and holesail-client/index.js (createServer, connect, mutablePut/Get).
+// API source: `hyperdht` (createServer, connect, mutablePut/Get).
 // Network traits: server, client and CLI know only this crate; implementations are the fork adapter and `MockFactory` from testkit.
 pub mod duplex;
 pub mod error;

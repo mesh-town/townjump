@@ -1,6 +1,3 @@
-// JS: z32/index.js (`decode` error), sodium-universal (`crypto_sign_seed_keypair` on a wrong seed length).
-// `Display` is the JS exception `.message`, checked against the `error.message` vectors.
-
 /// Key parsing errors.
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum KeysError {

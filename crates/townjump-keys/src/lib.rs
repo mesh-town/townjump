@@ -1,5 +1,4 @@
-// JS: z32, hyper-cmd-lib-keys, holesail/src/index.js (urlParser, #initialise), holesail-client/index.js (constructor).
-// Keys and the connection string without the network and without the fork; the crate depends on no other workspace crate.
+//! Keys: seeds, key pairs, connection strings and the identities built from them.
 pub mod client_identity;
 pub mod error;
 pub mod fingerprint;
