@@ -20,7 +20,7 @@ fn fork_through(through: RelayThrough) -> ForkRelayThrough {
     }
 }
 
-fn fork_addresses(list: Vec<RelayAddress>) -> Vec<ForkRelayAddress> {
+pub(crate) fn fork_addresses(list: Vec<RelayAddress>) -> Vec<ForkRelayAddress> {
     list.into_iter()
         .map(|a| {
             let addr: Ipv4Peer = to_peers(&[a.addr]).remove(0);

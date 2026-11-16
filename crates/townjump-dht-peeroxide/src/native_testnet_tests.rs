@@ -18,6 +18,7 @@ use peeroxide_dht::rpc::DhtConfig;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::sync::oneshot;
 use townjump_dht::{ConnectOpts, Dht, DhtConnection, DhtError, DhtServer, Incoming, ServerOpts};
 use townjump_keys::KeyPair;
 use townjump_testkit::conformance::wait::{ACCEPT_WAIT, REFUSE_WAIT, STREAM_WAIT, within};
@@ -195,12 +196,14 @@ impl NativeTestnet {
     }
 }
 
-/// Echoes the first accepted connection until the client shuts down.
-pub(super) fn echo_first(mut incoming: Incoming) {
+/// Echoes the first accepted connection until the client shuts down; reports whether the server end is relayed.
+pub(super) fn echo_first(mut incoming: Incoming) -> oneshot::Receiver<bool> {
+    let (relayed_tx, relayed_rx) = oneshot::channel();
     tokio::spawn(async move {
         let Some(mut conn) = incoming.accept().await else {
             return;
         };
+        let _ = relayed_tx.send(conn.is_relayed());
         let mut buf = vec![0u8; 1024];
         while let Ok(n) = conn.stream.read(&mut buf).await {
             if n == 0 || conn.stream.write_all(&buf[..n]).await.is_err() {
@@ -208,6 +211,7 @@ pub(super) fn echo_first(mut incoming: Incoming) {
             }
         }
     });
+    relayed_rx
 }
 
 /// Writes a payload and reads the same bytes back.

@@ -20,7 +20,8 @@ use super::relay::Relayed;
 use super::reply::encode_holepunch;
 use super::table::Table;
 use crate::hyperdht::{
-    Freeze, HyperDhtError, HyperDhtHandle, KeyPair, PeerConnection, RelayPaired, ServerEvent,
+    Freeze, HyperDhtError, HyperDhtHandle, KeyPair, PeerConnection, RelayAddress, RelayPaired,
+    ServerEvent,
 };
 use crate::hyperdht_messages::{FIREWALL_UNKNOWN, HolepunchMessage, RelayInfo};
 use crate::messages::Ipv4Peer;
@@ -34,6 +35,8 @@ pub(super) enum Command {
     Listen(KeyPair, [u8; 32]),
     /// The relays of the latest announcement (our address as the relay sees it).
     SetRelays(Vec<RelayInfo>),
+    /// Replace the addresses of the relay a client may name (`ServerOpts.relay_through_addresses`).
+    SetRelayThroughAddresses(Vec<RelayAddress>),
     /// The relays to keep alive, `None` while suspended (`keepalive` asks every round).
     Relays(oneshot::Sender<Option<Vec<RelayInfo>>>),
     /// Stop serving and drop every pending connection.
@@ -163,6 +166,9 @@ fn on_command(st: &mut State, cmd: Command) {
             if let Some(listening) = st.listening.as_mut() {
                 listening.relays = relays;
             }
+        }
+        Command::SetRelayThroughAddresses(addresses) => {
+            st.opts.relay_through_addresses = addresses;
         }
         Command::Relays(reply) => {
             let _ = reply.send((!st.suspended).then(|| st.relays()));
