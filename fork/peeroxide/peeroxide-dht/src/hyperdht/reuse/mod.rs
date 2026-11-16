@@ -28,7 +28,7 @@ pub(crate) const LINGER: Duration = Duration::from_millis(3000); // JS: socket-p
 
 struct State {
     held: Vec<Held>,
-    routes: HashMap<[u8; 32], Kept>,
+    routes: HashMap<[u8; 32], Vec<Kept>>,
     next_slot: u64,
     closed: bool,
 }

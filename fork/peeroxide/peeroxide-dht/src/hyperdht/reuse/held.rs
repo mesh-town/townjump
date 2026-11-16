@@ -56,11 +56,15 @@ fn expire(state: &mut State, slot: u64) -> Option<(Held, Vec<Kept>)> {
     let held = state
         .held
         .remove(state.held.iter().position(|h| h.slot == slot)?);
-    let keys: Vec<[u8; 32]> = (state.routes.iter())
-        .filter(|(_, k)| k.socket.ptr_eq(&held.socket))
-        .map(|(key, _)| *key)
-        .collect();
-    let gone = keys.iter().filter_map(|k| state.routes.remove(k)).collect();
+    let mut gone = Vec::new();
+    for records in state.routes.values_mut() {
+        let (here, rest): (Vec<Kept>, Vec<Kept>) = std::mem::take(records)
+            .into_iter()
+            .partition(|k| k.socket.ptr_eq(&held.socket));
+        *records = rest;
+        gone.extend(here);
+    }
+    state.routes.retain(|_, records| !records.is_empty());
     Some((held, gone))
 }
 

@@ -36,7 +36,7 @@ impl Via {
 
 impl HyperDhtHandle {
     /// PEER_HANDSHAKE straight to the server over the socket of an earlier connection; `None`
-    /// (no route, any failure) sends the caller on to FIND_PEER. A failed route is dropped.
+    /// (no route, any failure) sends the caller on to FIND_PEER. A failed route is counted and dropped by `Reuse::route_failed`.
     pub(super) async fn retry_route(
         &self,
         key_pair: &KeyPair,
@@ -110,10 +110,7 @@ impl HyperDhtHandle {
         own_lease: bool,
         why: &str,
     ) -> Option<PeerConnection> {
-        tracing::debug!(
-            why,
-            "retry_route: failed, route dropped, falling back to FIND_PEER"
-        );
+        tracing::debug!(why, "retry_route: route failed, falling back to FIND_PEER");
         self.reuse.route_failed(key, socket, own_lease);
         None
     }

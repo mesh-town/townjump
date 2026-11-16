@@ -1,5 +1,5 @@
 // JS: hyperdht/lib/connect.js (retry_route, fallback to FIND_PEER)
-//! Live tests, part 3: route failure (fallback to a new connection, `drop_route`), a route
+//! Live tests, part 3: route failure (fallback to a new connection, `route_failed`), a route
 //! on the node IO socket (direct branch, the socket is not held) and a client behind the server's own
 //! public IP (the server punches; the client reaches its puncher over LAN). Fixture and helpers are in the
 //! parent (`reuse_live_tests.rs`), included from there.
