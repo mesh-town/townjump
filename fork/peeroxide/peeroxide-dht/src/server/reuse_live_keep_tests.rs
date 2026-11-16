@@ -28,6 +28,28 @@ mod one_handshake_lost {
         })
         .await;
     }
+
+    #[tokio::test]
+    async fn without_a_live_connection_drops_the_route() {
+        within(async {
+            // given: the only connection is closed; its socket still lingers (500 ms < LINGER)
+            let mut fx = setup(Opts::default()).await;
+            let first = fx.when_connect().await;
+            drop(first);
+            tokio::time::sleep(Duration::from_millis(500)).await;
+            // when: the next retry over its route fails
+            fx.client.handle.reuse.fail_next_route();
+            let second = fx.when_connect().await;
+            // then: no other lease keeps the socket, so the first failure drops the route
+            assert_eq!(fx.hits(), 1, "route was not tried");
+            assert_eq!(fx.drops(), 1, "a route on a dying socket was kept");
+            assert!(
+                echoes(second).await,
+                "data over the fallback connection did not arrive"
+            );
+        })
+        .await;
+    }
 }
 
 mod short_connection_expired {
@@ -59,7 +81,12 @@ mod short_connection_expired {
                 echoes(third).await,
                 "data over the third connection did not arrive"
             );
-            drop(long);
+            // when: a retry over the same route fails once more (the success reset the count)
+            fx.client.handle.reuse.fail_next_route();
+            let fourth = fx.when_connect().await;
+            // then: the route is still there
+            assert_eq!(fx.drops(), 0, "success did not reset the failure count");
+            drop((fourth, long));
         })
         .await;
     }

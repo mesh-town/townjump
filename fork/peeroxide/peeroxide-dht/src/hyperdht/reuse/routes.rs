@@ -28,7 +28,7 @@ pub(crate) struct Route {
 }
 
 impl Reuse {
-    /// Remember a route: a new socket adds a record, a known one resets its failures. For a
+    /// Remember a route: a new socket adds a record, a known one takes the new address and resets its failures. For a
     /// punch socket call it only while holding a lease, or the socket may expire and leave
     /// the record without a reader.
     pub(crate) fn add_route(&self, key: [u8; 32], socket: &UdxSocket, addr: Ipv4Peer) {
@@ -38,7 +38,10 @@ impl Reuse {
         }
         let records = st.routes.entry(key).or_default();
         match records.iter_mut().find(|k| k.socket.ptr_eq(socket)) {
-            Some(known) => known.failures = 0,
+            Some(known) => {
+                known.addr = addr;
+                known.failures = 0;
+            }
             None => records.push(Kept {
                 socket: socket.clone(),
                 addr,

@@ -7,6 +7,23 @@ mod added_twice_for_one_key {
     use super::*;
 
     #[tokio::test(start_paused = true)]
+    async fn a_new_address_on_the_same_socket_replaces_the_old() {
+        // given: a route on a socket that is not held (the node's), failed once
+        let fx = setup();
+        let io = fx.socket().await;
+        fx.reuse.add_route(KEY, &io, peer(4001));
+        fx.reuse.route_failed(&KEY, &io, false);
+        // when: the same socket comes back with a new address
+        fx.reuse.add_route(KEY, &io, peer(4002));
+        // then: the address is the new one, one record
+        assert_eq!(fx.reuse.route(&KEY).expect("route").addr, peer(4002));
+        fx.reuse.route_failed(&KEY, &io, false);
+        fx.reuse.route_failed(&KEY, &io, false);
+        assert!(fx.reuse.route(&KEY).is_none());
+        assert_eq!(fx.reuse.drops(), 1);
+    }
+
+    #[tokio::test(start_paused = true)]
     async fn the_same_socket_is_not_duplicated() {
         // given
         let fx = setup();
@@ -29,6 +46,20 @@ mod added_twice_for_one_key {
 
 mod two_sockets_for_one_key {
     use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn a_tie_goes_to_the_last_added() {
+        // given: both sockets live, no failures
+        let fx = setup();
+        let (s1, _lease1) = fx.held().await;
+        let (s2, _lease2) = fx.held().await;
+        fx.reuse.add_route(KEY, &s1, peer(4001));
+        fx.reuse.add_route(KEY, &s2, peer(4002));
+        // when / then
+        let route = fx.reuse.route(&KEY).expect("route");
+        assert!(route.socket.ptr_eq(&s2), "the first added won a tie");
+        assert_eq!(route.addr, peer(4002));
+    }
 
     #[tokio::test(start_paused = true)]
     async fn expiry_of_one_keeps_the_other() {
