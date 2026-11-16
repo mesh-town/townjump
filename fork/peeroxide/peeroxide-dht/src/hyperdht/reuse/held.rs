@@ -1,32 +1,21 @@
-//! Held punch sockets and server routes (key -> socket + UDX peer address), with a linger timer.
-//! Neighbours: `connection` carries the `Lease`; `handle` owns the `Reuse`.
+//! Held punch sockets: leases, the linger timer and the datagram forwarder.
 // JS: hyperdht/lib/socket-pool.js
 
-use portable_atomic::AtomicU64;
-use std::collections::HashMap;
-use std::net::SocketAddr;
-use std::sync::atomic::Ordering;
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError, Weak};
-use std::time::Duration;
+use std::sync::{Arc, Weak};
 
 use libudx::{Datagram, UdxSocket};
 use tokio::runtime::Handle;
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::task::JoinHandle;
 
-use crate::messages::Ipv4Peer;
+use super::routes::Kept;
+use super::{Inner, LINGER, Reuse, State, lock};
 
-/// Delivers a datagram received on a held socket to the node (`SocketAddr` = sender).
-pub(crate) type Forward = Arc<dyn Fn(SocketAddr, Vec<u8>, UdxSocket) + Send + Sync>;
-
-/// How long a socket stays open after its last lease is released.
-pub(crate) const LINGER: Duration = Duration::from_millis(3000); // JS: socket-pool.js:3
-
-struct Held {
-    slot: u64,
-    socket: UdxSocket,
-    leases: usize,
-    generation: u64,
+pub(super) struct Held {
+    pub(super) slot: u64,
+    pub(super) socket: UdxSocket,
+    pub(super) leases: usize,
+    pub(super) generation: u64,
     forwarder: JoinHandle<()>,
 }
 
@@ -36,42 +25,10 @@ impl Drop for Held {
     }
 }
 
-struct Kept {
-    socket: UdxSocket,
-    addr: Ipv4Peer,
-}
-
-struct State {
-    held: Vec<Held>,
-    routes: HashMap<[u8; 32], Kept>,
-    next_slot: u64,
-    closed: bool,
-}
-
-struct Inner {
-    forward: Forward,
-    state: Mutex<State>,
-    hits: AtomicU64,
-    drops: AtomicU64,
-}
-
-/// Socket-pool store; clones share one state. Timers, forwarders and leases hold only `Weak`.
-#[derive(Clone)]
-pub(crate) struct Reuse {
-    inner: Arc<Inner>,
-}
-
 /// One claim on a held socket; the socket lingers `LINGER` after the last one is dropped.
 pub(crate) struct Lease {
     inner: Weak<Inner>,
     slot: u64,
-}
-
-/// A remembered route to a server; `lease` is set when its socket is held.
-pub(crate) struct Route {
-    pub socket: UdxSocket,
-    pub addr: Ipv4Peer,
-    pub lease: Option<Lease>,
 }
 
 impl Drop for Lease {
@@ -82,15 +39,11 @@ impl Drop for Lease {
     }
 }
 
-fn lock(inner: &Inner) -> MutexGuard<'_, State> {
-    inner.state.lock().unwrap_or_else(PoisonError::into_inner)
-}
-
-fn find(state: &State, socket: &UdxSocket) -> Option<usize> {
+pub(super) fn find(state: &State, socket: &UdxSocket) -> Option<usize> {
     state.held.iter().position(|h| h.socket.ptr_eq(socket))
 }
 
-fn take(inner: &Arc<Inner>, held: &mut Held) -> Lease {
+pub(super) fn take(inner: &Arc<Inner>, held: &mut Held) -> Lease {
     held.leases += 1;
     Lease {
         inner: Arc::downgrade(inner),
@@ -103,11 +56,15 @@ fn expire(state: &mut State, slot: u64) -> Option<(Held, Vec<Kept>)> {
     let held = state
         .held
         .remove(state.held.iter().position(|h| h.slot == slot)?);
-    let keys: Vec<[u8; 32]> = (state.routes.iter())
-        .filter(|(_, k)| k.socket.ptr_eq(&held.socket))
-        .map(|(key, _)| *key)
-        .collect();
-    let gone = keys.iter().filter_map(|k| state.routes.remove(k)).collect();
+    let mut gone = Vec::new();
+    for records in state.routes.values_mut() {
+        let (here, rest): (Vec<Kept>, Vec<Kept>) = std::mem::take(records)
+            .into_iter()
+            .partition(|k| k.socket.ptr_eq(&held.socket));
+        *records = rest;
+        gone.extend(here);
+    }
+    state.routes.retain(|_, records| !records.is_empty());
     Some((held, gone))
 }
 
@@ -183,22 +140,6 @@ async fn linger(inner: Weak<Inner>, slot: u64, generation: u64) {
 }
 
 impl Reuse {
-    pub(crate) fn new(forward: Forward) -> Reuse {
-        Reuse {
-            inner: Arc::new(Inner {
-                forward,
-                state: Mutex::new(State {
-                    held: Vec::new(),
-                    routes: HashMap::new(),
-                    next_slot: 0,
-                    closed: false,
-                }),
-                hits: AtomicU64::new(0),
-                drops: AtomicU64::new(0),
-            }),
-        }
-    }
-
     /// Hold a punch socket after the connect (never the node's IO socket: it would steal
     /// the node's receive path). `None`: cleared, no runtime, or `recv_start` failed.
     pub(crate) fn hold(&self, socket: &UdxSocket) -> Option<Lease> {
@@ -239,75 +180,9 @@ impl Reuse {
         Some(take(&self.inner, &mut st.held[i]))
     }
 
-    /// Remember a route; an existing one is kept. For a punch socket call it only while
-    /// holding a lease, or the socket may expire and leave the route without a reader.
-    pub(crate) fn add_route(&self, key: [u8; 32], socket: &UdxSocket, addr: Ipv4Peer) {
-        let mut st = lock(&self.inner);
-        if st.closed {
-            return;
-        }
-        st.routes.entry(key).or_insert_with(|| Kept {
-            socket: socket.clone(),
-            addr,
-        });
-    }
-
-    pub(crate) fn route(&self, key: &[u8; 32]) -> Option<Route> {
-        let mut st = lock(&self.inner);
-        let (socket, addr) = {
-            let k = st.routes.get(key)?;
-            (k.socket.clone(), k.addr.clone())
-        };
-        self.inner.hits.fetch_add(1, Ordering::Relaxed);
-        tracing::debug!(key = ?&key[..4], "reuse: route hit");
-        let lease = find(&st, &socket).map(|i| take(&self.inner, &mut st.held[i]));
-        Some(Route {
-            socket,
-            addr,
-            lease,
-        })
-    }
-
-    /// Forget the route of `key` if it uses `socket`; the held entry is left alone.
-    pub(crate) fn drop_route(&self, key: &[u8; 32], socket: &UdxSocket) {
-        let mut st = lock(&self.inner);
-        if !st.routes.get(key).is_some_and(|k| k.socket.ptr_eq(socket)) {
-            return;
-        }
-        let gone = st.routes.remove(key);
-        drop(st);
-        self.inner.drops.fetch_add(1, Ordering::Relaxed);
-        tracing::debug!(key = ?&key[..4], "reuse: route dropped");
-        drop(gone);
-    }
-
-    /// Terminal: drops every route, held socket and forwarder; later calls find nothing.
-    pub(crate) fn clear(&self) {
-        let (held, routes) = {
-            let mut st = lock(&self.inner);
-            st.closed = true;
-            (std::mem::take(&mut st.held), std::mem::take(&mut st.routes))
-        };
-        drop((held, routes));
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn hits(&self) -> u64 {
-        self.inner.hits.load(Ordering::Relaxed)
-    }
-
-    #[cfg_attr(not(test), allow(dead_code))]
-    pub(crate) fn drops(&self) -> u64 {
-        self.inner.drops.load(Ordering::Relaxed)
-    }
-
     /// Observe without leasing (does not re-arm the timer).
     #[cfg(test)]
     pub(crate) fn is_held(&self, socket: &UdxSocket) -> bool {
         find(&lock(&self.inner), socket).is_some()
     }
 }
-
-#[cfg(test)]
-#[path = "reuse_tests.rs"]
-mod tests;
