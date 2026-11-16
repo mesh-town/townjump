@@ -2,14 +2,14 @@
 // See also: dht.rs (`create_server`), node.rs (node state), stream.rs (incoming wrapper).
 use crate::error::map_error;
 use crate::node::{Lan, Node, fork_pair};
-use crate::opts_map::fork_opts;
+use crate::opts_map::{fork_addresses, fork_opts};
 use peeroxide_dht::hyperdht::PeerConnection;
 use peeroxide_dht::server::Server;
 use std::fmt;
 use std::sync::{Arc, Mutex};
 use tokio::sync::mpsc;
 use tokio::task::JoinHandle;
-use townjump_dht::{DhtConnection, DhtError, DhtServer, Incoming, ServerOpts};
+use townjump_dht::{DhtConnection, DhtError, DhtServer, Incoming, RelayAddress, ServerOpts};
 use townjump_keys::KeyPair;
 
 /// Incoming queue held by the consumer: like `server.on('connection')`, lossless under slow reads.
@@ -55,6 +55,16 @@ impl PeeroxideServer {
         });
         node.track(&shared);
         Ok((PeeroxideServer { shared, node }, incoming))
+    }
+}
+
+impl PeeroxideServer {
+    /// Replaces the relay addresses the server matches against the relay key a client names. Applies to the next
+    /// relay pairing; pairings already running keep their copy. No-op after `close`.
+    pub fn set_relay_addresses(&self, addresses: Vec<RelayAddress>) {
+        self.shared
+            .server
+            .set_relay_through_addresses(fork_addresses(addresses));
     }
 }
 
@@ -143,6 +153,9 @@ async fn forward(
 #[cfg(test)]
 #[path = "server_listen_tests.rs"]
 mod listen_tests;
+#[cfg(test)]
+#[path = "relay_unannounced_tests.rs"]
+mod relay_unannounced_tests;
 #[cfg(test)]
 #[path = "server_tests.rs"]
 mod tests;

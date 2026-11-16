@@ -13,7 +13,9 @@ use super::actor::{self, Command, State, relay_addresses};
 use super::keepalive::Keepalive;
 use super::opts::ServerOpts;
 use crate::crypto::hash;
-use crate::hyperdht::{HyperDhtError, HyperDhtHandle, KeyPair, PeerConnection, ServerEvent};
+use crate::hyperdht::{
+    HyperDhtError, HyperDhtHandle, KeyPair, PeerConnection, RelayAddress, ServerEvent,
+};
 use crate::hyperdht_messages::RelayInfo;
 
 /// Capacity of the channel of incoming connections; a full channel drops new ones.
@@ -110,6 +112,15 @@ impl Server {
     /// Sets the relays that go into the holepunch info of replies (those of the caller's announcement).
     pub(crate) fn set_relays(&self, relays: Vec<RelayInfo>) {
         let _ = self.cmd_tx.send(Command::SetRelays(relays));
+    }
+
+    /// Replaces the list of relay addresses (`ServerOpts.relay_through_addresses`) that is matched against the
+    /// relay key a client names. Applies to the next relay pairing; pairings already running keep their copy.
+    /// No-op after `close`.
+    pub fn set_relay_through_addresses(&self, addresses: Vec<RelayAddress>) {
+        let _ = self
+            .cmd_tx
+            .send(Command::SetRelayThroughAddresses(addresses));
     }
 
     /// Withdraws the announcement and stops accepting connections. Repeating it is harmless.
