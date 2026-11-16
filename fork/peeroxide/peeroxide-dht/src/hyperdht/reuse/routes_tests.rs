@@ -1,4 +1,4 @@
-// Route table of the held-socket store; helpers are in `reuse_tests.rs`.
+// Route table of the held-socket store; helpers are in `tests.rs`.
 // JS: hyperdht/lib/socket-pool.js
 
 use super::*;

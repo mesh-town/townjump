@@ -297,9 +297,9 @@ mod socket_identity {
     }
 }
 
-#[path = "reuse_forwarder_tests.rs"]
+#[path = "forwarder_tests.rs"]
 mod forwarder;
-#[path = "reuse_routes_tests.rs"]
+#[path = "routes_tests.rs"]
 mod routes;
 
 type Forwarded = (SocketAddr, Vec<u8>, UdxSocket);

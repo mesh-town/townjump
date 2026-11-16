@@ -1,4 +1,4 @@
-// Datagram forwarder of the held-socket store; helpers are in `reuse_tests.rs`.
+// Datagram forwarder of the held-socket store; helpers are in `tests.rs`.
 // Unpaused time: the forwarder waits on a real network, so the channel wait is a `timeout`.
 // JS: hyperdht/lib/socket-pool.js
 
