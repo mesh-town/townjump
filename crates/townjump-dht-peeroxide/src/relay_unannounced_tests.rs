@@ -20,7 +20,7 @@ async fn server_reaches_unannounced_relay_after_set() {
     let (_relay_net, relay) = unannounced_relay().await;
     let address = relay_address(&relay).await;
     let (_node, server, incoming) = net.listening(SERVER, ServerOpts::default()).await;
-    echo_first(incoming);
+    let server_relayed = echo_first(incoming);
 
     server.set_relay_addresses(vec![address]);
     let (_client_node, result) = net
@@ -30,6 +30,7 @@ async fn server_reaches_unannounced_relay_after_set() {
     let conn = result.expect("connect through the unannounced relay");
     assert!(conn.is_relayed(), "client end");
     assert_echo(conn).await;
+    assert!(server_relayed.await.expect("server accepted"), "server end");
     let stats = poll_stats(&relay, |s| s.pairings_matched >= 1).await;
     assert!(stats.pairings_matched >= 1, "{stats:?}");
     server.close().await.expect("close");
