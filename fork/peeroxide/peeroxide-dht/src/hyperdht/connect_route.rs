@@ -36,7 +36,8 @@ impl Via {
 
 impl HyperDhtHandle {
     /// PEER_HANDSHAKE straight to the server over the socket of an earlier connection; `None`
-    /// (no route, any failure) sends the caller on to FIND_PEER. A failed route is counted and dropped by `Reuse::route_failed`.
+    /// (no route, any failure) sends the caller on to FIND_PEER. `Reuse::route_failed` counts
+    /// the failure and decides whether the route goes.
     pub(super) async fn retry_route(
         &self,
         key_pair: &KeyPair,
