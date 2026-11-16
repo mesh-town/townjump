@@ -13,7 +13,7 @@ mod route_fails {
         use super::*;
 
         #[tokio::test]
-        async fn falls_back_to_a_new_connection_and_drops_the_route() {
+        async fn falls_back_and_keeps_the_route_while_the_client_holds_it() {
             within(async {
                 // given: the client holds the first; the server closed its own, and its socket expired (LINGER + 1 s)
                 let mut fx = setup(Opts::default()).await;
@@ -23,9 +23,13 @@ mod route_fails {
                 tokio::time::sleep(LINGER + Duration::from_secs(1)).await;
                 // when: a second connection (the client route leads nowhere)
                 let second = fx.when_connect().await;
-                // then: connected (fallback to lookup), route dropped, new socket
+                // then: connected (fallback to lookup), new socket; the client still holds `was`, so the route stays
                 assert_eq!(fx.hits(), 1, "route was not tried");
-                assert_eq!(fx.drops(), 1, "failure did not drop the route");
+                assert_eq!(
+                    fx.drops(),
+                    0,
+                    "failure dropped a route the client still holds"
+                );
                 assert!(
                     !second.client.socket.ptr_eq(&was),
                     "client socket is the old one"
@@ -34,7 +38,15 @@ mod route_fails {
                     echoes(second).await,
                     "data over the fallback connection did not arrive"
                 );
+                // when: the client's first connection closes too and its socket expires (LINGER + 1 s)
                 drop(client);
+                tokio::time::sleep(LINGER + Duration::from_secs(1)).await;
+                let third = fx.when_connect().await;
+                // then: the record went with the socket, the next connection is not on `was`
+                assert!(
+                    !third.client.socket.ptr_eq(&was),
+                    "route to the expired socket was used"
+                );
             })
             .await;
         }

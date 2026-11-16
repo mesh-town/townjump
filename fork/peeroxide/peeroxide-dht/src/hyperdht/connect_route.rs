@@ -46,10 +46,22 @@ impl HyperDhtHandle {
     ) -> Option<PeerConnection> {
         // `route.lease` keeps the socket open until this function returns (JS `ref.active()`).
         let route = self.reuse.route(remote_public_key)?;
+        let own_lease = route.lease.is_some();
         let _lease = route.lease;
+        #[cfg(test)]
+        if self.reuse.take_fail_next_route() {
+            return self.route_failed(remote_public_key, &route.socket, own_lease, "injected");
+        }
         let via = match Via::open(runtime, &route.socket).await {
             Ok(via) => via,
-            Err(e) => return self.route_failed(remote_public_key, &route.socket, &e.to_string()),
+            Err(e) => {
+                return self.route_failed(
+                    remote_public_key,
+                    &route.socket,
+                    own_lease,
+                    &e.to_string(),
+                );
+            }
         };
         let session = self.dht.session();
         let me = self.in_session(&session);
@@ -58,8 +70,22 @@ impl HyperDhtHandle {
             .await;
         let handshaken = match handshaken {
             Ok(h) if !h.hs_result.relayed => h,
-            Ok(_) => return self.route_failed(remote_public_key, &route.socket, "relayed reply"),
-            Err(e) => return self.route_failed(remote_public_key, &route.socket, &e.to_string()),
+            Ok(_) => {
+                return self.route_failed(
+                    remote_public_key,
+                    &route.socket,
+                    own_lease,
+                    "relayed reply",
+                );
+            }
+            Err(e) => {
+                return self.route_failed(
+                    remote_public_key,
+                    &route.socket,
+                    own_lease,
+                    &e.to_string(),
+                );
+            }
         };
         // JS `connect.js:547`: the session's other requests stop before the stream is set up.
         session.destroy();
@@ -67,8 +93,13 @@ impl HyperDhtHandle {
             .finish_connection(handshaken, key_pair, remote_public_key, runtime, opts)
             .await
         {
-            Ok(conn) => Some(conn),
-            Err(e) => self.route_failed(remote_public_key, &route.socket, &e.to_string()),
+            Ok(conn) => {
+                self.reuse.route_succeeded(remote_public_key, &route.socket);
+                Some(conn)
+            }
+            Err(e) => {
+                self.route_failed(remote_public_key, &route.socket, own_lease, &e.to_string())
+            }
         }
     }
 
@@ -76,13 +107,14 @@ impl HyperDhtHandle {
         &self,
         key: &[u8; 32],
         socket: &UdxSocket,
+        own_lease: bool,
         why: &str,
     ) -> Option<PeerConnection> {
         tracing::debug!(
             why,
             "retry_route: failed, route dropped, falling back to FIND_PEER"
         );
-        self.reuse.drop_route(key, socket);
+        self.reuse.route_failed(key, socket, own_lease);
         None
     }
 

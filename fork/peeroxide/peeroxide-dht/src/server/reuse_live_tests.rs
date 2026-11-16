@@ -86,6 +86,9 @@ mod second_connection;
 #[path = "reuse_live_route_tests.rs"]
 mod route;
 
+#[path = "reuse_live_keep_tests.rs"]
+mod keep;
+
 /// Scenario preconditions.
 struct Opts {
     client_reusable: bool,

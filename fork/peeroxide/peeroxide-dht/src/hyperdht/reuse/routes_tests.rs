@@ -7,24 +7,132 @@ mod added_twice_for_one_key {
     use super::*;
 
     #[tokio::test(start_paused = true)]
-    async fn first_route_is_kept() {
+    async fn the_same_socket_is_not_duplicated() {
         // given
         let fx = setup();
-        let (s1, s2) = (fx.socket().await, fx.socket().await);
+        let (s1, _lease) = fx.held().await;
         fx.reuse.add_route(KEY, &s1, peer(4001));
-        // when
+        // when: one failure (the lease is alive), then the same socket added again
+        fx.reuse.route_failed(&KEY, &s1, false);
+        fx.reuse.add_route(KEY, &s1, peer(4001));
+        // then: one record with the count reset: two more failures are needed to drop it
+        fx.reuse.route_failed(&KEY, &s1, false);
+        assert!(fx.reuse.route(&KEY).is_some(), "the count was not reset");
+        fx.reuse.route_failed(&KEY, &s1, false);
+        assert!(
+            fx.reuse.route(&KEY).is_none(),
+            "a duplicate record remained"
+        );
+        assert_eq!(fx.reuse.drops(), 1);
+    }
+}
+
+mod two_sockets_for_one_key {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn expiry_of_one_keeps_the_other() {
+        // given: S2 (no live lease) is added first, S1 (live lease) second
+        let fx = setup();
+        let (s2, lease2) = fx.held().await;
         fx.reuse.add_route(KEY, &s2, peer(4002));
-        // then
-        let route = fx.reuse.route(&KEY).expect("route");
-        assert!(
-            route.socket.ptr_eq(&s1),
-            "route must stay on the first socket"
-        );
-        assert!(
-            !route.socket.ptr_eq(&s2),
-            "route must not move to the second socket"
-        );
+        let (s1, _lease1) = fx.held().await;
+        fx.reuse.add_route(KEY, &s1, peer(4001));
+        drop(lease2);
+        // when: S2 expires
+        sleep(LINGER + ONE_SEC).await;
+        // then: the route is S1
+        let route = fx.reuse.route(&KEY).expect("route on the live socket");
+        assert!(route.socket.ptr_eq(&s1));
         assert_eq!(route.addr, peer(4001));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn route_prefers_fewer_failures() {
+        // given: S1 added first and failed once (kept: its lease is alive), S2 added second
+        let fx = setup();
+        let (s1, _lease1) = fx.held().await;
+        fx.reuse.add_route(KEY, &s1, peer(4001));
+        let (s2, _lease2) = fx.held().await;
+        fx.reuse.add_route(KEY, &s2, peer(4002));
+        fx.reuse.route_failed(&KEY, &s1, false);
+        // when / then
+        let route = fx.reuse.route(&KEY).expect("route");
+        assert!(route.socket.ptr_eq(&s2), "the record without failures wins");
+    }
+}
+
+mod route_failed {
+    use super::*;
+
+    #[tokio::test(start_paused = true)]
+    async fn once_with_a_live_lease_keeps_the_route() {
+        // given
+        let fx = setup();
+        let (s1, _lease) = fx.hold_with_route(KEY).await;
+        // when
+        fx.reuse.route_failed(&KEY, &s1, false);
+        // then
+        assert_eq!(fx.reuse.drops(), 0);
+        let route = fx.reuse.route(&KEY).expect("route kept");
+        assert!(route.socket.ptr_eq(&s1));
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn twice_in_a_row_drops_the_route() {
+        // given
+        let fx = setup();
+        let (s1, _lease) = fx.hold_with_route(KEY).await;
+        // when
+        fx.reuse.route_failed(&KEY, &s1, false);
+        assert!(fx.reuse.route(&KEY).is_some(), "kept after the first");
+        fx.reuse.route_failed(&KEY, &s1, false);
+        // then
+        assert_eq!(fx.reuse.drops(), 1);
+        assert!(fx.reuse.route(&KEY).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn without_another_lease_drops_the_route() {
+        // given: the hold lease is gone; the only lease is the attempt's own
+        let fx = setup();
+        let (s1, lease) = fx.hold_with_route(KEY).await;
+        let attempt = fx.reuse.route(&KEY).expect("route");
+        drop(lease);
+        // when
+        fx.reuse.route_failed(&KEY, &s1, attempt.lease.is_some());
+        // then
+        assert_eq!(fx.reuse.drops(), 1);
+        drop(attempt);
+        assert!(fx.reuse.route(&KEY).is_none());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn success_in_between_resets_the_count() {
+        // given
+        let fx = setup();
+        let (s1, _lease) = fx.hold_with_route(KEY).await;
+        // when: failure, success, failure
+        fx.reuse.route_failed(&KEY, &s1, false);
+        fx.reuse.route_succeeded(&KEY, &s1);
+        fx.reuse.route_failed(&KEY, &s1, false);
+        // then
+        assert_eq!(fx.reuse.drops(), 0);
+        assert!(fx.reuse.route(&KEY).is_some());
+    }
+
+    #[tokio::test(start_paused = true)]
+    async fn unheld_socket_survives_one_failure() {
+        // given: a socket like the IO socket has no lease at all
+        let fx = setup();
+        let io = fx.socket().await;
+        fx.reuse.add_route(KEY, &io, peer(4001));
+        // when / then: dropped only by the second failure
+        fx.reuse.route_failed(&KEY, &io, false);
+        assert!(fx.reuse.route(&KEY).is_some());
+        fx.reuse.route_failed(&KEY, &io, false);
+        assert!(fx.reuse.route(&KEY).is_none());
+        assert_eq!(fx.reuse.drops(), 1);
     }
 }
 

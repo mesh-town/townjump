@@ -63,4 +63,12 @@ impl Reuse {
         tracing::debug!(key = ?&key[..4], "reuse: route dropped");
         drop(gone);
     }
+
+    /// A retry over the route of `key` on `socket` failed; `own_lease`: the attempt holds a lease.
+    pub(crate) fn route_failed(&self, key: &[u8; 32], socket: &UdxSocket, _own_lease: bool) {
+        self.drop_route(key, socket);
+    }
+
+    /// A retry over the route of `key` on `socket` produced a connection.
+    pub(crate) fn route_succeeded(&self, _key: &[u8; 32], _socket: &UdxSocket) {}
 }

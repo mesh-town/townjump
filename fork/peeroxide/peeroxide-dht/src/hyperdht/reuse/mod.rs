@@ -5,6 +5,8 @@
 use portable_atomic::AtomicU64;
 use std::collections::HashMap;
 use std::net::SocketAddr;
+#[cfg(test)]
+use std::sync::atomic::AtomicBool;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
 use std::time::Duration;
@@ -36,6 +38,9 @@ struct Inner {
     state: Mutex<State>,
     hits: AtomicU64,
     drops: AtomicU64,
+    /// Test hook: the next route retry fails before its handshake.
+    #[cfg(test)]
+    fail_next_route: AtomicBool,
 }
 
 /// Socket-pool store; clones share one state. Timers, forwarders and leases hold only `Weak`.
@@ -61,6 +66,8 @@ impl Reuse {
                 }),
                 hits: AtomicU64::new(0),
                 drops: AtomicU64::new(0),
+                #[cfg(test)]
+                fail_next_route: AtomicBool::new(false),
             }),
         }
     }
@@ -73,6 +80,18 @@ impl Reuse {
             (std::mem::take(&mut st.held), std::mem::take(&mut st.routes))
         };
         drop((held, routes));
+    }
+
+    /// Test hook: make the next route retry fail before its handshake.
+    #[cfg(test)]
+    pub(crate) fn fail_next_route(&self) {
+        self.inner.fail_next_route.store(true, Ordering::Relaxed);
+    }
+
+    /// Whether the injected failure is armed; disarms it.
+    #[cfg(test)]
+    pub(crate) fn take_fail_next_route(&self) -> bool {
+        self.inner.fail_next_route.swap(false, Ordering::Relaxed)
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
