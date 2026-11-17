@@ -26,6 +26,7 @@ impl StreamInner {
             recv_buf_bytes: 0,
             read_closed: false,
             destroy_sent: false,
+            abort_requested: false,
             srtt: 0,
             rttvar: 0,
             rto: INITIAL_RTO_MS,

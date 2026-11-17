@@ -32,6 +32,19 @@ impl StreamPeer {
         let inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
         inner.udp.as_ref()?.local_addr().ok()
     }
+
+    /// Resolves when the stream is closed for any reason (peer DESTROY, failed retransmission, `abort`, `destroy`).
+    pub fn closed(&self) -> impl Future<Output = ()> + Send + 'static {
+        let mut rx = self
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .closed
+            .subscribe();
+        async move {
+            let _ = rx.wait_for(|closed| *closed).await;
+        }
+    }
 }
 
 /// Completion of `change_remote`: ready at once, or when the peer ACKs everything sent before the change.
@@ -119,6 +132,14 @@ impl StreamControl {
     pub fn remote(&self) -> Option<(SocketAddr, u32)> {
         let inner = self.lock();
         inner.remote_addr.map(|addr| (addr, inner.remote_id))
+    }
+
+    /// Aborts the stream locally, the way a failed retransmission does: the reader gets `ConnectionReset`, pending
+    /// writes fail with `StreamClosed`, `closed()` resolves, the processor ends and the socket-table entry goes.
+    /// The peer is sent DESTROY when the stream is connected (best effort). Repeated calls and calls on a closed
+    /// stream do nothing.
+    pub fn abort(&self) {
+        self.lock().request_abort();
     }
 
     /// Resolves when the stream is closed (processor ended, `destroy`, or the handle dropped before start).

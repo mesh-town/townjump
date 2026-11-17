@@ -47,3 +47,18 @@ async fn relayed_only_path_is_relayed() {
     let link = RelayLink::relayed_only(stream.control(), session);
     assert_eq!(*link.path().borrow(), RelayPath::Relayed);
 }
+
+#[tokio::test]
+async fn relayed_only_aborts_on_relay_end() {
+    let (_rt, stream) = stream_pair().await;
+    let (session, _closed, end) = RelaySession::probe_ending();
+    let _link = RelayLink::relayed_only(stream.control(), session);
+    let still = tokio::time::timeout(Duration::from_millis(300), stream.control().closed()).await;
+    assert!(still.is_err(), "the stream closed before the relay ended");
+    end.send_replace(true);
+    let closed = tokio::time::timeout(Duration::from_secs(1), stream.control().closed()).await;
+    assert!(
+        closed.is_ok(),
+        "the relayed stream must close with the relay session"
+    );
+}

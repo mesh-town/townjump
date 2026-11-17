@@ -1,7 +1,10 @@
 //! The switch from the relay to the direct path: a detached supervisor per connection that
 //! moves the stream, confirms the peer is reachable directly, then closes the relay.
 // JS: hyperdht/lib/connect.js:793-838, hyperdht/lib/server.js (relay pair)
+// Beyond JS: when the relay's service session ends while the stream still runs through the relay, the stream is
+// aborted at once (JS lets it die by retransmission failure, connect.js:814-837).
 
+use std::future::Future;
 use std::net::SocketAddr;
 use std::sync::Mutex;
 
@@ -47,7 +50,10 @@ impl Upgrade {
     ) -> RelayLink {
         let (tx, rx) = watch::channel(RelayPath::Relayed);
         let (socket, remote_id, target) = target_of(&control, direct);
-        tokio::spawn(supervise(control, session, tx, socket, remote_id, target));
+        let relay = relay_addr(&control);
+        tokio::spawn(supervise(
+            control, session, tx, relay, socket, remote_id, target,
+        ));
         RelayLink::from_path(rx)
     }
 
@@ -59,20 +65,23 @@ impl Upgrade {
         mut punch: PunchTask,
     ) -> RelayLink {
         let (tx, rx) = watch::channel(RelayPath::Relayed);
+        let relay = relay_addr(&control);
         tokio::spawn(async move {
             let closed = control.closed();
             let punched = tokio::select! {
                 _ = closed => None,
+                _ = relay_gone(&control, relay, session.ended()) => None,
                 joined = &mut punch.0 => joined.ok().and_then(Result::ok),
             };
             tracing::debug!(target: "peeroxide_dht::hyperdht::relay", ok = punched.is_some(), "upgrade: punch finished");
             let Some((result, socket)) = punched else {
-                return stay_relayed(control, session, tx).await;
+                return stay_relayed(control, session, tx, relay).await;
             };
             let Some((remote_id, addr)) = remote_of(&result) else {
-                return stay_relayed(control, session, tx).await;
+                return stay_relayed(control, session, tx, relay).await;
             };
-            supervise(control, session, tx, socket, remote_id, Target::Ready(addr)).await;
+            let target = Target::Ready(addr);
+            supervise(control, session, tx, relay, socket, remote_id, target).await;
         });
         RelayLink::from_path(rx)
     }
@@ -121,14 +130,50 @@ fn is_relay_alias(relay: SocketAddr, src: SocketAddr) -> bool {
     relay.ip() == src.ip() || relay.ip().is_loopback() || src.ip().is_loopback()
 }
 
+/// The relay's address while the stream is still on it (take it before any `change_remote`).
+pub(super) fn relay_addr(control: &StreamControl) -> Option<SocketAddr> {
+    control.remote().map(|(addr, _)| addr)
+}
+
+/// Resolves after the relay's service session ended on its own and the stream was still on the relay: the stream
+/// is aborted then. Stays pending when the session ends after the stream moved to a direct address.
+async fn relay_gone(
+    control: &StreamControl,
+    relay: Option<SocketAddr>,
+    ended: impl Future<Output = ()>,
+) {
+    ended.await;
+    let remote = control.remote().map(|(addr, _)| addr);
+    match (relay, remote) {
+        (Some(relay), Some(now)) if is_relay_alias(relay, now) => {
+            tracing::debug!(target: "peeroxide_dht::hyperdht::relay", %relay, "relay session ended: aborting the relayed stream");
+            control.abort();
+        }
+        _ => std::future::pending::<()>().await,
+    }
+}
+
+/// Keep the relay session until the stream closes, or abort the stream when the session ends first.
+pub(super) async fn hold_relay(
+    control: StreamControl,
+    session: RelaySession,
+    relay: Option<SocketAddr>,
+) {
+    tokio::select! {
+        _ = control.closed() => {}
+        _ = relay_gone(&control, relay, session.ended()) => {}
+    }
+    session.close().await;
+}
+
 /// No direct path: keep the relay until the stream closes.
 async fn stay_relayed(
     control: StreamControl,
     session: RelaySession,
     _tx: watch::Sender<RelayPath>,
+    relay: Option<SocketAddr>,
 ) {
-    control.closed().await;
-    session.close().await;
+    hold_relay(control, session, relay).await;
 }
 
 /// Every step races the stream closing; a confirmed switch closes the relay and flips the path.
@@ -136,6 +181,7 @@ async fn supervise(
     control: StreamControl,
     session: RelaySession,
     tx: watch::Sender<RelayPath>,
+    relay: Option<SocketAddr>,
     socket: UdxSocket,
     remote_id: u32,
     target: Target,
@@ -144,10 +190,14 @@ async fn supervise(
     tokio::pin!(closed);
     let switched = tokio::select! {
         _ = &mut closed => return session.close().await,
+        _ = relay_gone(&control, relay, session.ended()) => return session.close().await,
         done = switch(&control, &socket, remote_id, target) => done,
     };
     if !switched {
-        closed.await;
+        tokio::select! {
+            _ = &mut closed => {}
+            _ = relay_gone(&control, relay, session.ended()) => {}
+        }
         return session.close().await;
     }
     session.close().await;

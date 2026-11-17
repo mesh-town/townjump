@@ -2,10 +2,12 @@
 //! The caller creates the data stream (it owns the stream id) and connects it via the relay.
 // JS: hyperdht/lib/connect.js:793-838
 
+use std::future::Future;
 use std::net::SocketAddr;
 use std::time::Duration;
 
 use libudx::{UdxRuntime, UdxSocket};
+use tokio::sync::watch;
 
 use super::super::handle::HyperDhtHandle;
 use super::super::keypair::KeyPair;
@@ -30,6 +32,8 @@ pub(crate) struct RelayPaired {
 /// Owns the control connection to the relay; closing or dropping it ends the pairing.
 pub(crate) struct RelaySession {
     live: Option<Live>,
+    /// Turns `true` when the mux task ends by itself (the service session is over); never when we stop it.
+    ended: watch::Receiver<bool>,
     #[cfg(test)]
     signal: Option<tokio::sync::oneshot::Sender<()>>,
 }
@@ -55,9 +59,21 @@ impl RelaySession {
         let _ = tokio::time::timeout(MUX_STOP_WAIT, &mut task.0).await;
     }
 
-    fn wrap(live: Live) -> Self {
+    /// Resolves when the service session ended on its own (the relay closed it or its keepalive ran out).
+    /// Our own `close()` resolves it too (the service session ends); a drop of the session leaves it pending.
+    pub(crate) fn ended(&self) -> impl Future<Output = ()> + Send + 'static {
+        let mut ended = self.ended.clone();
+        async move {
+            if ended.wait_for(|over| *over).await.is_err() {
+                std::future::pending::<()>().await;
+            }
+        }
+    }
+
+    fn wrap(live: Live, ended: watch::Receiver<bool>) -> Self {
         Self {
             live: Some(live),
+            ended,
             #[cfg(test)]
             signal: None,
         }
@@ -66,11 +82,26 @@ impl RelaySession {
     #[cfg(test)]
     pub(crate) fn probe() -> (Self, tokio::sync::oneshot::Receiver<()>) {
         let (tx, rx) = tokio::sync::oneshot::channel();
+        let (_, ended) = watch::channel(false);
         let session = Self {
             live: None,
+            ended,
             signal: Some(tx),
         };
         (session, rx)
+    }
+
+    /// As `probe`, plus a trigger that makes `ended()` resolve.
+    #[cfg(test)]
+    pub(crate) fn probe_ending() -> (
+        Self,
+        tokio::sync::oneshot::Receiver<()>,
+        watch::Sender<bool>,
+    ) {
+        let (mut session, closed) = Self::probe();
+        let (end, ended) = watch::channel(false);
+        session.ended = ended;
+        (session, closed, end)
     }
 }
 
@@ -157,8 +188,10 @@ async fn pair_chain(
         conn.stream.set_keep_alive(keep_alive);
     }
     let (socket, lease) = (conn.socket.clone(), conn.lease.take());
+    // A dead service stream ends the session too: its reader never wakes after a failed retransmission.
+    let service_closed = conn.stream.get_ref().peer().closed();
     let (mux, run) = Mux::new(conn.stream);
-    let task = spawn_mux(run, local_stream_id);
+    let (task, ended) = spawn_mux(run, service_closed, local_stream_id);
     let mut client = BlindRelayClient::open(&mux, Some(key_pair.public_key.to_vec())).await?;
     // From here the session owns the shutdown, so an early error still unpairs and closes.
     let live = |client| Live {
@@ -170,13 +203,13 @@ async fn pair_chain(
         _lease: lease,
     };
     if let Err(e) = client.wait_opened().await {
-        drop(RelaySession::wrap(live(client)));
+        drop(RelaySession::wrap(live(client), ended));
         return Err(e.into());
     }
     let reply = client
         .pair(is_initiator, &token, u64::from(local_stream_id))
         .await;
-    let session = RelaySession::wrap(live(client));
+    let session = RelaySession::wrap(live(client), ended);
     let remote_id = u32::try_from(reply?.remote_id).map_err(|_| {
         HyperDhtError::StreamEstablishment("relay remote_id out of u32 range".into())
     })?;
@@ -189,10 +222,21 @@ async fn pair_chain(
 }
 
 /// Runs the mux task under an abort-on-drop guard; tests track it in a registry by stream id.
+/// The receiver turns `true` when the task ends by itself or `service_closed` resolves; an abort of the task
+/// drops the sender without a signal.
 fn spawn_mux(
     run: impl std::future::Future<Output = ()> + Send + 'static,
+    service_closed: impl std::future::Future<Output = ()> + Send + 'static,
     local_stream_id: u32,
-) -> AbortOnDrop<()> {
+) -> (AbortOnDrop<()>, watch::Receiver<bool>) {
+    let (over, ended) = watch::channel(false);
+    let run = async move {
+        tokio::select! {
+            () = run => {}
+            () = service_closed => {}
+        }
+        let _ = over.send(true);
+    };
     #[cfg(test)]
     let guard = registry::enter(local_stream_id);
     #[cfg(not(test))]
@@ -204,7 +248,7 @@ fn spawn_mux(
     });
     #[cfg(not(test))]
     let task = tokio::spawn(run);
-    AbortOnDrop(task)
+    (AbortOnDrop(task), ended)
 }
 
 /// Test-only registry of live mux tasks, keyed by `local_stream_id`.

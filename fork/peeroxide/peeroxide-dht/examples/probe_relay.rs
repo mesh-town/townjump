@@ -54,6 +54,10 @@ async fn relay(argv: &[String]) -> Result<(), String> {
         .map(str::to_string)
         .collect();
     dht.host = "0.0.0.0".to_string();
+    dht.port = arg(argv, "port")
+        .ok()
+        .and_then(|p| p.parse().ok())
+        .unwrap_or(0);
     dht.ephemeral = Some(false);
     dht.firewalled = false;
     let mut config = HyperDhtConfig::default();
