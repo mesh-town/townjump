@@ -60,7 +60,7 @@ impl RelaySession {
     }
 
     /// Resolves when the service session ended on its own (the relay closed it or its keepalive ran out).
-    /// Our own `close()` or drop never resolves it; it stays pending then.
+    /// Our own `close()` resolves it too (the service session ends); a drop of the session leaves it pending.
     pub(crate) fn ended(&self) -> impl Future<Output = ()> + Send + 'static {
         let mut ended = self.ended.clone();
         async move {

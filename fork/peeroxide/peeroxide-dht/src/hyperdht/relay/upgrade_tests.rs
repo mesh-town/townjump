@@ -285,11 +285,9 @@ async fn relay_end_aborts_a_relayed_stream() {
     let still = tokio::time::timeout(Duration::from_millis(300), stream.control().closed()).await;
     assert!(still.is_err(), "the stream closed before the relay ended");
     end.send_replace(true);
-    let closed = tokio::time::timeout(Duration::from_secs(1), stream.control().closed()).await;
-    assert!(
-        closed.is_ok(),
-        "the relayed stream must close with the relay session"
-    );
+    let wait = tokio::time::timeout(Duration::from_secs(1), stream.control().closed());
+    wait.await
+        .expect("the relayed stream must close with the relay session");
     assert_eq!(*link.path().borrow(), RelayPath::Relayed);
 }
 
@@ -329,6 +327,60 @@ async fn relay_end_after_direct_keeps_the_stream() {
     drop((a.session.take(), b.session.take()));
     a.stream.destroy().await.expect("destroy a");
     b.stream.destroy().await.expect("destroy b");
+}
+
+#[tokio::test]
+async fn relay_end_during_switch_keeps_the_moved_stream() {
+    let n = net().await;
+    let (a, b) = sides(&n).await;
+    let (session, _closed, end) = RelaySession::probe_ending();
+    let direct = DirectSource::Punched {
+        socket: a.second.clone(),
+        addr: b.second_addr,
+        remote_id: b.own_id,
+    };
+    let _link = Upgrade::spawn(a.control.clone(), session, direct);
+    let to = Duration::from_secs(2);
+    assert!(
+        wait_for(to, || a.control.remote().map(|(x, _)| x)
+            == Some(b.second_addr))
+        .await
+    );
+    end.send_replace(true);
+    let closed = tokio::time::timeout(Duration::from_secs(1), a.control.closed()).await;
+    assert!(
+        closed.is_err(),
+        "a moved stream must outlive the relay session"
+    );
+}
+
+#[tokio::test]
+async fn relay_end_after_a_failed_switch_aborts_the_stream() {
+    let (_rt, stream, Side2(socket)) = lone().await;
+    let (session, _closed, end) = RelaySession::probe_ending();
+    let direct = DirectSource::PathHook {
+        socket,
+        remote_id: 100,
+    };
+    let _link = Upgrade::spawn(stream.control(), session, direct);
+    stream.control().set_path_hook(|_| true);
+    tokio::time::sleep(Duration::from_millis(100)).await;
+    end.send_replace(true);
+    let wait = tokio::time::timeout(Duration::from_secs(1), stream.control().closed());
+    wait.await
+        .expect("the relayed stream must close with the relay session");
+}
+
+#[tokio::test]
+async fn relay_end_during_punch_aborts_the_stream() {
+    let (_rt, stream, _socket) = lone().await;
+    let (session, _closed, end) = RelaySession::probe_ending();
+    let punch = AbortOnDrop(tokio::spawn(std::future::pending()));
+    let _link = Upgrade::spawn_after_punch(stream.control(), session, punch);
+    end.send_replace(true);
+    let wait = tokio::time::timeout(Duration::from_secs(1), stream.control().closed());
+    wait.await
+        .expect("the relayed stream must close with the relay session");
 }
 
 #[test]

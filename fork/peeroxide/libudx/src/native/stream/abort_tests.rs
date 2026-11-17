@@ -2,9 +2,9 @@
 
 use std::time::Duration;
 
-use tokio::io::AsyncReadExt;
+use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use super::test_support::bound_socket;
+use super::test_support::{bound_socket, raw_peer};
 use crate::native::runtime::UdxRuntime;
 
 #[tokio::test]
@@ -36,4 +36,30 @@ async fn abort_closes_the_stream() {
 
     control_a.abort();
     control_b.abort();
+}
+
+#[tokio::test]
+async fn rto_exhaustion_ends_the_reader_with_reset() {
+    let runtime = UdxRuntime::new().expect("runtime");
+    let (sock, _addr) = bound_socket(&runtime).await;
+    // The peer never answers: the seventh retransmission timeout (about 13 s) ends the stream.
+    let (_silent, silent_addr) = raw_peer().await;
+    let stream = runtime.create_stream(1).await.expect("stream");
+    stream
+        .connect(&sock, 2, silent_addr)
+        .await
+        .expect("connect");
+    let control = stream.control();
+    let mut own = stream.into_async_stream();
+    own.write_all(&[1u8]).await.expect("queue a byte");
+
+    let mut buf = [0u8; 8];
+    let read = tokio::time::timeout(Duration::from_secs(30), own.read(&mut buf)).await;
+    match read {
+        Ok(Err(e)) => assert_eq!(e.kind(), std::io::ErrorKind::ConnectionReset),
+        other => panic!("reader after RTO exhaustion: {other:?}"),
+    }
+    tokio::time::timeout(Duration::from_secs(1), control.closed())
+        .await
+        .expect("closed() resolves");
 }
