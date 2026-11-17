@@ -236,6 +236,9 @@ pub(super) async fn process_incoming(
 
             Some(notify) = notify_rx.recv() => {
                 shutting_down |= drain_notifies(notify, &mut notify_rx);
+                if abort::take_abort(&inner).await {
+                    break;
+                }
                 if notify_step(&inner, &mut timers, shutting_down).await.is_break() {
                     break;
                 }

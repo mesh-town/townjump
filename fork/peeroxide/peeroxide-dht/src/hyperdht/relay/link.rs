@@ -6,6 +6,7 @@ use tokio::sync::watch;
 
 use super::RelayPath;
 use super::pair::RelaySession;
+use super::upgrade::{hold_relay, relay_addr};
 
 /// The relay side of a connection: reports which path the data takes now.
 pub(crate) struct RelayLink {
@@ -26,10 +27,10 @@ impl RelayLink {
     /// A link that stays on the relay: a detached task keeps `session` until the stream closes.
     pub(crate) fn relayed_only(control: StreamControl, session: RelaySession) -> Self {
         let (tx, path) = watch::channel(RelayPath::Relayed);
+        let relay = relay_addr(&control);
         tokio::spawn(async move {
             let _tx = tx;
-            control.closed().await;
-            session.close().await;
+            hold_relay(control, session, relay).await;
         });
         Self { path }
     }

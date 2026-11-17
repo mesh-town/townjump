@@ -42,6 +42,8 @@ pub(crate) struct StreamInner {
     pub(crate) read_closed: bool,
     /// This stream sent (or queued) a DESTROY; the tombstone repeats it.
     pub(super) destroy_sent: bool,
+    /// `StreamControl::abort` was called: the processor sends DESTROY and ends the stream (`abort.rs`).
+    pub(super) abort_requested: bool,
 
     // ── RTT estimation (Jacobson/Karels, matching C libudx constants) ──
     pub(super) srtt: u32,

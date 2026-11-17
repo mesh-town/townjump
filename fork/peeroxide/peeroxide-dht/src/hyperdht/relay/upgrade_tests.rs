@@ -273,6 +273,64 @@ async fn dropped_link_keeps_session_until_stream_closed() {
     drop(b.session.take());
 }
 
+#[tokio::test]
+async fn relay_end_aborts_a_relayed_stream() {
+    let (_rt, stream, Side2(socket)) = lone().await;
+    let (session, _closed, end) = RelaySession::probe_ending();
+    let direct = DirectSource::PathHook {
+        socket,
+        remote_id: 100,
+    };
+    let link = Upgrade::spawn(stream.control(), session, direct);
+    let still = tokio::time::timeout(Duration::from_millis(300), stream.control().closed()).await;
+    assert!(still.is_err(), "the stream closed before the relay ended");
+    end.send_replace(true);
+    let closed = tokio::time::timeout(Duration::from_secs(1), stream.control().closed()).await;
+    assert!(
+        closed.is_ok(),
+        "the relayed stream must close with the relay session"
+    );
+    assert_eq!(*link.path().borrow(), RelayPath::Relayed);
+}
+
+#[tokio::test]
+async fn relay_end_after_direct_keeps_the_stream() {
+    let n = net().await;
+    let (mut a, mut b) = sides(&n).await;
+    let (sa, _closed_a, end_a) = RelaySession::probe_ending();
+    let (sb, _closed_b, _end_b) = RelaySession::probe_ending();
+    let punched = |s: &Side, other: &Side| DirectSource::Punched {
+        socket: s.second.clone(),
+        addr: other.second_addr,
+        remote_id: other.own_id,
+    };
+    let la = Upgrade::spawn(a.control.clone(), sa, punched(&a, &b));
+    let lb = Upgrade::spawn(b.control.clone(), sb, punched(&b, &a));
+    let (da, db) = tokio::join!(
+        tokio::time::timeout(Duration::from_secs(10), becomes_direct(la.path())),
+        tokio::time::timeout(Duration::from_secs(10), becomes_direct(lb.path())),
+    );
+    assert!(
+        matches!(da, Ok(true)) && matches!(db, Ok(true)),
+        "not direct in 10 s"
+    );
+
+    end_a.send_replace(true);
+    let closed = tokio::time::timeout(Duration::from_secs(1), a.control.closed()).await;
+    assert!(
+        closed.is_err(),
+        "a direct stream must outlive the relay session"
+    );
+    let data = bytes(4);
+    assert_eq!(
+        transfer(&a, &mut b, &data).await,
+        Sha256::digest(&data).to_vec()
+    );
+    drop((a.session.take(), b.session.take()));
+    a.stream.destroy().await.expect("destroy a");
+    b.stream.destroy().await.expect("destroy b");
+}
+
 #[test]
 fn relay_replying_from_another_local_address_is_not_a_direct_path() {
     let relay: SocketAddr = "192.168.1.5:4000".parse().unwrap();
