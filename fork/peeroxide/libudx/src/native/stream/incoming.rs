@@ -262,8 +262,10 @@ pub(super) async fn process_incoming(
                     .unwrap_or_else(|e| e.into_inner())
                     .on_rto_fire_logged(local_id);
                 let Some(next) = next else {
-                    let guard = inner.lock().unwrap_or_else(|e| e.into_inner());
+                    let mut guard = inner.lock().unwrap_or_else(|e| e.into_inner());
                     log_rto_failure(&guard, local_id, shutting_down, started.elapsed());
+                    // The reader must not wait forever on a dead stream (as after a DESTROY, it gets a reset).
+                    guard.end_reader_with_reset();
                     break;
                 };
                 timers.arm_rto(next);

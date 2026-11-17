@@ -32,6 +32,19 @@ impl StreamPeer {
         let inner = self.0.lock().unwrap_or_else(|e| e.into_inner());
         inner.udp.as_ref()?.local_addr().ok()
     }
+
+    /// Resolves when the stream is closed for any reason (peer DESTROY, failed retransmission, `abort`, `destroy`).
+    pub fn closed(&self) -> impl Future<Output = ()> + Send + 'static {
+        let mut rx = self
+            .0
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .closed
+            .subscribe();
+        async move {
+            let _ = rx.wait_for(|closed| *closed).await;
+        }
+    }
 }
 
 /// Completion of `change_remote`: ready at once, or when the peer ACKs everything sent before the change.

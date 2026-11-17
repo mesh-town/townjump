@@ -188,8 +188,10 @@ async fn pair_chain(
         conn.stream.set_keep_alive(keep_alive);
     }
     let (socket, lease) = (conn.socket.clone(), conn.lease.take());
+    // A dead service stream ends the session too: its reader never wakes after a failed retransmission.
+    let service_closed = conn.stream.get_ref().peer().closed();
     let (mux, run) = Mux::new(conn.stream);
-    let (task, ended) = spawn_mux(run, local_stream_id);
+    let (task, ended) = spawn_mux(run, service_closed, local_stream_id);
     let mut client = BlindRelayClient::open(&mux, Some(key_pair.public_key.to_vec())).await?;
     // From here the session owns the shutdown, so an early error still unpairs and closes.
     let live = |client| Live {
@@ -220,14 +222,19 @@ async fn pair_chain(
 }
 
 /// Runs the mux task under an abort-on-drop guard; tests track it in a registry by stream id.
-/// The receiver turns `true` when the task ends by itself; an abort drops the sender without a signal.
+/// The receiver turns `true` when the task ends by itself or `service_closed` resolves; an abort of the task
+/// drops the sender without a signal.
 fn spawn_mux(
     run: impl std::future::Future<Output = ()> + Send + 'static,
+    service_closed: impl std::future::Future<Output = ()> + Send + 'static,
     local_stream_id: u32,
 ) -> (AbortOnDrop<()>, watch::Receiver<bool>) {
     let (over, ended) = watch::channel(false);
     let run = async move {
-        run.await;
+        tokio::select! {
+            () = run => {}
+            () = service_closed => {}
+        }
         let _ = over.send(true);
     };
     #[cfg(test)]

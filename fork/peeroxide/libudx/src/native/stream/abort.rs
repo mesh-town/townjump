@@ -21,6 +21,17 @@ impl StreamInner {
     }
 }
 
+impl StreamInner {
+    /// The reader's side of a local end: no more data, and the end is a reset (`!connected`), like after a DESTROY.
+    pub(super) fn end_reader_with_reset(&mut self) {
+        self.connected = false;
+        let _ = self.read_tx.send(StreamEvent::End);
+        if let Some(tx) = self.close_tx.take() {
+            let _ = tx.send(());
+        }
+    }
+}
+
 /// Run by the processor after a notification: if an abort was requested, tell the peer (DESTROY), end the reader
 /// with a reset and report `true` so the loop ends the stream like it does on a received DESTROY.
 pub(super) async fn take_abort(inner: &Arc<Mutex<StreamInner>>) -> bool {
@@ -30,11 +41,7 @@ pub(super) async fn take_abort(inner: &Arc<Mutex<StreamInner>>) -> bool {
             return false;
         }
         let destroy = guard.destroy_packet();
-        guard.connected = false;
-        let _ = guard.read_tx.send(StreamEvent::End);
-        if let Some(tx) = guard.close_tx.take() {
-            let _ = tx.send(());
-        }
+        guard.end_reader_with_reset();
         destroy
     };
     if let Some((udp, addr, bytes)) = destroy {
