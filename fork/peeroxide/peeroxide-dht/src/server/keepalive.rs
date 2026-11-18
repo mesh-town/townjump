@@ -23,11 +23,19 @@ const PINGS_PER_REFRESH: u32 = 100;
 /// Fewer answers than `min(relays, MIN_ACTIVE)` mean the relays are lost (JS `MIN_ACTIVE`).
 const MIN_ACTIVE: usize = 3;
 
+/// Pauses before the early retries, in ping periods: 3, 6, 12, 24, 48 s, then 60 s each.
+/// Deviation from upstream hyperdht, which retries a server announced to fewer than
+/// `MIN_ACTIVE` relays only with the next full re-announce (~5 min): a server announced before
+/// its node finished bootstrapping would stay unreachable for that long.
+const RETRY_PERIODS: [u32; 6] = [1, 2, 4, 8, 16, 20];
+
 /// Why a cycle of ping rounds ended.
 #[derive(Debug, PartialEq, Eq)]
 enum End {
     /// Too few relays answered: re-announce now.
     Lost,
+    /// Fewer than `MIN_ACTIVE` relays hold the record: retry early with a growing pause.
+    Short,
     /// `rounds` healthy rounds: the periodic re-announce.
     Expired,
     /// The actor answered `None`: no pings, no re-announce (`freeze` announces on resume).
@@ -71,19 +79,36 @@ impl Keepalive {
 
     /// Runs until the actor is gone; `Server` aborts it on `close` and drop.
     pub(super) async fn run(self) {
+        let mut retries = 0usize;
+        let mut pause = self.period;
         loop {
-            match self.cycle().await {
+            match self.cycle(pause).await {
                 End::Closed => return,
                 End::Suspended => {}
-                End::Lost | End::Expired => self.reannounce().await,
+                End::Lost | End::Expired => {
+                    self.reannounce().await;
+                    retries = 0;
+                }
+                End::Short => {
+                    let accepted = self.reannounce().await;
+                    retries = if accepted >= MIN_ACTIVE {
+                        0
+                    } else {
+                        retries + 1
+                    };
+                }
             }
+            pause = self.period * RETRY_PERIODS[retries.min(RETRY_PERIODS.len() - 1)];
         }
     }
 
-    /// Up to `rounds` rounds, each after a pause of `period`; ends at the first unhealthy one.
-    async fn cycle(&self) -> End {
+    /// Up to `rounds` rounds, the first after `first_pause`, the others after `period`; ends at
+    /// the first unhealthy one.
+    async fn cycle(&self, first_pause: Duration) -> End {
+        let mut pause = first_pause;
         for _ in 0..self.rounds {
-            tokio::time::sleep(self.period).await;
+            tokio::time::sleep(pause).await;
+            pause = self.period;
             if let Err(end) = self.round().await {
                 return end;
             }
@@ -94,6 +119,13 @@ impl Keepalive {
     /// Pings every relay the actor holds; `Err(Lost)` when too few answered.
     async fn round(&self) -> Result<(), End> {
         let relays = self.relays().await?;
+        if relays.len() < MIN_ACTIVE {
+            tracing::debug!(
+                total = relays.len(),
+                "server: too few relays, early re-announce"
+            );
+            return Err(End::Short);
+        }
         let alive = ping_all(self.dht.dht(), &relays).await;
         if !needs_reannounce(alive, relays.len()) {
             return Ok(());
@@ -113,18 +145,24 @@ impl Keepalive {
 
     /// Announces again unless suspended or closed meanwhile, hands the new relays to the actor and
     /// withdraws the record from the relays that dropped out (in the background).
-    async fn reannounce(&self) {
+    /// Returns how many relays accepted the new announcement (0 when it failed or was skipped).
+    async fn reannounce(&self) -> usize {
         let Ok(old) = self.relays().await else {
-            return;
+            return 0;
         };
         match self.dht.announce_server(self.target, &self.key_pair).await {
             Ok(announced) => {
                 tracing::debug!(relays = announced.relays.len(), "server: re-announce");
                 let gone = dropped(&old, &announced.relays);
+                let accepted = announced.relays.len();
                 let _ = self.cmd_tx.send(Command::SetRelays(announced.relays));
                 self.withdraw_dropped(gone);
+                accepted
             }
-            Err(e) => tracing::debug!(err = %e, "server: re-announce failed"),
+            Err(e) => {
+                tracing::debug!(err = %e, "server: re-announce failed");
+                0
+            }
         }
     }
 

@@ -13,7 +13,6 @@ use tokio::time::Instant;
 use super::Keepalive;
 use crate::crypto::hash;
 use crate::hyperdht_messages::RelayInfo;
-use crate::messages::Ipv4Peer;
 use crate::server::actor::Command;
 use crate::server::test_net::{Node, cluster, key, node, within};
 
