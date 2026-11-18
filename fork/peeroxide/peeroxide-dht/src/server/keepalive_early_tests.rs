@@ -5,7 +5,8 @@
 //! 48, 60 s of the real task are `period` times 1, 2, 4, 8, 16, 20 here. The pinging node sits
 //! on a small cluster (`cluster(2)`), so an announce is accepted by at most two relays and the
 //! series grows; on `cluster(8)` three relays accept and the series resets. The timestamps are
-//! those of the retries.
+//! those of the retries. The grid is made of thresholds on the clock: the pause between two
+//! ping rounds is always `period`, only the point where a step ends moves.
 
 use std::time::Duration;
 
@@ -342,6 +343,28 @@ async fn lost_relay_of_two_reannounces_at_once() {
             "re-announce {gap:?} after the third, the step is 8 periods"
         );
         drop(socket);
+    })
+    .await
+}
+
+/// After an `Expired` cycle the series restarts: with 3 rounds the 4-period step always ends by
+/// expiry, and the gap that follows must be short again (a leftover `retries` would keep it at 3).
+#[tokio::test]
+async fn expired_cycle_restarts_the_series() {
+    within(async {
+        let cl = cluster(2).await;
+        let pinger = node(&cl, false).await;
+        let script = Script {
+            relays: Some(vec![]),
+            switch: None,
+        };
+        let sets = retries(&pinger, script, 3, Duration::from_millis(1000)).await;
+        let got: Vec<u128> = gaps(&sets).iter().map(|g| g.as_millis() / 50).collect();
+        assert!(got.len() >= 3, "only {} gaps: {got:?}", got.len());
+        assert!(
+            got[2] <= 2,
+            "after the expired cycle the series did not restart: {got:?}"
+        );
     })
     .await
 }
