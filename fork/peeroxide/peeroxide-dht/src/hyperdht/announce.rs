@@ -69,6 +69,11 @@ impl HyperDhtHandle {
             })
             .await?;
 
+        let kind = if fanout == Fanout::Server {
+            "server"
+        } else {
+            "topic"
+        };
         let mut closest_nodes = Vec::new();
         let mut accepted_relays: Vec<Ipv4Peer> = Vec::new();
         let mut relays: Vec<RelayInfo> = Vec::new();
@@ -135,7 +140,13 @@ impl HyperDhtHandle {
                 .await;
             let accepted = matches!(&res, Ok(r) if r.error == 0);
             let to = format!("{}:{}", reply.from.host, reply.from.port);
-            tracing::debug!(to = %to, accepted, "announce: ANNOUNCE sent");
+            tracing::debug!(
+                to = %to,
+                accepted,
+                kind,
+                target = %crate::handshake_route::key_tag(&target),
+                "announce: ANNOUNCE sent"
+            );
             if fanout == Fanout::Server && !accepted {
                 continue;
             }
@@ -164,10 +175,27 @@ impl HyperDhtHandle {
         // — when parallel announces race on the shared Mutex — would corrupt
         // the relay list the topic-announce reads on a subsequent refresh.
         // See peer_discovery::do_refresh for the parallel-join order.
+        let accepted_relays_count = accepted_relays.len();
         if target == hash(&key_pair.public_key) {
             if let Ok(mut guard) = self.current_relay_addresses.lock() {
                 *guard = accepted_relays;
             }
+        }
+
+        tracing::debug!(
+            kind,
+            relays_accepted = accepted_relays_count,
+            relays_tried = sent,
+            target = %crate::handshake_route::key_tag(&target),
+            "announce done"
+        );
+        if fanout == Fanout::Server && accepted_relays_count == 0 {
+            tracing::warn!(
+                kind,
+                relays_tried = sent,
+                target = %crate::handshake_route::key_tag(&target),
+                "announce done with no relays accepted"
+            );
         }
 
         Ok(AnnounceResult {

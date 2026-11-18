@@ -164,6 +164,11 @@ impl HyperDhtHandle {
         };
         let t0 = tokio::time::Instant::now();
         trace("FIND_PEER start", None, t0);
+        tracing::debug!(
+            target: "peeroxide_dht::hyperdht::connect",
+            target = %crate::handshake_route::key_tag(&remote_public_key),
+            "FIND_PEER start target"
+        );
         let mut feed = HolderFeed::new(self.find_peer_stream(target), pre);
         let raced = first_success_fed(
             chain,
@@ -309,7 +314,7 @@ impl HyperDhtHandle {
             .handshake_through_node(key_pair, remote_public_key, relay, None, opts)
             .await;
         if let Err(e) = &result {
-            tracing::debug!(relay = %format!("{}:{}", relay.host, relay.port), err = %e, "handshake attempt failed");
+            tracing::debug!(relay = %format!("{}:{}", relay.host, relay.port), target = %crate::handshake_route::key_tag(remote_public_key), err = %e, "handshake attempt failed");
         }
         result
     }

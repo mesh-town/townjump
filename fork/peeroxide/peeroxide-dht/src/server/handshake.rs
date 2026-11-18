@@ -78,7 +78,13 @@ pub(super) async fn on_handshake(
             if let Some(via) = st.table.via_of(&hello.msg.noise) {
                 hello.route.reply_via.set(via);
             }
-            let _ = reply_tx.send(stored.and_then(|noise| encode_reply(&hello.msg, noise)));
+            let wire = stored.and_then(|noise| encode_reply(&hello.msg, noise));
+            if wire.is_some() {
+                log_sent(&hello, "repeat", None);
+            } else {
+                log_silent(&hello, "repeat_refused", None);
+            }
+            let _ = reply_tx.send(wire);
             return;
         }
         Begin::Fresh(id) => id,
@@ -87,10 +93,41 @@ pub(super) async fn on_handshake(
     let noise_reply = built.as_ref().map(|b| b.noise_reply.clone());
     st.table.finish(id, noise_reply.clone());
     remember_via(st, id, &hello, built.as_ref());
-    let _ = reply_tx.send(noise_reply.and_then(|noise| encode_reply(&hello.msg, noise)));
+    let wire = noise_reply.and_then(|noise| encode_reply(&hello.msg, noise));
+    if wire.is_some() {
+        log_sent(&hello, "fresh", None);
+    } else {
+        log_silent(&hello, "no_reply", None);
+    }
+    let _ = reply_tx.send(wire);
     if let Some(built) = built {
         after_reply(st, id, built.next, now, internal);
     }
+}
+
+/// Short form of a key for log lines: its first four bytes in hex.
+fn short(key: Option<&[u8; 32]>) -> String {
+    key.map_or_else(|| "-".to_string(), |k| crate::handshake_route::key_tag(k))
+}
+
+fn log_silent(hello: &Hello, reason: &str, remote: Option<&[u8; 32]>) {
+    tracing::debug!(
+        reason,
+        mode = hello.msg.mode,
+        peer = %format!("{}:{}", hello.from.host, hello.from.port),
+        remote = %short(remote),
+        "handshake no reply"
+    );
+}
+
+fn log_sent(hello: &Hello, kind: &str, remote: Option<&[u8; 32]>) {
+    tracing::debug!(
+        kind,
+        mode = hello.msg.mode,
+        peer = %format!("{}:{}", hello.from.host, hello.from.port),
+        remote = %short(remote),
+        "handshake reply sent"
+    );
 }
 
 /// Tells the router (and later repeats of this Noise message) to answer from the punch socket.
@@ -115,15 +152,25 @@ async fn attempt(
 /// Steps 2-4: are we listening for this target, does the Noise message
 /// parse, does the firewall let the client in.
 fn admit(st: &State, hello: &Hello) -> Option<Admitted> {
-    let listening = st.listening.as_ref().filter(|_| !st.suspended)?;
+    let Some(listening) = st.listening.as_ref().filter(|_| !st.suspended) else {
+        log_silent(hello, "not_listening", None);
+        return None;
+    };
     if hello.target != Some(listening.target) {
+        log_silent(hello, "target_mismatch", None);
         return None;
     }
     let mut nw = NoiseWrap::new_responder(listening.key_pair.to_noise_keypair());
     let remote = nw.recv(&hello.msg.noise);
     let remote = remote.inspect_err(|e| tracing::debug!(err = %e, "server: noise recv failed"));
-    let remote = remote.ok()?;
-    let remote_public_key = nw.remote_public_key()?;
+    let Ok(remote) = remote else {
+        log_silent(hello, "noise_recv_failed", None);
+        return None;
+    };
+    let Some(remote_public_key) = nw.remote_public_key() else {
+        log_silent(hello, "no_remote_key", None);
+        return None;
+    };
     let client_address = hello
         .peer_address
         .clone()
@@ -135,6 +182,7 @@ fn admit(st: &State, hello: &Hello) -> Option<Admitted> {
     };
     if rejects(&st.opts, &input) {
         tracing::debug!(client = %client_address.host, "server: firewall refused the client");
+        log_silent(hello, "firewall_refused", Some(&remote_public_key));
         return None;
     }
     let direct = hello.peer_address.is_none();

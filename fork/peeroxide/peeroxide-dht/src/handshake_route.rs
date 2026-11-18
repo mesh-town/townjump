@@ -81,6 +81,11 @@ pub(crate) fn relay_target(
     }
 }
 
+/// First four bytes of a key as hex, for log lines.
+pub(crate) fn key_tag(key: &[u8]) -> String {
+    key.iter().take(4).map(|b| format!("{b:02x}")).collect()
+}
+
 #[cfg(test)]
 #[path = "handshake_route_tests.rs"]
 mod tests;
