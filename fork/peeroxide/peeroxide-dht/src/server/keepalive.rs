@@ -176,3 +176,7 @@ mod tests;
 #[cfg(test)]
 #[path = "keepalive_drop_tests.rs"]
 mod drop_tests;
+
+#[cfg(test)]
+#[path = "keepalive_early_tests.rs"]
+mod early_tests;
