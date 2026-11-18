@@ -8,6 +8,7 @@ use std::time::Duration;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::oneshot;
 use tokio::task::JoinSet;
+use tokio::time::Instant;
 
 use super::actor::{Command, relay_addresses};
 use crate::crypto::hash;
@@ -80,9 +81,9 @@ impl Keepalive {
     /// Runs until the actor is gone; `Server` aborts it on `close` and drop.
     pub(super) async fn run(self) {
         let mut retries = 0usize;
-        let mut pause = self.period;
         loop {
-            match self.cycle(pause).await {
+            let step = self.period * RETRY_PERIODS[retries.min(RETRY_PERIODS.len() - 1)];
+            match self.cycle(step).await {
                 End::Closed => return,
                 End::Suspended => {}
                 End::Lost | End::Expired => {
@@ -98,40 +99,40 @@ impl Keepalive {
                     };
                 }
             }
-            pause = self.period * RETRY_PERIODS[retries.min(RETRY_PERIODS.len() - 1)];
         }
     }
 
-    /// Up to `rounds` rounds, the first after `first_pause`, the others after `period`; ends at
-    /// the first unhealthy one.
-    async fn cycle(&self, first_pause: Duration) -> End {
-        let mut pause = first_pause;
+    /// Up to `rounds` rounds, each after `period`; ends at the first unhealthy one. `step` is the
+    /// time since the start of the cycle (the end of the last announce) after which a round
+    /// that finds fewer than `MIN_ACTIVE` relays ends the cycle with `Short`.
+    async fn cycle(&self, step: Duration) -> End {
+        let since = Instant::now();
         for _ in 0..self.rounds {
-            tokio::time::sleep(pause).await;
-            pause = self.period;
-            if let Err(end) = self.round().await {
+            tokio::time::sleep(self.period).await;
+            if let Err(end) = self.round(since, step).await {
                 return end;
             }
         }
         End::Expired
     }
 
-    /// Pings every relay the actor holds; `Err(Lost)` when too few answered.
-    async fn round(&self) -> Result<(), End> {
+    /// Pings every relay the actor holds (none: no packets); `Err(Lost)` when too few answered,
+    /// `Err(Short)` when fewer than `MIN_ACTIVE` relays hold the record and `step` has passed.
+    async fn round(&self, since: Instant, step: Duration) -> Result<(), End> {
         let relays = self.relays().await?;
-        if relays.len() < MIN_ACTIVE {
+        let alive = ping_all(self.dht.dht(), &relays).await;
+        if needs_reannounce(alive, relays.len()) {
+            tracing::debug!(alive, total = relays.len(), "server: early re-announce");
+            return Err(End::Lost);
+        }
+        if relays.len() < MIN_ACTIVE && since.elapsed() >= step {
             tracing::debug!(
                 total = relays.len(),
                 "server: too few relays, early re-announce"
             );
             return Err(End::Short);
         }
-        let alive = ping_all(self.dht.dht(), &relays).await;
-        if !needs_reannounce(alive, relays.len()) {
-            return Ok(());
-        }
-        tracing::debug!(alive, total = relays.len(), "server: early re-announce");
-        Err(End::Lost)
+        Ok(())
     }
 
     /// The actor's relay list, or `Err(Suspended)` / `Err(Closed)`.
