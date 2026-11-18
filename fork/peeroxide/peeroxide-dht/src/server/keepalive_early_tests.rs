@@ -12,9 +12,12 @@ use std::time::Duration;
 use tokio::sync::mpsc::{self, UnboundedSender};
 use tokio::time::Instant;
 
+use std::net::UdpSocket;
+
 use super::Keepalive;
 use crate::crypto::hash;
 use crate::hyperdht_messages::RelayInfo;
+use crate::messages::Ipv4Peer;
 use crate::server::actor::Command;
 use crate::server::test_net::{Node, cluster, key, node, within};
 
@@ -41,8 +44,18 @@ async fn retries(pinger: &Node, script: Script, rounds: u32, window: Duration) -
 }
 
 async fn trace(pinger: &Node, script: Script, rounds: u32, window: Duration) -> Trace {
+    trace_with(pinger, script, rounds, window, PERIOD).await
+}
+
+async fn trace_with(
+    pinger: &Node,
+    script: Script,
+    rounds: u32,
+    window: Duration,
+    period: Duration,
+) -> Trace {
     let (tx, mut rx) = mpsc::unbounded_channel();
-    let task = tokio::spawn(keepalive(pinger, tx, rounds).run());
+    let task = tokio::spawn(keepalive_with(pinger, tx, rounds, period).run());
     let mut relays = script.relays;
     let mut seen = Vec::new();
     let mut sets = Vec::new();
@@ -69,14 +82,19 @@ async fn trace(pinger: &Node, script: Script, rounds: u32, window: Duration) -> 
     Trace { relays: seen, sets }
 }
 
-fn keepalive(pinger: &Node, cmd_tx: UnboundedSender<Command>, rounds: u32) -> Keepalive {
+fn keepalive_with(
+    pinger: &Node,
+    cmd_tx: UnboundedSender<Command>,
+    rounds: u32,
+    period: Duration,
+) -> Keepalive {
     let key_pair = key(1);
     Keepalive {
         dht: pinger.handle.clone(),
         cmd_tx,
         target: hash(&key_pair.public_key),
         key_pair,
-        period: PERIOD,
+        period,
         rounds,
     }
 }
@@ -263,4 +281,74 @@ async fn backoff_gives_way_to_three_relays_set_elsewhere() {
         );
     })
     .await
+}
+
+/// Between two re-announces of a server with two answering relays the relays are pinged every
+/// period (one `Relays` question per round), not once per step.
+#[tokio::test]
+async fn one_or_two_relays_are_pinged_between_retries() {
+    within(async {
+        let cl = cluster(2).await;
+        let pinger = node(&cl, false).await;
+        let live: Vec<RelayInfo> = cl.addrs.iter().map(relay).collect();
+        let script = Script {
+            relays: Some(live),
+            switch: None,
+        };
+        let t = trace(&pinger, script, 100, Duration::from_millis(1000)).await;
+        let mut checked = 0;
+        for w in t.sets.windows(2) {
+            let steps = ((w[1] - w[0]).as_millis() / 50) as usize;
+            if steps < 8 {
+                continue;
+            }
+            let rounds = t.relays.iter().filter(|r| r.0 > w[0] && r.0 <= w[1]).count();
+            assert!(
+                rounds + 2 >= steps,
+                "{rounds} relay questions in a step of {steps} periods"
+            );
+            checked += 1;
+        }
+        assert!(checked >= 1, "no step of 8 periods or more in 1 s");
+    })
+    .await
+}
+
+/// One of two relays is lost: the re-announce follows the failed ping round, it does not wait
+/// for the end of the retry step.
+#[tokio::test]
+async fn lost_relay_of_two_reannounces_at_once() {
+    within(async {
+        let period = Duration::from_millis(800);
+        let cl = cluster(2).await;
+        let pinger = node(&cl, false).await;
+        let socket = UdpSocket::bind("127.0.0.1:0").expect("bind the silent socket");
+        let port = socket.local_addr().expect("local_addr").port();
+        let silent = Ipv4Peer {
+            host: "127.0.0.1".into(),
+            port,
+        };
+        let one_dead = vec![relay(&cl.addrs[0]), relay(&silent)];
+        // After the third retry (at 1, 3, 7 periods) the next step is 8 periods.
+        let script = Script {
+            relays: Some(vec![]),
+            switch: Some((3, one_dead)),
+        };
+        let t = trace_with(&pinger, script, 100, period * 17, period).await;
+        assert!(t.sets.len() >= 4, "only {} re-announces", t.sets.len());
+        let gap = t.sets[3] - t.sets[2];
+        assert!(
+            gap < period * 7,
+            "re-announce {gap:?} after the third, the step is 8 periods"
+        );
+        drop(socket);
+    })
+    .await
+}
+
+fn relay(a: &Ipv4Peer) -> RelayInfo {
+    RelayInfo {
+        relay_address: a.clone(),
+        peer_address: a.clone(),
+    }
 }
