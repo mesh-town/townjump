@@ -2,8 +2,10 @@
 //! with a growing pause instead of waiting for the five-minute cycle.
 //!
 //! The timings are scaled: `period` stands for the 3 s ping pause, so the pauses 3, 6, 12, 24,
-//! 48, 60 s of the real task are `period` times 1, 2, 4, 8, 16, 20 here. The node has no peers,
-//! so an announce ends at once with no relays and the timestamps are those of the retries.
+//! 48, 60 s of the real task are `period` times 1, 2, 4, 8, 16, 20 here. The pinging node sits
+//! on a small cluster (`cluster(2)`), so an announce is accepted by at most two relays and the
+//! series grows; on `cluster(8)` three relays accept and the series resets. The timestamps are
+//! those of the retries.
 
 use std::time::Duration;
 
@@ -23,29 +25,48 @@ const PERIOD: Duration = Duration::from_millis(50);
 struct Script {
     /// The relay list answered to `Relays`; `None` = suspended.
     relays: Option<Vec<RelayInfo>>,
+    /// After this many `SetRelays` the actor answers with the second list instead.
+    switch: Option<(usize, Vec<RelayInfo>)>,
+}
+
+/// Instants of the `Relays` commands (with the `SetRelays` count at that time) and of `SetRelays`.
+struct Trace {
+    relays: Vec<(Instant, usize)>,
+    sets: Vec<Instant>,
 }
 
 /// Instants of the `SetRelays` commands (one per finished re-announce) within `window`.
 async fn retries(pinger: &Node, script: Script, rounds: u32, window: Duration) -> Vec<Instant> {
+    trace(pinger, script, rounds, window).await.sets
+}
+
+async fn trace(pinger: &Node, script: Script, rounds: u32, window: Duration) -> Trace {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let task = tokio::spawn(keepalive(pinger, tx, rounds).run());
-    let relays = script.relays;
+    let mut relays = script.relays;
+    let mut seen = Vec::new();
     let mut sets = Vec::new();
     let deadline = Instant::now() + window;
     while let Ok(Some(command)) = tokio::time::timeout_at(deadline, rx.recv()).await {
         match command {
             Command::Relays(reply) => {
+                seen.push((Instant::now(), sets.len()));
                 let _ = reply.send(relays.clone());
             }
             Command::SetRelays(list) => {
                 sets.push(Instant::now());
                 drop(list);
+                if let Some((n, later)) = &script.switch {
+                    if sets.len() >= *n {
+                        relays = Some(later.clone());
+                    }
+                }
             }
             _ => {}
         }
     }
     task.abort();
-    sets
+    Trace { relays: seen, sets }
 }
 
 fn keepalive(pinger: &Node, cmd_tx: UnboundedSender<Command>, rounds: u32) -> Keepalive {
@@ -73,6 +94,7 @@ async fn no_relays_reannounces_after_first_period() {
         let start = Instant::now();
         let script = Script {
             relays: Some(vec![]),
+            switch: None,
         };
         let sets = retries(&pinger, script, 100, Duration::from_millis(400)).await;
         assert!(
@@ -96,6 +118,7 @@ async fn backoff_doubles_up_to_a_minute() {
         let pinger = node(&cl, false).await;
         let script = Script {
             relays: Some(vec![]),
+            switch: None,
         };
         let sets = retries(&pinger, script, 100, Duration::from_millis(4300)).await;
         let got: Vec<u128> = gaps(&sets).iter().map(|g| g.as_millis() / 50).collect();
@@ -124,7 +147,10 @@ async fn two_relays_also_retry_early() {
                 peer_address: a.clone(),
             })
             .collect();
-        let script = Script { relays: Some(live) };
+        let script = Script {
+            relays: Some(live),
+            switch: None,
+        };
         let sets = retries(&pinger, script, 100, Duration::from_millis(1500)).await;
         assert!(
             !sets.is_empty(),
@@ -148,7 +174,10 @@ async fn three_relays_keep_the_five_minute_cycle() {
                 peer_address: a.clone(),
             })
             .collect();
-        let script = Script { relays: Some(live) };
+        let script = Script {
+            relays: Some(live),
+            switch: None,
+        };
         let sets = retries(&pinger, script, 1000, Duration::from_millis(1500)).await;
         assert!(
             sets.is_empty(),
@@ -167,6 +196,7 @@ async fn backoff_resets_once_three_relays_accept() {
         let pinger = node(&cl, false).await;
         let script = Script {
             relays: Some(vec![]),
+            switch: None,
         };
         let sets = retries(&pinger, script, 100, Duration::from_millis(1500)).await;
         let got: Vec<u128> = gaps(&sets).iter().map(|g| g.as_millis() / 50).collect();
@@ -185,12 +215,51 @@ async fn suspended_server_does_not_retry() {
     within(async {
         let cl = cluster(2).await;
         let pinger = node(&cl, false).await;
-        let script = Script { relays: None };
+        let script = Script {
+            relays: None,
+            switch: None,
+        };
         let sets = retries(&pinger, script, 100, Duration::from_millis(1000)).await;
         assert!(
             sets.is_empty(),
             "a suspended server re-announced {} times",
             sets.len()
+        );
+    })
+    .await
+}
+
+/// After a long series, three relays set elsewhere end the backoff: the pings go on every
+/// period, and the next re-announce (after `Expired`) restarts the series at one period.
+#[tokio::test]
+async fn backoff_gives_way_to_three_relays_set_elsewhere() {
+    within(async {
+        let cl = cluster(2).await;
+        let other = cluster(3).await;
+        let pinger = node(&cl, false).await;
+        let live: Vec<RelayInfo> = other
+            .addrs
+            .iter()
+            .map(|a| RelayInfo {
+                relay_address: a.clone(),
+                peer_address: a.clone(),
+            })
+            .collect();
+        let script = Script {
+            relays: Some(vec![]),
+            switch: Some((5, live)),
+        };
+        let t = trace(&pinger, script, 3, Duration::from_millis(4300)).await;
+        let late: Vec<Instant> = t.relays.iter().filter(|r| r.1 >= 5).map(|r| r.0).collect();
+        assert!(
+            late.len() >= 5,
+            "only {} relay queries after the switch",
+            late.len()
+        );
+        let got: Vec<u128> = gaps(&late).iter().map(|g| g.as_millis() / 50).collect();
+        assert!(
+            got.iter().all(|g| *g <= 2),
+            "pause stayed long after three relays: {got:?}"
         );
     })
     .await
