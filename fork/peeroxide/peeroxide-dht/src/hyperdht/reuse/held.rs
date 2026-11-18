@@ -143,6 +143,14 @@ impl Reuse {
     /// Hold a punch socket after the connect (never the node's IO socket: it would steal
     /// the node's receive path). `None`: cleared, no runtime, or `recv_start` failed.
     pub(crate) fn hold(&self, socket: &UdxSocket) -> Option<Lease> {
+        #[cfg(test)]
+        if self
+            .inner
+            .fail_next_hold
+            .swap(false, std::sync::atomic::Ordering::Relaxed)
+        {
+            return None;
+        }
         let mut st = lock(&self.inner);
         if st.closed {
             return None;

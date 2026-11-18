@@ -97,6 +97,29 @@ mod accepted_punched_connection {
     }
 }
 
+mod punched_without_a_lease {
+    use super::*;
+
+    #[tokio::test]
+    async fn punched_connection_without_a_lease_adds_no_route() {
+        within(async {
+            // given: both nodes firewalled; B's next hold fails (no lease)
+            let mut l = both_listen(true, reusable(true), reusable(true)).await;
+            l.b.handle.reuse.fail_next_hold();
+            // when: A connects to B
+            let (_client, accepted) = a_dials_b(&mut l, true, true).await;
+            // then: B holds nothing and keeps no route (a record would have no reader)
+            assert!(
+                !l.b.handle.reuse.is_held(&accepted.socket),
+                "B holds the socket"
+            );
+            let n = l.b.handle.reuse.route_sockets(&l.a_key.public_key).len();
+            assert_eq!(n, 0, "route added on a socket nobody holds");
+        })
+        .await;
+    }
+}
+
 mod either_side_not_reusable {
     use super::*;
 
@@ -230,6 +253,7 @@ mod listener_is_gone {
             l.a.server.close().await.ok();
             drop(client);
             // when: B dials A (the route leads to a socket nobody answers on)
+            let hits = l.b.handle.reuse.hits();
             let started = std::time::Instant::now();
             let opts = connect_opts(false, true);
             let res = l.b.connect(&l.b_key, l.a_key.public_key, opts).await;
@@ -239,6 +263,7 @@ mod listener_is_gone {
                 "unexpected result: {:?}",
                 res.map(|_| ())
             );
+            assert_eq!(l.b.handle.reuse.hits(), hits + 1, "B did not try the route");
             assert!(
                 started.elapsed() < Duration::from_secs(15),
                 "dial-back hung"

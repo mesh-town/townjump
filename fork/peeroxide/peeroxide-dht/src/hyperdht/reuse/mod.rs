@@ -41,6 +41,9 @@ struct Inner {
     /// Test hook: the next route retry fails before its handshake.
     #[cfg(test)]
     fail_next_route: AtomicBool,
+    /// Test hook: the next `hold` returns no lease.
+    #[cfg(test)]
+    fail_next_hold: AtomicBool,
 }
 
 /// Socket-pool store; clones share one state. Timers, forwarders and leases hold only `Weak`.
@@ -68,6 +71,8 @@ impl Reuse {
                 drops: AtomicU64::new(0),
                 #[cfg(test)]
                 fail_next_route: AtomicBool::new(false),
+                #[cfg(test)]
+                fail_next_hold: AtomicBool::new(false),
             }),
         }
     }
@@ -100,6 +105,12 @@ impl Reuse {
         let st = lock(&self.inner);
         let records = st.routes.get(key);
         records.map_or_else(Vec::new, |r| r.iter().map(|k| k.socket.clone()).collect())
+    }
+
+    /// Test hook: make the next `hold` return no lease (as when `recv_start` fails).
+    #[cfg(test)]
+    pub(crate) fn fail_next_hold(&self) {
+        self.inner.fail_next_hold.store(true, Ordering::Relaxed);
     }
 
     #[cfg_attr(not(test), allow(dead_code))]
