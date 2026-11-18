@@ -158,8 +158,19 @@ class ReleaseWiring(unittest.TestCase):
         text = release_text()
         for name in PUBLISHING:
             self.assertEqual(if_of(job(text, name)), GATE, name)
-        for name in ("check-tag", "build", "windows-installer"):
+        for name in ("check-tag", "windows-installer"):
             self.assertIsNone(if_of(job(text, name)), name)
+        self.assertEqual(if_of(job(text, "build")), "${{ !inputs.npm_only }}")
+
+    def test_npm_only_dispatch(self):
+        text = release_text()
+        m = re.search(r"^  workflow_dispatch:\n(.*?)(?=^\S)", text, re.S | re.M)
+        self.assertRegex(m.group(1), r"npm_only:\n(?:\s+.*\n)*?\s+type: boolean\n(?:\s+.*\n)*?\s+default: false")
+        block = job(text, "npm")
+        cond = " ".join(re.search(r"^    if: >-\n((?:      .*\n)+)", block, re.M).group(1).split())
+        self.assertTrue(cond.startswith("!cancelled() && needs.check-tag.result == 'success' &&"), cond)
+        self.assertIn("inputs.npm_only ||", cond)
+        self.assertIn("needs.publish.result == 'success' && " + GATE, cond)
 
     def test_expected_assets_include_android(self):
         script = (DIR.parent.parent / "scripts" / "dist" / "publish.sh").read_text()

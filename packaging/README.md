@@ -40,6 +40,14 @@ It does not create a release and runs none of the publishing jobs (`publish`,
 with `publish` enabled. The Android binary is not executed there (foreign
 architecture); only its ELF header is checked.
 
+npm only: when the release was published without this workflow (its assets
+uploaded by hand, for example while no macOS runner is available), start
+`release` by hand with `npm_only` enabled. It skips every build and the other
+publishing jobs and runs only `npm`, which takes the assets of the existing
+GitHub release `v<version>` (version from `Cargo.toml` of the chosen ref).
+npm trusted publishing is bound to this workflow file, so npm cannot be
+published from another one.
+
 Settings (repository variable and secrets; an empty secret skips the step
 with a `::notice::`, it does not fail the release):
 

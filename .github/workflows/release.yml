@@ -9,6 +9,10 @@ on:
         description: Publish for real (only honored on a v* tag); the default is a dry run that builds everything and pushes nothing
         type: boolean
         default: false
+      npm_only:
+        description: Skip the builds and publish only the npm packages, from the GitHub release of the Cargo.toml version that already exists (assets uploaded by hand)
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -43,6 +47,8 @@ jobs:
   build:
     name: build (${{ matrix.target }})
     needs: check-tag
+    # Without builds, windows-installer, publish and the jobs after publish are skipped as well.
+    if: ${{ !inputs.npm_only }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -253,7 +259,11 @@ jobs:
   npm:
     name: npm
     needs: [check-tag, publish]
-    if: startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.publish)
+    # npm_only runs with publish skipped: the release was published outside this run.
+    if: >-
+      !cancelled() && needs.check-tag.result == 'success' &&
+      (inputs.npm_only ||
+      (needs.publish.result == 'success' && startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'push' || inputs.publish)))
     runs-on: ubuntu-24.04
     permissions:
       contents: read
