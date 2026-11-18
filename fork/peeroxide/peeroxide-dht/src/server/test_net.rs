@@ -50,6 +50,55 @@ pub(super) struct Served {
     _task: JoinHandle<Result<(), HyperDhtError>>,
 }
 
+impl Served {
+    /// The UDX runtime of this server's node.
+    pub(super) fn rt(&self) -> &UdxRuntime {
+        &self._rt
+    }
+
+    /// Connects from this node (as `from`) to the peer listening on `to`.
+    pub(super) async fn connect(
+        &self,
+        from: &KeyPair,
+        to: [u8; 32],
+        opts: hyperdht::ConnectOpts,
+    ) -> Result<PeerConnection, HyperDhtError> {
+        let rt = self.rt();
+        self.handle
+            .connect_with_options(from, to, &[], rt, opts)
+            .await
+    }
+}
+
+/// Two nodes that both listen (A on `key(2)`, B on `key(1)`), on one cluster.
+pub(super) struct Listening {
+    pub(super) _cluster: Cluster,
+    pub(super) a: Served,
+    pub(super) b: Served,
+    pub(super) a_key: KeyPair,
+    pub(super) b_key: KeyPair,
+}
+
+/// Starts [`Listening`]: both nodes firewalled (punch) or both open (direct); `a_opts` and
+/// `b_opts` are the nodes' server options.
+pub(super) async fn both_listen(
+    firewalled: bool,
+    a_opts: ServerOpts,
+    b_opts: ServerOpts,
+) -> Listening {
+    let cluster = cluster(3).await;
+    let (a_key, b_key) = (key(2), key(1));
+    let a = serve(node(&cluster, firewalled).await, &a_key, a_opts).await;
+    let b = serve(node(&cluster, firewalled).await, &b_key, b_opts).await;
+    Listening {
+        _cluster: cluster,
+        a,
+        b,
+        a_key,
+        b_key,
+    }
+}
+
 fn peer(port: u16) -> Ipv4Peer {
     Ipv4Peer {
         host: "127.0.0.1".into(),

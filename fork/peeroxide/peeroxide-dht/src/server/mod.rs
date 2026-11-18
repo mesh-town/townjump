@@ -44,6 +44,8 @@ mod relay_upgrade_tests;
 mod reply;
 mod reply_build;
 #[cfg(test)]
+mod reuse_live_incoming_tests;
+#[cfg(test)]
 mod reuse_live_tests;
 mod table;
 #[cfg(test)]
