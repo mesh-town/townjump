@@ -94,6 +94,14 @@ impl Reuse {
         self.inner.fail_next_route.swap(false, Ordering::Relaxed)
     }
 
+    /// Test view: the sockets of the records kept for `key`.
+    #[cfg(test)]
+    pub(crate) fn route_sockets(&self, key: &[u8; 32]) -> Vec<UdxSocket> {
+        let st = lock(&self.inner);
+        let records = st.routes.get(key);
+        records.map_or_else(Vec::new, |r| r.iter().map(|k| k.socket.clone()).collect())
+    }
+
     #[cfg_attr(not(test), allow(dead_code))]
     pub(crate) fn hits(&self) -> u64 {
         self.inner.hits.load(Ordering::Relaxed)
