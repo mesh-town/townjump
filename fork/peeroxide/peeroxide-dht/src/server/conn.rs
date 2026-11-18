@@ -79,6 +79,17 @@ pub(super) fn to_socket_addr(peer: &Ipv4Peer) -> Option<SocketAddr> {
     format!("{}:{}", peer.host, peer.port).parse().ok()
 }
 
+/// A socket address as `Ipv4Peer`; `None` for IPv6 (there are no IPv6 routes).
+fn ipv4_peer(addr: SocketAddr) -> Option<Ipv4Peer> {
+    let SocketAddr::V4(v4) = addr else {
+        return None;
+    };
+    Some(Ipv4Peer {
+        host: v4.ip().to_string(),
+        port: v4.port(),
+    })
+}
+
 /// Sends first: connects the stream to `addr`, then finishes the connection.
 pub(super) async fn dial(p: Pending, addr: SocketAddr, tx: mpsc::Sender<PeerConnection>) {
     if let Err(e) = p.stream.connect(&p.socket, p.remote_udx_id, addr).await {
@@ -114,13 +125,20 @@ pub(super) async fn finish(p: Pending, addr: SocketAddr, tx: mpsc::Sender<PeerCo
         return;
     };
     let key = noise.remote_public_key;
-    let lease = keep.and_then(|k| {
+    let lease = keep.as_ref().and_then(|k| {
         if punched {
             k.hold(&socket)
         } else {
             k.lease(&socket)
         }
     });
+    // JS `server.js:337`: the accepting side remembers the client as a route too. A punch socket
+    // only with a lease (without one it could expire and leave the record without a reader).
+    if let (Some(keep), Some(peer)) = (&keep, ipv4_peer(addr))
+        && (!punched || lease.is_some())
+    {
+        keep.add_route(key, &socket, peer);
+    }
     tracing::debug!(%addr, punched, kept = lease.is_some(), "server: connection socket");
     let mut conn = PeerConnection::with_remote_addr(session, key, addr, socket, None);
     if let Some(lease) = lease {
