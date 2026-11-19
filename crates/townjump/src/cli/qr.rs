@@ -1,5 +1,5 @@
 // JS: qrcode-terminal 0.12.0 (`qrcode.generate(url, { small: true })`), error correction L, half blocks.
-// See also: banner.rs; checked against testvectors/holesail-cli/golden/ (the `qrcode` crate first, the port where they differ).
+// See also: banner.rs; checked against testvectors/holesail-cli/golden/. The encoder is a port of qrcode-terminal (encode/matrix/lost/tables), not the `qrcode` crate.
 
 mod encode;
 mod lost;
