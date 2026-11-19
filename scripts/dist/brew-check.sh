@@ -45,12 +45,17 @@ tap=local/townjump-check
 work="$(mktemp -d)"
 installed=""
 
+# Probe a command by its help: `brew commands` may not list it (it was not listed on CI runners in 11.2026).
+has_brew_command() {
+  brew "$1" --help > /dev/null 2>&1
+}
+
 cleanup() {
   local rc=$?
   trap - EXIT
   if [ -n "$installed" ]; then brew uninstall --formula "$tap/townjump" > /dev/null 2>&1 || true; fi
   if brew tap | grep -qx "$tap"; then
-    if brew commands 2> /dev/null | grep -qx untrust; then brew untrust --tap "$tap" > /dev/null 2>&1 || true; fi
+    if has_brew_command untrust; then brew untrust --tap "$tap" > /dev/null 2>&1 || true; fi
     brew untap "$tap" > /dev/null 2>&1 || true
   fi
   rm -rf "$work"
@@ -62,7 +67,8 @@ trap cleanup EXIT
 if brew tap | grep -qx "$tap"; then brew untap "$tap" > /dev/null 2>&1 || true; fi
 
 brew tap-new --no-git "$tap" > /dev/null
-if brew commands 2> /dev/null | grep -qx trust; then brew trust "$tap"; fi
+# Homebrew refuses to load formulae from an untrusted tap; versions without `brew trust` load them anyway.
+if has_brew_command trust; then brew trust --tap "$tap"; fi
 tap_dir="$(brew --repository "$tap")"
 mkdir -p "$tap_dir/Formula"
 cp "$formula" "$tap_dir/Formula/townjump.rb"

@@ -84,6 +84,25 @@ async fn open_pair_with_bad_client_id_counts_an_error() {
     assert_eq!(relay.stats().streams_errors, 1);
 }
 
+/// A failure in the middle of `wire_pair` (the second socket is not bound, so its stream cannot attach)
+/// leaves no open stream behind: every stream counted as opened is counted as closed, and the error is counted once.
+#[tokio::test]
+async fn failure_in_the_middle_of_wiring_balances_the_stream_counters() {
+    let (runtime, socket) = loopback().await;
+    let unbound = runtime.create_socket().await.expect("socket");
+    let relay = matched_server();
+
+    let result = open_pair(&runtime, [&socket, &unbound], &relay, [41, 42], [100, 200]).await;
+
+    assert!(result.is_err(), "second stream must fail to attach");
+    let stats = relay.stats();
+    assert_eq!(stats.streams_errors, 1);
+    assert_eq!(
+        stats.streams_opened, stats.streams_closed,
+        "streams opened before the failure are dropped and must be counted as closed"
+    );
+}
+
 #[tokio::test]
 async fn unpair_from_one_side_tears_down_both_streams() {
     let (runtime, socket) = loopback().await;

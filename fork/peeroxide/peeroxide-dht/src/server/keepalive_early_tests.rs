@@ -303,7 +303,11 @@ async fn one_or_two_relays_are_pinged_between_retries() {
             if steps < 8 {
                 continue;
             }
-            let rounds = t.relays.iter().filter(|r| r.0 > w[0] && r.0 <= w[1]).count();
+            let rounds = t
+                .relays
+                .iter()
+                .filter(|r| r.0 > w[0] && r.0 <= w[1])
+                .count();
             assert!(
                 rounds + 2 >= steps,
                 "{rounds} relay questions in a step of {steps} periods"

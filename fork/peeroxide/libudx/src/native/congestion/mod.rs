@@ -259,7 +259,7 @@ impl CongestionController {
 
         // Mark app-limited during ProbeRtt (C: bbr_main sets app_limited after ProbeRtt)
         if self.bbr.mode() == BbrMode::ProbeRtt {
-            self.app_limited = (self.delivered + inflight).max(1);
+            self.app_limited = self.delivered.wrapping_add(inflight).max(1);
         }
         tracing::debug!(
             mode = ?self.bbr.mode(),
@@ -367,7 +367,7 @@ impl CongestionController {
     /// Update app-limited state before each packet send (C: `udx__rate_check_app_limited`).
     pub(crate) fn check_app_limited(&mut self, queued_bytes: usize, inflight: u32) {
         if self.is_app_limited(queued_bytes, inflight, false) {
-            self.app_limited = (self.delivered + inflight).max(1);
+            self.app_limited = self.delivered.wrapping_add(inflight).max(1);
         }
     }
 }
