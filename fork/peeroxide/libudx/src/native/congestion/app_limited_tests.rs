@@ -158,3 +158,17 @@ fn seq_helpers_compare_across_the_wrap() {
     assert!(seq_ge(0, u32::MAX));
     assert!(!seq_ge(u32::MAX, 0));
 }
+
+/// `delivered + inflight` is u32 arithmetic in C and wraps; in debug Rust a plain `+` would panic.
+#[test]
+fn app_limited_wraps_at_u32_max() {
+    let mut c = CongestionController::new(1180, 100);
+    c.app_limited = 0;
+    c.delivered = u32::MAX - 1;
+    c.check_app_limited(0, 3);
+    assert_eq!(c.app_limited, 1, "(MAX - 1) + 3 wraps to 1");
+    c.app_limited = 0;
+    c.delivered = u32::MAX;
+    c.check_app_limited(0, 1);
+    assert_eq!(c.app_limited, 1, "a wrapped sum of 0 is clamped to 1");
+}
