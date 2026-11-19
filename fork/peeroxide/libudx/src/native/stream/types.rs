@@ -43,6 +43,8 @@ pub(super) struct SentPacket {
 pub(super) struct RecvdPacket {
     pub(super) payload: Vec<u8>,
     pub(super) flags: u8,
+    /// Arrival mark: the receiver's monotonic counter at insertion (not a time); see `sack_select.rs`.
+    pub(super) stamp: u64,
 }
 
 pub(super) struct QueuedPacket {

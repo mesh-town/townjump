@@ -30,6 +30,8 @@ pub(crate) struct StreamInner {
     pub(super) remote_acked: u32,
     /// Out-of-order receive buffer, keyed by sequence number.
     pub(super) recv_buf: BTreeMap<Seq, RecvdPacket>,
+    /// Counter of out-of-order arrivals; each `recv_buf` entry takes the next value as its `stamp`.
+    pub(super) recv_stamp: u64,
     /// The peer's END was delivered to the reader (JS `UDX_STREAM_ENDED_REMOTE`).
     pub(super) remote_ended: bool,
     /// Largest window we advertise (`set_recv_window_max`; default `DEFAULT_RWND`).

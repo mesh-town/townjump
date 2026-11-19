@@ -20,6 +20,7 @@ impl StreamInner {
             next_remote_seq: 0,
             remote_acked: 0,
             recv_buf: BTreeMap::new(),
+            recv_stamp: 0,
             remote_ended: false,
             recv_rwnd_max: DEFAULT_RWND,
             unread: 0,

@@ -254,6 +254,7 @@ fn buffer_out_of_order(inner: &mut StreamInner, seq: u32) {
     let packet = RecvdPacket {
         payload: Vec::new(),
         flags: 0,
+        stamp: 0,
     };
     inner.recv_buf.insert(Seq(seq), packet);
 }

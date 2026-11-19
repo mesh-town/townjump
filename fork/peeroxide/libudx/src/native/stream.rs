@@ -84,6 +84,9 @@ mod relay_leak_tests;
 mod relay_path;
 mod retransmit;
 mod sack;
+mod sack_select;
+#[cfg(test)]
+mod sack_select_tests;
 mod send_batch;
 mod send_knobs;
 mod send_queue;

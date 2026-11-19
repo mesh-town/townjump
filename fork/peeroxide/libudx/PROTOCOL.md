@@ -58,6 +58,12 @@ to 50 blocks right after the 20-byte header (packet length `20 + 8n`), as the C
 reference does. A block is a pair `(start, end)` of sequence numbers encoded as LE
 u32 values (8 bytes), meaning `[start, end)`.
 
+When the receiver holds more than 50 ranges, the ACK carries the 50 that changed
+most recently (each buffered packet is stamped with a monotonic arrival counter; a
+range takes the newest stamp of its packets, so a range that grew or merged counts
+as fresh), not the 50 lowest by sequence number. Blocks stay in ascending sequence
+order in the packet. Every arrival is thus announced in the ACK it triggers.
+
 On receive the block area is `header_len` bytes, where `header_len = data_offset`
 if `0 < data_offset < payload_len`, otherwise `payload_len`; the number of
 blocks is `header_len / 8` (a trailing partial block is dropped). The older
@@ -209,7 +215,8 @@ C reference:
 - Async shutdown drains queued packets but does not wait for ACK/retransmit
   completion after drop
 - `check_app_limited()` always evaluates with `retransmit_pending = false`
-- Loss detection uses simplified SACK-gap rule, not full RACK timing logic
+- Loss is marked by time (RACK, RFC 8985: a packet is lost once a later-sent one
+  is delivered and its time allowance has run out), not by a SACK-gap count
 - Tail loss probe (TLP) is not implemented; the window field in ACK/HEARTBEAT is
   the constant `DEFAULT_RWND` (C reference: current receive window)
 - `UdxError::Uv(i32)` exists for API compatibility but is never emitted

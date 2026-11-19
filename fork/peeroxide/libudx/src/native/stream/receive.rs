@@ -115,7 +115,13 @@ impl StreamInner {
             if let std::collections::btree_map::Entry::Vacant(slot) = self.recv_buf.entry(Seq(seq))
             {
                 self.recv_buf_bytes += payload.len();
-                slot.insert(RecvdPacket { payload, flags });
+                self.recv_stamp += 1;
+                let stamp = self.recv_stamp;
+                slot.insert(RecvdPacket {
+                    payload,
+                    flags,
+                    stamp,
+                });
             }
         }
 
@@ -125,38 +131,10 @@ impl StreamInner {
 
     // ── SACK generation ──────────────────────────────────────────────────────
 
-    /// Compute SACK ranges from the out-of-order receive buffer.
-    /// Returns contiguous ranges of received sequence numbers that are
-    /// beyond the cumulative ACK point.
+    /// SACK ranges of the out-of-order buffer: all of them up to `MAX_SACK_RANGES`, else the most recently changed
+    /// ones; always in ascending seq order (`sack_select.rs`).
     pub(super) fn sack_ranges(&self) -> Vec<SackRange> {
-        if self.recv_buf.is_empty() {
-            return Vec::new();
-        }
-
-        let mut ranges = Vec::new();
-        let mut iter = self.recv_buf.keys();
-
-        if let Some(&Seq(first)) = iter.next() {
-            let mut start = first;
-            let mut end = first.wrapping_add(1);
-
-            for &Seq(seq) in iter {
-                if seq == end {
-                    // Extend current range
-                    end = seq.wrapping_add(1);
-                } else {
-                    // Gap found: close current range, start new one
-                    ranges.push(SackRange { start, end });
-                    if ranges.len() >= MAX_SACK_RANGES {
-                        return ranges;
-                    }
-                    start = seq;
-                    end = seq.wrapping_add(1);
-                }
-            }
-            ranges.push(SackRange { start, end });
-        }
-        ranges
+        super::sack_select::select_ranges(&self.recv_buf)
     }
 }
 

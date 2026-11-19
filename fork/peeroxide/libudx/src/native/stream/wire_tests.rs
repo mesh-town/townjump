@@ -238,6 +238,7 @@ fn out_of_order() -> RecvdPacket {
     RecvdPacket {
         payload: Vec::new(),
         flags: 0,
+        stamp: 0,
     }
 }
 
