@@ -1,6 +1,7 @@
 //! Choice of SACK ranges over 50: the most recently changed ranges, in seq order (`sack_select.rs`).
 use super::*;
 use crate::native::header::{FLAG_DATA, SackRange};
+use crate::native::stream::sack_select::select_ranges;
 use crate::native::stream::test_support::stream_inner;
 use std::collections::HashSet;
 
@@ -134,4 +135,92 @@ fn stamps_survive_the_seq_wrap() {
     assert_eq!(ranges.len(), 50);
     assert!(ascending(&ranges), "{:?}", starts(&ranges));
     assert_eq!(ranges.last(), Some(&single(top)));
+}
+
+/// The rule before the freshness choice: one walk up the seq order, stop at the 50th range.
+fn lowest_first(buf: &BTreeMap<Seq, RecvdPacket>) -> Vec<SackRange> {
+    let mut ranges: Vec<SackRange> = Vec::new();
+    let mut open: Option<(u32, u32)> = None;
+    for &Seq(seq) in buf.keys() {
+        match open {
+            Some((start, end)) if seq == end => open = Some((start, seq.wrapping_add(1))),
+            Some((start, end)) => {
+                ranges.push(SackRange { start, end });
+                if ranges.len() >= 50 {
+                    return ranges;
+                }
+                open = Some((seq, seq.wrapping_add(1)));
+            }
+            None => open = Some((seq, seq.wrapping_add(1))),
+        }
+    }
+    if let Some((start, end)) = open {
+        ranges.push(SackRange { start, end });
+    }
+    ranges
+}
+
+/// Fixed-seed xorshift64: layouts are random but the same on every run.
+struct Xorshift(u64);
+
+impl Xorshift {
+    fn next(&mut self) -> u64 {
+        self.0 ^= self.0 << 13;
+        self.0 ^= self.0 >> 7;
+        self.0 ^= self.0 << 17;
+        self.0
+    }
+
+    fn below(&mut self, n: u64) -> u64 {
+        self.next() % n
+    }
+}
+
+/// `count` separate ranges (1..=3 packets each, 1..=3 missing seqs between), random non-monotonic stamps.
+fn layout(rng: &mut Xorshift, count: usize) -> BTreeMap<Seq, RecvdPacket> {
+    let mut seq = if rng.below(4) == 0 {
+        MAX - rng.below(200) as u32
+    } else {
+        rng.below(1 << 20) as u32 + 10
+    };
+    let mut buf = BTreeMap::new();
+    for _ in 0..count {
+        for _ in 0..=rng.below(3) {
+            let stamp = rng.next();
+            let packet = RecvdPacket {
+                payload: Vec::new(),
+                flags: 0,
+                stamp,
+            };
+            buf.insert(Seq(seq), packet);
+            seq = seq.wrapping_add(1);
+        }
+        seq = seq.wrapping_add(1 + rng.below(3) as u32);
+    }
+    buf
+}
+
+#[test]
+fn fifty_or_fewer_ranges_match_the_lowest_first_rule() {
+    const SEED: u64 = 0x9E37_79B9_7F4A_7C15;
+    const LAYOUTS: usize = 2000;
+    let mut rng = Xorshift(SEED);
+    for n in 0..LAYOUTS {
+        let count = match n % 8 {
+            0 => 0,
+            1 => 1,
+            2 => 49,
+            3 => 50,
+            _ => rng.below(51) as usize,
+        };
+        let buf = layout(&mut rng, count);
+        let want = lowest_first(&buf);
+        assert_eq!(want.len(), count, "oracle range count, layout {n}");
+        let got = select_ranges(&buf);
+        assert!(
+            got == want,
+            "seed {SEED:#x}, layout {n}, {count} ranges\nseqs and stamps: {:?}\nwant {want:?}\ngot  {got:?}",
+            buf.iter().map(|(s, p)| (s.0, p.stamp)).collect::<Vec<_>>()
+        );
+    }
 }
