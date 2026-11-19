@@ -40,6 +40,8 @@ mod relay_flow_tests;
 #[cfg(test)]
 mod relay_limits_tests;
 #[cfg(test)]
+mod relay_pair_fail_tests;
+#[cfg(test)]
 mod relay_retry_tests;
 #[cfg(test)]
 mod relay_upgrade_tests;
