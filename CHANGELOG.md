@@ -3,6 +3,15 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## 0.1.25
+
+- Fix: a relay counts a relayed stream as opened only once both ends of the pair are wired, as JavaScript
+  blind-relay does. A failure in the middle of wiring no longer leaves the opened and closed stream counters apart.
+- Fix: the congestion controller's app-limited mark wraps at 2^32 delivered packets instead of overflowing.
+- Homebrew formula check works with Homebrew versions that require `brew trust` for a local tap.
+- More tests: relay pairing failures, stream limits on relayed connections, retransmission timeout during ProbeRTT,
+  server errors before start.
+
 ## 0.1.24
 
 - Fix: a server that accepted a connection now keeps a route back to the client, so it can open new streams to that
