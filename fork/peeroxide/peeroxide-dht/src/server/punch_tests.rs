@@ -23,6 +23,7 @@ fn state(round: u64) -> PunchState {
         punching: false,
         stop: None,
         follow: None,
+        lan_hosts: Vec::new(),
     }
 }
 

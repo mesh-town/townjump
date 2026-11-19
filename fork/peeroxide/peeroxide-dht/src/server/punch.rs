@@ -37,6 +37,8 @@ pub(super) struct PunchState {
     pub(super) stop: Option<oneshot::Sender<()>>,
     /// Where to report a UDX frame on a puzzle socket.
     follow: Option<FollowStream>,
+    /// Private hosts of a client behind our own address, probed on every round (`punch_lan`).
+    pub(super) lan_hosts: Vec<String>,
 }
 
 /// What the actor does with the answer of one round.
@@ -136,7 +138,7 @@ fn puzzle_pool(follow: Option<FollowStream>) -> (SocketPool, Option<JoinHandle<(
 }
 
 impl PunchState {
-    fn new(puncher: Holepuncher, punch_addrs: Vec<Ipv4Peer>) -> Self {
+    pub(super) fn new(puncher: Holepuncher, punch_addrs: Vec<Ipv4Peer>) -> Self {
         Self {
             puncher: Some(puncher),
             punch_addrs,
@@ -145,6 +147,7 @@ impl PunchState {
             punching: false,
             stop: None,
             follow: None,
+            lan_hosts: Vec::new(),
         }
     }
 
@@ -276,6 +279,7 @@ pub(super) fn round(
     let echoed = is_relay && remote.remote_token == Some(token);
     st.observe(&remote, echoed.then_some(peer_address.host.as_str()));
     st.fast_ping(remote.remote_address.as_ref(), peer_address);
+    st.lan_ping(peer_address, remote.round);
     if st.vetoed(&remote, filter) {
         return st.abort(remote.round);
     }

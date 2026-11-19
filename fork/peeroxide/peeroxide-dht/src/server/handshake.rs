@@ -15,6 +15,7 @@ use super::plan::{
     Plan, client_agrees, client_lan, dial_from_arrival, plan, reply_from_puncher, same_host,
 };
 use super::punch::PunchState;
+use super::punch_lan::lan_hosts;
 use super::relay;
 use super::reply::{Ours, encode_reply, handshake_payload, reply_error};
 use super::reply_build::{Prepared, dial_client, ours, prepare, refuse};
@@ -234,6 +235,9 @@ async fn respond(
         .await
         .inspect_err(|e| tracing::debug!(err = %e, "server: sockets not ready"))
         .ok()?;
+    if let Some(punch) = prep.punch.as_mut() {
+        punch.lan_hosts = lan_hosts(same, &adm.remote.addresses4);
+    }
     match wire(st, id, adm, plan, &mut prep, firewall, internal).await {
         Ok(built) => Some(built),
         Err(e) => {

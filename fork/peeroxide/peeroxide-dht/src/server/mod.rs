@@ -34,6 +34,7 @@ mod lan_pick_dial_tests;
 mod opts;
 mod plan;
 mod punch;
+mod punch_lan;
 mod relay;
 #[cfg(test)]
 mod relay_flow_tests;
