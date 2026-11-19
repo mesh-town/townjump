@@ -52,6 +52,9 @@ fn probe_relay_bin() -> PathBuf {
             "/../../fork/peeroxide/Cargo.toml"
         ))
         .args(["-p", "peeroxide-dht", "--example", "probe_relay"])
+        // The fork is a separate workspace: without this its build lands in the fork's own target.
+        .arg("--target-dir")
+        .arg(&target)
         .status()
         .expect("run cargo build");
     assert!(status.success(), "building probe_relay failed");
