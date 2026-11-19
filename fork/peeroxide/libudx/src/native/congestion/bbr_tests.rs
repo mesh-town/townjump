@@ -666,3 +666,20 @@ mod update_bw_round {
         assert_eq!(b.next_rtt_delivered, 7);
     }
 }
+
+/// An RTO while in ProbeRtt with a shrunken window must not lower the saved window
+/// (C `bbr_save_cwnd`: in ProbeRtt or after a loss the saved value only grows).
+#[test]
+fn rto_in_probe_rtt_keeps_saved_cwnd() {
+    let t0 = Instant::now();
+    let mut b = in_probe_rtt(t0, 30);
+    // ProbeRtt pins the window at 4 packets; the controller saves it on RTO, then notifies BBR.
+    b.save_cwnd(4);
+    b.on_rto();
+    assert_eq!(b.prior_cwnd, 30, "saved window must not shrink in ProbeRtt");
+    assert_eq!(b.mode, BbrMode::ProbeRtt);
+    // A second RTO in a row keeps it too.
+    b.save_cwnd(1);
+    b.on_rto();
+    assert_eq!(b.prior_cwnd, 30);
+}

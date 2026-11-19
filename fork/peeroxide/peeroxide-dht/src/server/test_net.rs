@@ -15,6 +15,7 @@ use crate::crypto::hash;
 use crate::holepuncher::Holepuncher;
 use crate::hyperdht::{
     self, HyperDhtConfig, HyperDhtError, HyperDhtHandle, KeyPair, PeerConnection, ServerEvent,
+    StreamLimits,
 };
 use crate::hyperdht_messages::{
     NoisePayload, PEER_HANDSHAKE, RelayThroughInfo, SecretStreamInfo, UdxInfo,
@@ -117,6 +118,24 @@ async fn spawn_node_on(
     firewalled: bool,
     ephemeral: bool,
 ) -> Node {
+    spawn_node_limited(
+        bootstrap,
+        host,
+        firewalled,
+        ephemeral,
+        StreamLimits::default(),
+    )
+    .await
+}
+
+/// As `spawn_node_on`, with the node-wide stream limits set.
+async fn spawn_node_limited(
+    bootstrap: Vec<String>,
+    host: &str,
+    firewalled: bool,
+    ephemeral: bool,
+    limits: StreamLimits,
+) -> Node {
     let rt = UdxRuntime::new().expect("udx runtime");
     let dht = DhtConfig {
         bootstrap,
@@ -128,6 +147,7 @@ async fn spawn_node_on(
     };
     let cfg = HyperDhtConfig {
         dht,
+        stream_limits: limits,
         ..HyperDhtConfig::default()
     };
     let (task, handle, events) = hyperdht::spawn(&rt, cfg).await.expect("spawn node");
@@ -167,6 +187,23 @@ pub(super) async fn member_on(cluster: &Cluster, host: &str) -> Node {
 pub(super) async fn node(cluster: &Cluster, firewalled: bool) -> Node {
     let port = cluster.addrs[0].port;
     spawn_node(vec![format!("127.0.0.1:{port}")], firewalled, true).await
+}
+
+/// As [`node`], with the node-wide stream limits set.
+pub(super) async fn node_limited(
+    cluster: &Cluster,
+    firewalled: bool,
+    limits: StreamLimits,
+) -> Node {
+    let port = cluster.addrs[0].port;
+    spawn_node_limited(
+        vec![format!("127.0.0.1:{port}")],
+        "127.0.0.1",
+        firewalled,
+        true,
+        limits,
+    )
+    .await
 }
 
 /// As [`node`], bound to `host` instead of `127.0.0.1` (a LAN address of this machine, see
