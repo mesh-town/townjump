@@ -130,6 +130,9 @@ pub(super) async fn bridge_one_pairing(
 
 /// Create the two raw streams, bind each to its client's stream id and relay
 /// packets between them in both directions. Counts opened streams and errors.
+/// A stream counts as opened only once the pair is wired, as in JS blind-relay
+/// (`streams.opened++` in `activate`, after `relayTo`): streams dropped by a
+/// failure in the middle of wiring were never opened, so they are not closed either.
 pub(super) async fn open_pair(
     runtime: &UdxRuntime,
     sockets: [&UdxSocket; 2],
@@ -137,17 +140,19 @@ pub(super) async fn open_pair(
     local_ids: [u32; 2],
     client_ids: [u64; 2],
 ) -> Result<(UdxStream, UdxStream), HyperDhtError> {
-    let opened = wire_pair(runtime, sockets, relay, local_ids, client_ids).await;
+    let opened = wire_pair(runtime, sockets, local_ids, client_ids).await;
     if opened.is_err() {
         relay.note_stream_error();
+        return opened;
     }
+    relay.note_stream_opened();
+    relay.note_stream_opened();
     opened
 }
 
 async fn wire_pair(
     runtime: &UdxRuntime,
     sockets: [&UdxSocket; 2],
-    relay: &BlindRelayServer,
     local_ids: [u32; 2],
     client_ids: [u64; 2],
 ) -> Result<(UdxStream, UdxStream), HyperDhtError> {
@@ -155,11 +160,9 @@ async fn wire_pair(
     let second_remote_id = remote_id(client_ids[1])?;
 
     let first_stream = runtime.create_stream(local_ids[0]).await?;
-    relay.note_stream_opened();
     first_stream.set_firewall_hook(sockets[0], first_remote_id, |_, _, _| true)?;
 
     let second_stream = runtime.create_stream(local_ids[1]).await?;
-    relay.note_stream_opened();
     second_stream.set_firewall_hook(sockets[1], second_remote_id, |_, _, _| true)?;
 
     // Blind, bidirectional packet-level forwarding — peeroxide never reads
