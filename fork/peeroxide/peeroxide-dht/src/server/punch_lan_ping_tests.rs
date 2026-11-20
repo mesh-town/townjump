@@ -86,13 +86,13 @@ async fn puzzle(hosts: Vec<String>) -> (PunchState, UdxRuntime, tokio::net::UdpS
     (st, rt, receiver, port)
 }
 
-fn message(peer_address: Ipv4Peer) -> HolepunchMessage {
+fn message(peer_address: Ipv4Peer, punching: bool) -> HolepunchMessage {
     let payload = HolepunchPayload {
         error: ERROR_NONE,
         firewall: FIREWALL_UNKNOWN,
         round: 1,
         connected: false,
-        punching: false,
+        punching,
         addresses: None,
         remote_address: None,
         token: Some([9; 32]),
@@ -109,6 +109,10 @@ fn message(peer_address: Ipv4Peer) -> HolepunchMessage {
 }
 
 fn one_round(st: &mut PunchState, client: &Ipv4Peer) {
+    run_round(st, client, false);
+}
+
+fn run_round(st: &mut PunchState, client: &Ipv4Peer, punching: bool) {
     let relay = peer("198.51.100.1", 49737);
     let relays = vec![RelayInfo {
         relay_address: relay.clone(),
@@ -116,7 +120,7 @@ fn one_round(st: &mut PunchState, client: &Ipv4Peer) {
     }];
     let r = round(
         st,
-        &message(client.clone()),
+        &message(client.clone(), punching),
         &relay,
         client,
         &relays,
@@ -155,6 +159,22 @@ async fn round_sends_one_probe_byte_to_each_lan_target() {
     let mut buf = [0u8; 64];
     let extra = tokio::time::timeout(Duration::from_millis(300), rx.recv_from(&mut buf)).await;
     assert!(extra.is_err(), "exactly one probe per round");
+    st.destroy();
+}
+
+#[tokio::test]
+async fn final_round_probes_before_the_puzzle_leaves() {
+    let (mut st, _rt, rx, puzzle_port) = puzzle(vec!["127.0.0.1".into()]).await;
+    let client = peer("203.0.113.5", rx.local_addr().expect("addr").port());
+    run_round(&mut st, &client, true);
+    let mut buf = [0u8; 64];
+    let (n, from) = tokio::time::timeout(Duration::from_secs(2), rx.recv_from(&mut buf))
+        .await
+        .expect("probe in 2s")
+        .expect("recv");
+    assert_eq!(n, 1, "probe length");
+    assert_eq!(from.port(), puzzle_port, "source port");
+    assert!(st.puncher.is_none(), "final round hands the puncher away");
     st.destroy();
 }
 
