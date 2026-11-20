@@ -72,4 +72,4 @@ impl PunchState {
 
 #[cfg(test)]
 #[path = "punch_lan_ping_tests.rs"]
-mod punch_lan_ping_tests;
+pub(in crate::server) mod punch_lan_ping_tests;

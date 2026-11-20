@@ -225,7 +225,7 @@ async fn initiator_puncher_connects_on_a_probe_from_an_unlisted_source() {
     }
 }
 
-mod capture {
+pub(in crate::server) mod capture {
     use std::io::{self, Write};
     use std::sync::{Arc, Mutex, OnceLock};
 
@@ -246,7 +246,7 @@ mod capture {
 
     /// Installs a process-wide debug log once (a per-thread subscriber loses events to callsite
     /// interest cached by parallel tests); tests tell their lines apart by a unique port.
-    pub(super) fn start() -> impl Fn(&str) -> usize {
+    pub(in crate::server) fn start() -> impl Fn(&str) -> usize {
         let sink = SINK
             .get_or_init(|| {
                 let sink = Sink::default();

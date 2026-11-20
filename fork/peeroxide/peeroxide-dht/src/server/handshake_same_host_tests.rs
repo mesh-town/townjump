@@ -262,3 +262,6 @@ fn peer(host: &str, port: u16) -> Ipv4Peer {
         port,
     }
 }
+
+#[path = "handshake_lan_ping_tests.rs"]
+mod lan_ping;
