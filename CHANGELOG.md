@@ -3,6 +3,12 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## 0.1.26
+
+- Fix: a server reached from the same public address as the client (both behind one home router, the server also
+  behind a second NAT such as a virtual machine network) now sends a probe to the client's LAN addresses in every punch
+  round. A neighbor on the same LAN connects directly instead of relying on the router to loop traffic back.
+
 ## 0.1.25
 
 - Fix: a relay counts a relayed stream as opened only once both ends of the pair are wired, as JavaScript
