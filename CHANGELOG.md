@@ -3,6 +3,12 @@
 All notable changes are listed here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and the project uses [Semantic Versioning](https://semver.org/).
 
+## 0.1.27
+
+- Fix: when the receiver holds more than 50 out-of-order ranges, an acknowledgement now carries the 50 most recently
+  changed ranges instead of the 50 lowest ones. The sender stops resending packets the receiver already has; on a long
+  lossy path with a large receive window, resent duplicates fall from about a quarter of the upload to almost none.
+
 ## 0.1.26
 
 - Fix: a server reached from the same public address as the client (both behind one home router, the server also
